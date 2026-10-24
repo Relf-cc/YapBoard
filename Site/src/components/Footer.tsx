@@ -1,0 +1,36 @@
+import Link from 'next/link';
+import { Logo } from './Logo';
+
+const COLS: { title: string; links: [string, string][] }[] = [
+  { title: 'Browse', links: [['/servers', 'All servers'], ['/tags', 'Tags'], ['/servers?sort=new', 'New servers'], ['/servers?sort=members', 'Biggest servers']] },
+  { title: 'List yours', links: [['/add', 'Add a server'], ['/dashboard', 'Your servers'], ['/bot', 'The bot']] },
+  { title: 'YapBoard', links: [['/guidelines', 'Listing guidelines'], ['/terms', 'Terms'], ['/privacy', 'Privacy'], ['https://www.yapin.gg', 'Yapin’ ↗']] },
+];
+
+export function Footer() {
+  return (
+    <footer className="mt-24 border-t border-line">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div>
+          <Logo />
+          <p className="mt-3 max-w-xs text-sm text-ink-3 leading-relaxed">The server list for Yapin’. Find people to yap with, or get your community found.</p>
+        </div>
+        {COLS.map((c) => (
+          <div key={c.title}>
+            <h4 className="text-[13px] font-semibold text-ink mb-3">{c.title}</h4>
+            <ul className="space-y-2">
+              {c.links.map(([href, label]) => (
+                <li key={href}>
+                  <Link href={href} className="text-sm text-ink-3 hover:text-ink transition-colors">
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-10 text-xs text-ink-3">YapBoard is a community project and isn’t run by Yapin’.</div>
+    </footer>
+  );
+}

@@ -1,0 +1,197 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Globe2, Pencil, Users } from 'lucide-react';
+import { db } from '@/lib/db';
+import { getUser } from '@/lib/session';
+import { canManageListing, cardSelect, isViewable, toCard } from '@/lib/servers';
+import { compact, timeAgo } from '@/lib/format';
+import { languageName } from '@/lib/languages';
+import { Avatar } from '@/components/Avatar';
+import { TagChip } from '@/components/TagChip';
+import { ServerGrid } from '@/components/ServerGrid';
+import { Reveal } from '@/components/Reveal';
+import { ReportButton } from '@/components/view/ReportButton';
+import { ShareButton } from '@/components/view/ShareButton';
+import { Description } from '@/components/view/Description';
+
+type Props = { params: Promise<{ serverId: string }> };
+
+const load = (id: string) =>
+  db.server.findUnique({
+    where: { id },
+    include: { tags: { include: { tag: true } }, owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+  });
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const s = await load((await params).serverId);
+  if (!s || !isViewable(s.status)) return { title: 'Server not found' };
+  return {
+    title: s.name,
+    description: s.summary,
+    openGraph: { title: s.name, description: s.summary, images: s.iconUrl ? [s.iconUrl] : undefined },
+    robots: s.status === 'UNLISTED' ? { index: false } : undefined,
+  };
+}
+
+export default async function ViewServer({ params }: Props) {
+  const { serverId } = await params;
+  const [s, user] = await Promise.all([load(serverId), getUser()]);
+  const manager = !!s && canManageListing(user, s);
+  // Hidden/removed listings 404 for everyone except their managers and staff.
+  if (!s || (!isViewable(s.status) && !manager)) notFound();
+
+  db.server.update({ where: { id: s.id }, data: { views: { increment: 1 } } }).catch(() => {});
+
+  const tags = s.tags.map((t) => t.tag.name);
+  const similar = tags.length
+    ? (
+        await db.server.findMany({
+          where: { id: { not: s.id }, status: 'PUBLIC', nsfw: s.nsfw ? undefined : false, tags: { some: { tag: { name: { in: tags } } } } },
+          select: cardSelect,
+          orderBy: { bumpedAt: { sort: 'desc', nulls: 'last' } },
+          take: 24,
+        })
+      )
+        .map(toCard)
+        .map((c) => ({ c, shared: c.tags.filter((t) => tags.includes(t)).length }))
+        .sort((a, b) => b.shared - a.shared)
+        .slice(0, 3)
+        .map((x) => x.c)
+    : [];
+
+  const owner = s.owner.displayName || s.owner.username;
+
+  return (
+    <div>
+      {/* banner */}
+      <div className="relative h-40 sm:h-56 overflow-hidden border-b border-line" style={{ background: `color-mix(in srgb, ${s.accent} 22%, var(--bg))` }}>
+        {s.bannerUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
+        ) : (
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-60"
+            style={{
+              backgroundImage: `radial-gradient(circle at 1px 1px, color-mix(in srgb, ${s.accent} 55%, transparent) 1px, transparent 0)`,
+              backgroundSize: '18px 18px',
+            }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg/80 to-transparent" />
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {s.status !== 'PUBLIC' && (
+          <div className="mt-6 flex items-center gap-2.5 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm text-warn">
+            <EyeOff size={16} />
+            {s.status === 'UNLISTED' && 'This server is unlisted. Only people with the link can see it.'}
+            {s.status === 'HIDDEN' && `Hidden by YapBoard staff${s.statusNote ? `: ${s.statusNote}` : '.'} Only you and staff can see this page.`}
+            {s.status === 'REMOVED' && `Removed by YapBoard staff${s.statusNote ? `: ${s.statusNote}` : '.'}`}
+          </div>
+        )}
+
+        <div className="grid gap-10 lg:grid-cols-[1fr_320px]">
+          <div className="min-w-0">
+            <Reveal y={10}>
+              <div className="-mt-12 sm:-mt-14 flex flex-col sm:flex-row sm:items-end gap-5">
+                <Avatar src={s.iconUrl} name={s.name} id={s.id} size={112} className="ring-[6px] ring-bg shadow-xl" />
+                <div className="min-w-0 pb-1">
+                  <h1 className="text-[32px] sm:text-[40px] font-extrabold leading-[1.05] break-words">{s.name}</h1>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Users size={15} />
+                      <span className="text-ink-2 font-medium tabular-nums">{s.memberCount.toLocaleString()}</span> members
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Globe2 size={15} />
+                      {languageName(s.language)}
+                    </span>
+                    {s.nsfw && <span className="rounded px-1.5 py-0.5 text-[11px] font-bold text-danger border border-danger/40">18+</span>}
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.05}>
+              <p className="mt-7 text-[19px] leading-relaxed text-ink">{s.summary}</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {tags.map((t) => (
+                  <TagChip key={t} name={t} />
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-2.5">
+                <a href={`/join/${s.id}`} className="btn btn-primary btn-lg group min-w-40">
+                  Join server
+                  <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </a>
+                <ShareButton url={`/view/${s.id}`} />
+                {manager && (
+                  <Link href={`/manage/${s.id}`} className="btn btn-secondary btn-lg">
+                    <Pencil size={16} />
+                    Edit listing
+                  </Link>
+                )}
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <section className="mt-12">
+                <h2 className="text-lg font-bold mb-4">About</h2>
+                <Description text={s.description} />
+              </section>
+            </Reveal>
+          </div>
+
+          {/* sidebar */}
+          <aside className="lg:pt-8 space-y-4">
+            <Reveal delay={0.08}>
+              <div className="card p-5">
+                <dl className="grid grid-cols-2 gap-y-5 gap-x-4">
+                  <Fact label="Members" value={compact(s.memberCount)} icon={<Users size={14} />} />
+                  <Fact label="Bumps" value={compact(s.bumpCount)} icon={<ChevronsUp size={14} />} />
+                  <Fact label="Last bump" value={timeAgo(s.bumpedAt)} icon={<ChevronsUp size={14} />} />
+                  <Fact label="Listed" value={s.createdAt.toLocaleDateString('en', { month: 'short', year: 'numeric' })} icon={<CalendarDays size={14} />} />
+                </dl>
+                <div className="mt-5 pt-5 border-t border-line flex items-center gap-3">
+                  <Avatar src={s.owner.avatarUrl} name={owner} id={s.owner.id} size={34} round />
+                  <div className="min-w-0 text-sm">
+                    <div className="text-ink-3 text-xs">Listed by</div>
+                    <div className="font-semibold truncate">{owner}</div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal delay={0.12}>
+              <div className="flex items-center justify-between px-1 text-xs text-ink-3">
+                <span className="font-mono">ID {s.id}</span>
+                <ReportButton serverId={s.id} serverName={s.name} loggedIn={!!user} />
+              </div>
+            </Reveal>
+          </aside>
+        </div>
+
+        {similar.length > 0 && (
+          <section className="mt-20">
+            <h2 className="text-2xl font-extrabold mb-6">If you like this, try</h2>
+            <ServerGrid servers={similar} />
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Fact({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="flex items-center gap-1.5 text-xs text-ink-3">
+        {icon}
+        {label}
+      </dt>
+      <dd className="mt-1 font-display text-lg font-bold tabular-nums">{value}</dd>
+    </div>
+  );
+}

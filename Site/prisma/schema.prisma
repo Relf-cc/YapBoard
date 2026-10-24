@@ -1,0 +1,136 @@
+// SQLite keeps dev zero-setup. For production switch the provider to "postgresql";
+// the schema only uses types both support (status fields are plain strings for that reason).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A Yapin' account that has logged in. `id` is the Yapin' user id (stable; usernames can change).
+model User {
+  id          String    @id
+  username    String
+  displayName String?
+  avatarUrl   String?
+  /// USER | STAFF | ADMIN
+  role        String    @default("USER")
+  bannedAt    DateTime?
+  banReason   String?
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime  @default(now())
+
+  servers      Server[]
+  reports      Report[]   @relation("reporter")
+  handled      Report[]   @relation("handler")
+  bumps        Bump[]
+  auditEntries AuditLog[]
+}
+
+/// A listed server. `id` is the Yapin' server id.
+model Server {
+  id          String    @id
+  name        String
+  iconUrl     String?
+  bannerUrl   String?
+  /// One line shown on cards (max 140)
+  summary     String
+  /// Full description shown on /view (max 2000)
+  description String
+  inviteUrl   String
+  language    String    @default("en")
+  nsfw        Boolean   @default(false)
+  /// Accent used on the server page (hex)
+  accent      String    @default("#ff6b4a")
+  /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
+  status      String    @default("PUBLIC")
+  statusNote  String?
+  memberCount Int       @default(0)
+  bumpCount   Int       @default(0)
+  bumpedAt    DateTime?
+  views       Int       @default(0)
+  joins       Int       @default(0)
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tags    ServerTag[]
+  bumps   Bump[]
+  reports Report[]
+
+  @@index([status, bumpedAt])
+  @@index([status, memberCount])
+  @@index([ownerId])
+}
+
+model Tag {
+  id      Int         @id @default(autoincrement())
+  /// normalised: lowercase, a-z 0-9 and -, max 24
+  name    String      @unique
+  servers ServerTag[]
+}
+
+model ServerTag {
+  serverId String
+  tagId    Int
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, tagId])
+  @@index([tagId])
+}
+
+model Bump {
+  id        Int      @id @default(autoincrement())
+  serverId  String
+  userId    String
+  /// bot | web
+  source    String   @default("bot")
+  createdAt DateTime @default(now())
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([serverId, createdAt])
+}
+
+/// Abuse reports and removal requests, reviewed on portal.yapboard.dev
+model Report {
+  id          String    @id @default(cuid())
+  /// ABUSE | REMOVAL
+  kind        String
+  /// spam, scam, nsfw, hate, illegal, impersonation, other  |  owner_request, not_owner, outdated, other
+  reason      String
+  details     String
+  contact     String?
+  serverId    String
+  server      Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  reporterId  String?
+  reporter    User?     @relation("reporter", fields: [reporterId], references: [id])
+  /// OPEN | ACTIONED | DISMISSED
+  status      String    @default("OPEN")
+  resolution  String?
+  handledById String?
+  handledBy   User?     @relation("handler", fields: [handledById], references: [id])
+  handledAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, kind, createdAt])
+  @@index([serverId])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  /// e.g. report.dismiss, server.hide, server.remove, server.restore, user.ban, user.unban, staff.grant
+  action     String
+  targetType String
+  targetId   String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}

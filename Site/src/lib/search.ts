@@ -1,0 +1,222 @@
+import 'server-only';
+import type { Prisma } from '@prisma/client';
+import { db } from './db';
+import { cardSelect, toCard, type ServerCard } from './servers';
+import { normalizeTag } from './tags';
+import { LANGUAGES } from './languages';
+
+export const PAGE_SIZE = 24;
+const RELEVANCE_POOL = 400;
+
+export const SORTS = { relevance: 'Best match', bumped: 'Recently bumped', members: 'Most members', new: 'Newest' } as const;
+export type Sort = keyof typeof SORTS;
+
+export const SIZES = { any: 'Any size', small: 'Under 50', medium: '50 – 500', large: '500 – 5k', huge: '5k+' } as const;
+export type Size = keyof typeof SIZES;
+
+export type SearchParams = {
+  q: string;
+  tags: string[];
+  lang: string | null;
+  size: Size;
+  sort: Sort;
+  nsfw: boolean;
+  page: number;
+};
+
+type Raw = Record<string, string | string[] | undefined>;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
+
+/** Reads ?q=&tag=a&tag=b&lang=&size=&sort=&nsfw=1&page= into a clean, bounded object. */
+export function parseSearch(raw: Raw): SearchParams {
+  const q = first(raw.q).trim().slice(0, 100);
+  const tagParam = ([] as string[]).concat(raw.tag ?? [], raw.tags ? first(raw.tags).split(',') : []);
+  const tags = [...new Set(tagParam.map(normalizeTag).filter(Boolean))].slice(0, 5);
+  const lang = first(raw.lang);
+  const size = first(raw.size) as Size;
+  const sort = first(raw.sort) as Sort;
+  const page = Math.min(500, Math.max(1, parseInt(first(raw.page), 10) || 1));
+  return {
+    q,
+    tags,
+    lang: lang in LANGUAGES ? lang : null,
+    size: size in SIZES ? size : 'any',
+    sort: sort in SORTS ? sort : q ? 'relevance' : 'bumped',
+    nsfw: first(raw.nsfw) === '1',
+    page,
+  };
+}
+
+export function searchHref(p: Partial<SearchParams>, base = '/servers') {
+  const u = new URLSearchParams();
+  if (p.q) u.set('q', p.q);
+  for (const t of p.tags ?? []) u.append('tag', t);
+  if (p.lang) u.set('lang', p.lang);
+  if (p.size && p.size !== 'any') u.set('size', p.size);
+  if (p.sort && !(p.sort === 'relevance' && p.q) && !(p.sort === 'bumped' && !p.q)) u.set('sort', p.sort);
+  if (p.nsfw) u.set('nsfw', '1');
+  if (p.page && p.page > 1) u.set('page', String(p.page));
+  const s = u.toString();
+  return s ? `${base}?${s}` : base;
+}
+
+const tokenize = (q: string) =>
+  [...new Set(q.toLowerCase().split(/[\s,]+/).map((t) => t.replace(/^#/, '')).filter((t) => t.length >= 2))].slice(0, 6);
+
+const sizeWhere: Record<Size, Prisma.ServerWhereInput> = {
+  any: {},
+  small: { memberCount: { lt: 50 } },
+  medium: { memberCount: { gte: 50, lt: 500 } },
+  large: { memberCount: { gte: 500, lt: 5000 } },
+  huge: { memberCount: { gte: 5000 } },
+};
+
+const tokenWhere = (t: string): Prisma.ServerWhereInput => ({
+  OR: [
+    { name: { contains: t } },
+    { summary: { contains: t } },
+    { description: { contains: t } },
+    { tags: { some: { tag: { name: { contains: normalizeTag(t) || t } } } } },
+  ],
+});
+
+function buildWhere(p: SearchParams, tokens: string[], mode: 'all' | 'any'): Prisma.ServerWhereInput {
+  const and: Prisma.ServerWhereInput[] = [{ status: 'PUBLIC' }, sizeWhere[p.size]];
+  if (!p.nsfw) and.push({ nsfw: false });
+  if (p.lang) and.push({ language: p.lang });
+  for (const t of p.tags) and.push({ tags: { some: { tag: { name: t } } } });
+  if (tokens.length) and.push(mode === 'all' ? { AND: tokens.map(tokenWhere) } : { OR: tokens.map(tokenWhere) });
+  return { AND: and };
+}
+
+type Scored = { card: ServerCard; score: number };
+
+function score(s: ServerCard & { description: string }, tokens: string[], phrase: string, now: number): number {
+  const name = s.name.toLowerCase();
+  const summary = s.summary.toLowerCase();
+  const desc = s.description.toLowerCase();
+  let total = 0;
+  if (phrase.length > 2 && name.includes(phrase)) total += 10;
+  for (const t of tokens) {
+    const words = name.split(/[^\p{L}\p{N}]+/u);
+    if (words.includes(t)) total += 12;
+    else if (name.startsWith(t)) total += 8;
+    else if (name.includes(t)) total += 5;
+    const nt = normalizeTag(t);
+    if (s.tags.includes(nt)) total += 7;
+    else if (s.tags.some((tag) => tag.includes(nt))) total += 3;
+    if (summary.includes(t)) total += 2;
+    if (desc.includes(t)) total += 1;
+  }
+  // Light tie-breakers: active (recently bumped) and bigger servers float up a little.
+  if (s.bumpedAt) total += Math.max(0, 3 - (now - new Date(s.bumpedAt).getTime()) / 8.64e7);
+  total += Math.log10(s.memberCount + 1) * 0.8;
+  return total;
+}
+
+export type SearchResult = {
+  items: ServerCard[];
+  total: number;
+  pages: number;
+  loose: boolean;
+  facets: { name: string; count: number }[];
+};
+
+const orderBy: Record<Exclude<Sort, 'relevance'>, Prisma.ServerOrderByWithRelationInput[]> = {
+  bumped: [{ bumpedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+  members: [{ memberCount: 'desc' }, { bumpedAt: { sort: 'desc', nulls: 'last' } }],
+  new: [{ createdAt: 'desc' }],
+};
+
+export async function search(p: SearchParams): Promise<SearchResult> {
+  const tokens = tokenize(p.q);
+  let where = buildWhere(p, tokens, 'all');
+  let total = await db.server.count({ where });
+  let loose = false;
+  // Nothing matches every word: fall back to servers matching any of them.
+  if (!total && tokens.length > 1) {
+    where = buildWhere(p, tokens, 'any');
+    total = await db.server.count({ where });
+    loose = total > 0;
+  }
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(p.page, pages);
+
+  let items: ServerCard[];
+  if (p.sort === 'relevance' && tokens.length) {
+    const pool = await db.server.findMany({
+      where,
+      select: { ...cardSelect, description: true },
+      orderBy: { bumpedAt: { sort: 'desc', nulls: 'last' } },
+      take: RELEVANCE_POOL,
+    });
+    const now = Date.now();
+    const phrase = p.q.toLowerCase();
+    const ranked: Scored[] = pool.map(({ description, ...row }) => {
+      const card = toCard(row);
+      return { card, score: score({ ...card, description }, tokens, phrase, now) };
+    });
+    ranked.sort((a, b) => b.score - a.score);
+    items = ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r) => r.card);
+  } else {
+    const rows = await db.server.findMany({
+      where,
+      select: cardSelect,
+      orderBy: orderBy[p.sort === 'relevance' ? 'bumped' : p.sort],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    });
+    items = rows.map(toCard);
+  }
+
+  // Tags common among the results, to narrow the search further.
+  const grouped = await db.serverTag.groupBy({
+    by: ['tagId'],
+    where: { server: where, tag: { name: { notIn: p.tags } } },
+    _count: { tagId: true },
+    orderBy: { _count: { tagId: 'desc' } },
+    take: 14,
+  });
+  const tagRows = await db.tag.findMany({ where: { id: { in: grouped.map((g) => g.tagId) } }, select: { id: true, name: true } });
+  const nameById = new Map(tagRows.map((t) => [t.id, t.name]));
+  const facets = grouped.map((g) => ({ name: nameById.get(g.tagId) ?? '', count: g._count.tagId })).filter((f) => f.name);
+
+  return { items, total, pages, loose, facets };
+}
+
+/** Autocomplete: matching tags and server names. */
+export async function suggest(q: string) {
+  const t = q.trim().toLowerCase().slice(0, 50);
+  if (t.length < 1) return { tags: [], servers: [] };
+  const nt = normalizeTag(t);
+  const [tags, servers] = await Promise.all([
+    nt
+      ? db.tag.findMany({
+          where: { name: { startsWith: nt }, servers: { some: { server: { status: 'PUBLIC' } } } },
+          select: { name: true, _count: { select: { servers: true } } },
+          orderBy: { servers: { _count: 'desc' } },
+          take: 5,
+        })
+      : [],
+    db.server.findMany({
+      where: { status: 'PUBLIC', name: { contains: t } },
+      select: { id: true, name: true, iconUrl: true, memberCount: true },
+      orderBy: { memberCount: 'desc' },
+      take: 5,
+    }),
+  ]);
+  return { tags: tags.map((x) => ({ name: x.name, count: x._count.servers })), servers };
+}
+
+export async function popularTags(limit = 24) {
+  const grouped = await db.serverTag.groupBy({
+    by: ['tagId'],
+    where: { server: { status: 'PUBLIC', nsfw: false } },
+    _count: { tagId: true },
+    orderBy: { _count: { tagId: 'desc' } },
+    take: limit,
+  });
+  const rows = await db.tag.findMany({ where: { id: { in: grouped.map((g) => g.tagId) } } });
+  const byId = new Map(rows.map((r) => [r.id, r.name]));
+  return grouped.map((g) => ({ name: byId.get(g.tagId)!, count: g._count.tagId })).filter((t) => t.name);
+}

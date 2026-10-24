@@ -1,0 +1,248 @@
+@import 'tailwindcss';
+
+/* Yapin' palette: coral-orange accent on a warm near-black. */
+:root {
+  --bg: #111214;
+  --bg-raised: #16171a;
+  --surface: #1b1c21;
+  --surface-2: #222329;
+  --surface-3: #2b2c33;
+  --line: #26272d;
+  --line-strong: #363740;
+  --ink: #f2f3f5;
+  --ink-2: #b5b8bf;
+  --ink-3: #7f828c;
+  --accent: #ff6b4a;
+  --accent-hover: #ff8063;
+  --accent-press: #f2552f;
+  --accent-soft: #ff6b4a1f;
+  --accent-line: #ff6b4a55;
+  --on-accent: #1d0d07;
+  --ok: #3ecf8e;
+  --warn: #f5b84a;
+  --danger: #f2555a;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-raised: var(--bg-raised);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, Menlo, monospace;
+  --ease-out-soft: var(--ease-out);
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ---------- buttons ---------- */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-4 h-10 text-sm font-semibold whitespace-nowrap select-none;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s,
+      color 0.15s,
+      transform 0.15s var(--ease-out);
+  }
+  .btn:active {
+    transform: translateY(1px) scale(0.985);
+  }
+  .btn:disabled {
+    @apply opacity-50 pointer-events-none;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-[13px] rounded-lg;
+  }
+  .btn-lg {
+    @apply h-12 px-6 text-[15px] rounded-xl;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow:
+      inset 0 1px 0 #ffffff40,
+      0 1px 2px #0006;
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+  }
+  .btn-secondary:hover {
+    background: var(--surface-3);
+  }
+  .btn-ghost {
+    color: var(--ink-2);
+  }
+  .btn-ghost:hover {
+    color: var(--ink);
+    background: var(--surface-2);
+  }
+  .btn-danger {
+    background: #f2555a1a;
+    color: #ff8a8d;
+    border: 1px solid #f2555a40;
+  }
+  .btn-danger:hover {
+    background: #f2555a2b;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+
+  .field {
+    @apply w-full rounded-[10px] px-3.5 h-11 text-[15px] text-ink placeholder:text-ink-3;
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  textarea.field {
+    @apply h-auto py-3 leading-relaxed;
+  }
+  .field:hover {
+    border-color: #44454f;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .label {
+    @apply block text-[13px] font-semibold text-ink-2 mb-1.5;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12.5px] font-medium text-ink-2 whitespace-nowrap;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    transition:
+      background-color 0.15s,
+      color 0.15s,
+      border-color 0.15s;
+  }
+  a.chip:hover,
+  button.chip:hover {
+    color: var(--ink);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+  }
+  .chip-active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
+  }
+
+  .kbd {
+    @apply inline-flex items-center h-5 px-1.5 rounded-md text-[11px] font-medium text-ink-3 font-mono;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-2);
+  }
+
+  .eyebrow {
+    @apply text-[12px] font-semibold uppercase tracking-[0.14em] text-accent;
+  }
+}
+
+/* Dot grid used behind the hero. */
+.dots {
+  background-image: radial-gradient(circle at 1px 1px, #ffffff14 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+}
+
+/* Endless marquee of recently bumped servers. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee {
+  animation: marquee 60s linear infinite;
+}
+.marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Thin scrollbars to match the app. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3b44 transparent;
+}
