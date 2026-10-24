@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { sortBadges } from '@/lib/badges';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { fail, isInternal, json, readJson } from '@/lib/http';
@@ -13,13 +14,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const { serverId } = await params;
   const s = await db.server.findUnique({
     where: { id: serverId },
-    select: { name: true, iconUrl: true, summary: true, accent: true, badge: true, status: true, bumpCount: true, bumpedAt: true, memberCount: true, views: true, joins: true, tags: { select: { tag: { select: { name: true } } } } },
+    select: { name: true, iconUrl: true, summary: true, accent: true, badges: { select: { kind: true } }, status: true, bumpCount: true, bumpedAt: true, memberCount: true, views: true, joins: true, tags: { select: { tag: { select: { name: true } } } } },
   });
   if (!s) return json({ listed: false, addUrl: `${env.siteUrl}/add?server=${serverId}` });
   return json({
     listed: true,
     ...s,
     tags: s.tags.map((t) => t.tag.name),
+    badges: sortBadges(s.badges.map((b) => b.kind)),
     nextBumpAt: s.bumpedAt ? new Date(s.bumpedAt.getTime() + BUMP_COOLDOWN_MS).toISOString() : null,
     url: `${env.siteUrl}/view/${serverId}`,
     manageUrl: `${env.siteUrl}/manage/${serverId}`,

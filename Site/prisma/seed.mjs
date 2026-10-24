@@ -54,8 +54,17 @@ const SERVERS = [
   ['Hackathon Hub', 'Find teammates, share projects, win prizes.', ['programming', 'hackathons', 'career', 'tech'], 2560, 'en'],
 ];
 
-// Staff checkmarks: green = official Yapin’ server, blue = verified.
-const BADGE = { 'Yapin’ Developers': 'OFFICIAL', 'Valorant Grind Club': 'VERIFIED', 'Code & Coffee': 'VERIFIED', 'Anime Afterhours': 'VERIFIED', 'Study With Strangers': 'VERIFIED' };
+// Staff badges (src/lib/badges.ts). A server can hold several.
+const BADGE = {
+  'Yapin’ Developers': ['OFFICIAL', 'FOUNDER'],
+  'Valorant Grind Club': ['VERIFIED', 'FEATURED', 'TRENDING'],
+  'Code & Coffee': ['VERIFIED', 'FOUNDER', 'VETERAN', 'FAVOURITE'],
+  'Anime Afterhours': ['VERIFIED', 'PARTNER'],
+  'Study With Strangers': ['VERIFIED', 'FAVOURITE'],
+  'Lo-fi Lounge': ['FOUNDER', 'VETERAN'],
+  'Speedrun Central': ['FEATURED'],
+  'Film Buffs': ['PARTNER', 'TRENDING'],
+};
 
 const DESC = (name, tags) => `Welcome to **${name}**.
 
@@ -78,6 +87,7 @@ async function main() {
   await db.auditLog.deleteMany();
   await db.report.deleteMany();
   await db.bump.deleteMany();
+  await db.serverBadge.deleteMany();
   await db.serverTag.deleteMany();
   await db.tag.deleteMany();
   await db.server.deleteMany();
@@ -102,8 +112,7 @@ async function main() {
         summary,
         description: DESC(name, tags),
         inviteUrl: name === 'Yapin’ Developers' ? 'https://yapin.gg/invite/developers' : `https://yapin.gg/invite/${slug(name)}`,
-        badge: BADGE[name] ?? null,
-        badgedAt: BADGE[name] ? createdAt : null,
+        badges: { create: (BADGE[name] ?? []).map((kind) => ({ kind, grantedAt: createdAt })) },
         language,
         nsfw: !!nsfw,
         accent: ACCENTS[i % ACCENTS.length],

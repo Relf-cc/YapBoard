@@ -8,7 +8,7 @@ import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
 import { reasonLabel } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
-import { Badge } from '@/components/Badge';
+import { BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ReportActions } from '@/components/portal/ReportActions';
@@ -28,6 +28,7 @@ export default async function ReportDetail({ params }: { params: Promise<{ repor
         include: {
           owner: { select: { id: true, username: true, displayName: true, avatarUrl: true, bannedAt: true, createdAt: true, _count: { select: { servers: true } } } },
           tags: { include: { tag: true } },
+          badges: { select: { kind: true } },
         },
       },
     },
@@ -77,7 +78,7 @@ export default async function ReportDetail({ params }: { params: Promise<{ repor
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-extrabold">{s.name}</h2>
-                  <Badge kind={s.badge} seed={s.id} size={19} />
+                  <BadgeRow kinds={s.badges.map((b) => b.kind)} seed={s.id} size={19} max={3} />
                   <StatusBadge status={s.status} />
                   {s.nsfw && <NsfwMark />}
                 </div>

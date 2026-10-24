@@ -1,6 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
+import { sortBadges, type BadgeKind } from './badges';
 import { db } from './db';
 import { LANGUAGES } from './languages';
 import { MAX_TAGS, normalizeTags } from './tags';
@@ -20,18 +21,19 @@ export const cardSelect = {
   language: true,
   nsfw: true,
   accent: true,
-  badge: true,
+  badges: { select: { kind: true } },
   tags: { select: { tag: { select: { name: true } } } },
 } satisfies Prisma.ServerSelect;
 
 type CardRow = Prisma.ServerGetPayload<{ select: typeof cardSelect }>;
 
-export type ServerCard = Omit<CardRow, 'tags' | 'bumpedAt'> & { tags: string[]; bumpedAt: string | null };
+export type ServerCard = Omit<CardRow, 'tags' | 'bumpedAt' | 'badges'> & { tags: string[]; bumpedAt: string | null; badges: BadgeKind[] };
 
 export const toCard = (s: CardRow): ServerCard => ({
   ...s,
   bumpedAt: s.bumpedAt ? s.bumpedAt.toISOString() : null,
   tags: s.tags.map((t) => t.tag.name),
+  badges: sortBadges(s.badges.map((b) => b.kind)),
 });
 
 /** Listing is visible to the public on /view (unlisted ones too, via direct link). */

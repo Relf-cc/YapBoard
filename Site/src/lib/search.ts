@@ -1,5 +1,6 @@
 import 'server-only';
 import type { Prisma } from '@prisma/client';
+import { BADGE_ORDER, sortBadges, topBadge } from './badges';
 import { db } from './db';
 import { cardSelect, toCard, type ServerCard } from './servers';
 import { normalizeTag } from './tags';
@@ -91,7 +92,7 @@ function buildWhere(p: SearchParams, tokens: string[], mode: 'all' | 'any'): Pri
   const and: Prisma.ServerWhereInput[] = [{ status: 'PUBLIC' }, sizeWhere[p.size]];
   if (!p.nsfw) and.push({ nsfw: false });
   if (p.lang) and.push({ language: p.lang });
-  if (p.verified) and.push({ badge: { not: null } });
+  if (p.verified) and.push({ badges: { some: { kind: { in: ['OFFICIAL', 'VERIFIED'] } } } });
   for (const t of p.tags) and.push({ tags: { some: { tag: { name: t } } } });
   if (tokens.length) and.push(mode === 'all' ? { AND: tokens.map(tokenWhere) } : { OR: tokens.map(tokenWhere) });
   return { AND: and };
@@ -119,8 +120,10 @@ function score(s: ServerCard & { description: string }, tokens: string[], phrase
   // Light tie-breakers: active (recently bumped) and bigger servers float up a little.
   if (s.bumpedAt) total += Math.max(0, 3 - (now - new Date(s.bumpedAt).getTime()) / 8.64e7);
   total += Math.log10(s.memberCount + 1) * 0.8;
-  if (s.badge === 'OFFICIAL') total += 3;
-  else if (s.badge === 'VERIFIED') total += 2;
+  // A checkmark lifts a server a little; the decorative badges count for less, and only up to a point.
+  if (s.badges.includes('OFFICIAL')) total += 3;
+  else if (s.badges.includes('VERIFIED')) total += 2;
+  total += Math.min(1.5, s.badges.filter((b) => b !== 'OFFICIAL' && b !== 'VERIFIED').length * 0.5);
   return total;
 }
 
@@ -211,15 +214,21 @@ export async function suggest(q: string) {
       : [],
     db.server.findMany({
       where: { status: 'PUBLIC', nsfw: false, name: { contains: t } },
-      select: { id: true, name: true, iconUrl: true, memberCount: true, badge: true },
+      select: { id: true, name: true, iconUrl: true, memberCount: true, badges: { select: { kind: true } } },
       orderBy: { memberCount: 'desc' },
       take: 20,
     }),
   ]);
-  // Official, then verified, then biggest.
-  const rank = (b: string | null) => (b === 'OFFICIAL' ? 2 : b === 'VERIFIED' ? 1 : 0);
-  servers.sort((a, b) => rank(b.badge) - rank(a.badge) || b.memberCount - a.memberCount);
-  return { tags: tags.map((x) => ({ name: x.name, count: x._count.servers })), servers: servers.slice(0, 5) };
+  // Most important badge first, then biggest.
+  const rank = (s: { badges: { kind: string }[] }) => {
+    const top = topBadge(s.badges.map((b) => b.kind));
+    return top ? BADGE_ORDER.length - BADGE_ORDER.indexOf(top) : 0;
+  };
+  servers.sort((a, b) => rank(b) - rank(a) || b.memberCount - a.memberCount);
+  return {
+    tags: tags.map((x) => ({ name: x.name, count: x._count.servers })),
+    servers: servers.slice(0, 5).map((s) => ({ ...s, badges: sortBadges(s.badges.map((b) => b.kind)) })),
+  };
 }
 
 export async function popularTags(limit = 24) {

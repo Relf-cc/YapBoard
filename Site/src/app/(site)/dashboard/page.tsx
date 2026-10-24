@@ -9,7 +9,7 @@ import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { Reveal } from '@/components/Reveal';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Badge } from '@/components/Badge';
+import { BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 
@@ -21,7 +21,7 @@ export default async function Dashboard() {
   const servers = await db.server.findMany({
     where: { ownerId: user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, iconUrl: true, status: true, badge: true, nsfw: true, memberCount: true, views: true, joins: true, bumpCount: true, bumpedAt: true },
+    select: { id: true, name: true, iconUrl: true, status: true, badges: { select: { kind: true } }, nsfw: true, memberCount: true, views: true, joins: true, bumpCount: true, bumpedAt: true },
   });
 
   return (
@@ -61,7 +61,7 @@ export default async function Dashboard() {
                       <Link href={`/view/${s.id}`} className="font-display text-[17px] font-bold truncate hover:text-accent transition-colors">
                         {s.name}
                       </Link>
-                      <Badge kind={s.badge} seed={s.id} size={17} />
+                      <BadgeRow kinds={s.badges.map((b) => b.kind)} seed={s.id} size={17} max={3} />
                       {s.nsfw && <NsfwMark />}
                       <StatusBadge status={s.status} />
                     </div>

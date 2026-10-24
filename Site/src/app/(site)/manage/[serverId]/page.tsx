@@ -8,7 +8,7 @@ import { getUser } from '@/lib/session';
 import { canManageListing } from '@/lib/servers';
 import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
-import { Badge } from '@/components/Badge';
+import { BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
 import { Reveal } from '@/components/Reveal';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -27,7 +27,7 @@ export default async function Manage({ params, searchParams }: Props) {
   const user = await getUser();
   if (!user) redirect(`/login?next=/manage/${serverId}`);
 
-  const s = await db.server.findUnique({ where: { id: serverId }, include: { tags: { include: { tag: true } } } });
+  const s = await db.server.findUnique({ where: { id: serverId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } } } });
   if (!s || !canManageListing(user, s)) notFound();
 
   return (
@@ -50,7 +50,7 @@ export default async function Manage({ params, searchParams }: Props) {
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-[28px] font-extrabold truncate">{s.name}</h1>
-                <Badge kind={s.badge} seed={s.id} size={22} />
+                <BadgeRow kinds={s.badges.map((b) => b.kind)} seed={s.id} size={22} max={4} />
                 {s.nsfw && <NsfwMark size="md" />}
                 <StatusBadge status={s.status} />
               </div>
@@ -107,7 +107,7 @@ export default async function Manage({ params, searchParams }: Props) {
             unlisted: s.status === 'UNLISTED',
             accent: s.accent,
             tags: s.tags.map((t) => t.tag.name),
-            badge: s.badge,
+            badges: s.badges.map((b) => b.kind),
           }}
         />
       </div>

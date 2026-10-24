@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { motion } from 'motion/react';
 import { ArrowUpRight, ChevronsUp, Users } from 'lucide-react';
 import { Avatar } from './Avatar';
-import { Badge } from './Badge';
+import { BadgeRow } from './Badge';
 import { NsfwMark } from './NsfwMark';
 import { Tooltip } from './Tooltip';
 import { compact, timeAgo } from '@/lib/format';
@@ -30,7 +30,7 @@ export function ServerCard({ server, activeTags = [] }: { server: Card; activeTa
             <Link href={`/view/${server.id}`} className="truncate after:absolute after:inset-0 after:content-['']">
               {server.name}
             </Link>
-            <Badge kind={server.badge} seed={server.id} size={17} />
+            <BadgeRow kinds={server.badges} seed={server.id} size={17} max={3} />
             {server.nsfw && <NsfwMark />}
           </h3>
           <div className="mt-1.5 flex items-center gap-3 text-[12.5px] text-ink-3">

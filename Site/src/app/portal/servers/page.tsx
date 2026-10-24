@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import type { Prisma } from '@prisma/client';
 import clsx from 'clsx';
+import { BADGES, BADGE_ORDER, isBadge } from '@/lib/badges';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { portalBase, requireStaffPage } from '@/lib/portal';
@@ -12,7 +13,7 @@ import { PageHead } from '@/components/portal/PageHead';
 import { Dropdown } from '@/components/Dropdown';
 import { ServerModButtons } from '@/components/portal/ModButtons';
 import { BadgeControl } from '@/components/portal/BadgeControl';
-import { Badge } from '@/components/Badge';
+import { BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
 
 export const metadata: Metadata = { title: 'Servers' };
@@ -20,10 +21,10 @@ export const metadata: Metadata = { title: 'Servers' };
 const STATUSES = ['ALL', 'PUBLIC', 'UNLISTED', 'HIDDEN', 'REMOVED'] as const;
 const PER_PAGE = 40;
 const BADGE_FILTERS = [
-  { value: '', label: 'Any checkmark' },
-  { value: 'ANY', label: 'Has a checkmark' },
-  { value: 'VERIFIED', label: 'Verified' },
-  { value: 'OFFICIAL', label: 'Official' },
+  { value: '', label: 'Any badge' },
+  { value: 'ANY', label: 'Has a badge' },
+  { value: 'NONE', label: 'No badge' },
+  ...BADGE_ORDER.map((k) => ({ value: k, label: BADGES[k].label })),
 ];
 const SORT_OPTIONS = [
   { value: 'reports', label: 'Most reported' },
@@ -40,12 +41,12 @@ export default async function PortalServers({ searchParams }: Props) {
   const q = (sp.q || '').trim().slice(0, 80);
   const status = STATUSES.includes(sp.status as (typeof STATUSES)[number]) ? sp.status! : 'ALL';
   const sort = sp.sort === 'new' ? 'new' : sp.sort === 'members' ? 'members' : 'reports';
-  const badge = sp.badge === 'VERIFIED' || sp.badge === 'OFFICIAL' || sp.badge === 'ANY' ? sp.badge : '';
+  const badge = isBadge(sp.badge) || sp.badge === 'ANY' || sp.badge === 'NONE' ? sp.badge : '';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
 
   const where: Prisma.ServerWhereInput = {
     ...(status !== 'ALL' ? { status } : {}),
-    ...(badge === 'ANY' ? { badge: { not: null } } : badge ? { badge } : {}),
+    ...(badge === 'ANY' ? { badges: { some: {} } } : badge === 'NONE' ? { badges: { none: {} } } : badge ? { badges: { some: { kind: badge } } } : {}),
     ...(q ? { OR: [{ id: q }, { name: { contains: q } }, { ownerId: q }, { owner: { username: { contains: q } } }] } : {}),
   };
   const orderBy: Prisma.ServerOrderByWithRelationInput =
@@ -58,7 +59,7 @@ export default async function PortalServers({ searchParams }: Props) {
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
       select: {
-        id: true, name: true, iconUrl: true, status: true, badge: true, nsfw: true, memberCount: true, createdAt: true, bumpedAt: true,
+        id: true, name: true, iconUrl: true, status: true, badges: { select: { kind: true } }, nsfw: true, memberCount: true, createdAt: true, bumpedAt: true,
         owner: { select: { username: true } },
         _count: { select: { reports: { where: { status: 'OPEN' } } } },
       },
@@ -85,7 +86,7 @@ export default async function PortalServers({ searchParams }: Props) {
         </div>
         <form className="flex gap-2" action={`${base}/servers`}>
           {status !== 'ALL' && <input type="hidden" name="status" value={status} />}
-          <Dropdown name="badge" label="Checkmark" size="md" className="w-48" defaultValue={badge} options={BADGE_FILTERS} />
+          <Dropdown name="badge" label="Badge" size="md" className="w-48" defaultValue={badge} options={BADGE_FILTERS} />
           <Dropdown name="sort" label="Sort" size="md" className="w-40" defaultValue={sort} options={SORT_OPTIONS} />
           <input name="q" defaultValue={q} placeholder="Name, server ID, owner" className="field h-10 w-60 text-sm" />
           <button className="btn btn-secondary">Search</button>
@@ -101,7 +102,7 @@ export default async function PortalServers({ searchParams }: Props) {
               <th className="font-medium px-3">Members</th>
               <th className="font-medium px-3">Open reports</th>
               <th className="font-medium px-3">Listed</th>
-              <th className="font-medium px-3">Checkmark</th>
+              <th className="font-medium px-3">Badges</th>
               <th className="font-medium px-5 text-right">Actions</th>
             </tr>
           </thead>
@@ -114,7 +115,7 @@ export default async function PortalServers({ searchParams }: Props) {
                     <span className="min-w-0">
                       <span className="flex items-center gap-2">
                         <span className="font-semibold truncate max-w-[220px] group-hover:text-accent">{s.name}</span>
-                        <Badge kind={s.badge} seed={s.id} size={15} />
+                        <BadgeRow kinds={s.badges.map((b) => b.kind)} seed={s.id} size={15} max={3} />
                         {s.nsfw && <NsfwMark />}
                         <StatusBadge status={s.status} />
                       </span>
@@ -135,7 +136,7 @@ export default async function PortalServers({ searchParams }: Props) {
                 </td>
                 <td className="px-3 py-3 text-ink-3 whitespace-nowrap">{timeAgo(s.createdAt)}</td>
                 <td className="px-3 py-3">
-                  <BadgeControl serverId={s.id} badge={s.badge} />
+                  <BadgeControl serverId={s.id} badges={s.badges.map((b) => b.kind)} />
                 </td>
                 <td className="px-5 py-3 text-right">
                   <ServerModButtons serverId={s.id} status={s.status} />

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { ProseLink as A, ProsePage } from '@/components/Prose';
+import { BadgeMark } from '@/components/Badge';
+import { BADGES, BADGE_ORDER } from '@/lib/badges';
 import { LEGAL } from '@/lib/legal';
 import { MAX_TAGS } from '@/lib/tags';
 
@@ -120,7 +122,18 @@ export default function Guidelines() {
           id: 'badges',
           h: 'Badges',
           p: [
-            'Verified (blue) and Official (green, for servers run by Yapin’) badges are given by YapBoard staff. They can’t be bought, traded or transferred, and we remove them if a server changes hands or stops qualifying. A badge means we checked who runs the server. It doesn’t mean we vouch for what happens inside.',
+            'Badges are the little seals beside a server’s name. YapBoard staff hand them out, a server can hold more than one, and they can’t be bought, traded or transferred. We take them away if a server changes hands or stops qualifying.',
+            <span key="list" className="block space-y-2.5">
+              {BADGE_ORDER.map((k) => (
+                <span key={k} className="flex items-start gap-2.5">
+                  <BadgeMark kind={k} size={17} seed={k} className="mt-[3px]" />
+                  <span>
+                    <b className="font-semibold text-ink">{BADGES[k].long}</b> — {BADGES[k].blurb}
+                  </span>
+                </span>
+              ))}
+            </span>,
+            'A badge means we checked one thing about a server. It doesn’t mean we vouch for what happens inside. Don’t imply you have one you haven’t been given.',
           ],
         },
         {

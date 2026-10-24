@@ -9,7 +9,17 @@ const PROMPT_TTL = 5 * 60_000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const STATUS = { PUBLIC: 'Public', UNLISTED: 'Unlisted', HIDDEN: 'Hidden by staff', REMOVED: 'Removed' };
-const BADGE = { VERIFIED: 'Verified on YapBoard', OFFICIAL: 'Official Yapin’ server' };
+// Keys match BADGES in Site/src/lib/badges.ts; the listing shows the first one the site sent.
+const BADGE = {
+  OFFICIAL: 'Official Yapin’ server',
+  VERIFIED: 'Verified on YapBoard',
+  PARTNER: 'YapBoard partner',
+  FOUNDER: 'Founding server',
+  FEATURED: 'Featured on YapBoard',
+  FAVOURITE: 'Community favourite',
+  TRENDING: 'Trending on YapBoard',
+  VETERAN: 'Veteran server',
+};
 
 const OFFLINE = () => card({ title: 'YapBoard is out of reach', description: 'Couldn’t reach the site just now. Try again in a minute.', tone: 'error' });
 
@@ -167,7 +177,7 @@ export default async function setup(bot) {
       tone: live ? l.accent : 'muted',
       icon: l.iconUrl,
       url: viewable ? l.url : null,
-      author: BADGE[l.badge] ? { name: BADGE[l.badge] } : { name: 'YapBoard listing' },
+      author: { name: (l.badges || []).map((b) => BADGE[b]).find(Boolean) || 'YapBoard listing' },
     })
       .field('Members', number(l.memberCount), true)
       .field('Bumps', number(l.bumpCount), true)

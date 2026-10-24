@@ -5,6 +5,10 @@ const LABELS: Record<string, string> = {
   'server.hide': 'hid server',
   'server.remove': 'removed server',
   'server.restore': 'restored server',
+  'server.badge_add': 'gave a badge to',
+  'server.badge_remove': 'took a badge off',
+  'server.badges_clear': 'removed every badge from',
+  // Kept so entries written before badges could stack still read properly.
   'server.verify': 'verified server',
   'server.officiate': 'made official:',
   'server.unbadge': 'removed checkmark from',

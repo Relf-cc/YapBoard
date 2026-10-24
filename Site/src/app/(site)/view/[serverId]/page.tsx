@@ -10,9 +10,8 @@ import { canManageListing, cardSelect, isViewable, toCard } from '@/lib/servers'
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
-import { Badge } from '@/components/Badge';
+import { BadgeNames, BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
-import { BADGES, isBadge } from '@/lib/badges';
 import { TagChip } from '@/components/TagChip';
 import { ServerGrid } from '@/components/ServerGrid';
 import { Reveal } from '@/components/Reveal';
@@ -27,7 +26,7 @@ type Props = { params: Promise<{ serverId: string }> };
 const load = (id: string) =>
   db.server.findUnique({
     where: { id },
-    include: { tags: { include: { tag: true } }, owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+    include: { tags: { include: { tag: true } }, badges: { select: { kind: true } }, owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
   });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -56,6 +55,7 @@ export default async function ViewServer({ params }: Props) {
   const [votes, votedUntil] = canVote ? await Promise.all([recentVotes(s.id), user ? nextVoteAt(s.id, user.id, voting) : null]) : [0, null];
 
   const tags = s.tags.map((t) => t.tag.name);
+  const badges = s.badges.map((b) => b.kind);
   const similar = tags.length
     ? (
         await db.server.findMany({
@@ -112,16 +112,14 @@ export default async function ViewServer({ params }: Props) {
                 <div className="min-w-0 pb-1">
                   <h1 className="text-[32px] sm:text-[40px] font-extrabold leading-[1.05] break-words">
                     {s.name}
-                    {s.badge && (
+                    {badges.length > 0 && (
                       <>
                         {' '}
-                        <Badge kind={s.badge} seed={s.id} size={30} className="-mt-1.5" />
+                        <BadgeRow kinds={badges} seed={s.id} size={30} max={4} className="-mt-1.5" />
                       </>
                     )}
                   </h1>
-                  {isBadge(s.badge) && (
-                    <p className={`mt-1.5 text-[13px] font-semibold ${s.badge === 'OFFICIAL' ? 'text-[#3fe39e]' : 'text-[#5cbcff]'}`}>{BADGES[s.badge].long}</p>
-                  )}
+                  <BadgeNames kinds={badges} seed={s.id} className="mt-2.5" />
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
                     <span className="inline-flex items-center gap-1.5">
                       <Users size={15} />

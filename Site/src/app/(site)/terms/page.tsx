@@ -75,7 +75,7 @@ export default function Terms() {
             'You can only list a server you own, or where you have a role with Manage Server. We check this through the YapBoard bot. If you stop running the server, delete the listing or tell us.',
             'You’re responsible for your listing and for the server it points to. That includes keeping the listing accurate and up to date, keeping the invite working, and running the server in line with Yapin’s rules and the law.',
             'Nobody has a right to be listed, to a particular position in search or sorting, or to a badge. We decide how listings are ranked and shown, and we can change that at any time. Bumping moves a server to the top of the recently bumped sort. It doesn’t guarantee views, joins or members.',
-            'Verified and Official badges are given at our discretion and can be removed at any time. A badge, or a listing itself, is not a promise that a server is safe, and it doesn’t mean we endorse it.',
+            'Badges are given at our discretion and can be removed at any time. A badge, or a listing itself, is not a promise that a server is safe, and it doesn’t mean we endorse it.',
           ],
         },
         {

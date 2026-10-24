@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { sortBadges } from '@/lib/badges';
 import { LANGUAGES } from '@/lib/languages';
 import { Dropdown } from '../Dropdown';
 import { ServerCard } from '../ServerCard';
@@ -27,8 +28,8 @@ export type ListingValues = {
   unlisted: boolean;
   accent: string;
   tags: string[];
-  /** Staff-granted checkmark; shown in the preview, never sent. */
-  badge?: string | null;
+  /** Staff-granted badges; shown in the preview, never sent. */
+  badges?: string[];
 };
 
 type Errors = Partial<Record<keyof ListingValues, string[]>>;
@@ -81,7 +82,7 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
     language: v.language,
     nsfw: v.nsfw,
     accent: v.accent,
-    badge: v.badge ?? null,
+    badges: sortBadges(v.badges ?? []),
     tags: v.tags.length ? v.tags : ['your-tags'],
   };
 

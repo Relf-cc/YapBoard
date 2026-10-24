@@ -60,9 +60,6 @@ model Server {
   /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
   status      String    @default("PUBLIC")
   statusNote  String?
-  /// Staff-granted checkmark: VERIFIED (blue) | OFFICIAL (green, run by Yapin') | null
-  badge       String?
-  badgedAt    DateTime?
   memberCount Int       @default(0)
   bumpCount   Int       @default(0)
   bumpedAt    DateTime?
@@ -78,6 +75,7 @@ model Server {
   updatedAt   DateTime  @updatedAt
 
   tags    ServerTag[]
+  badges  ServerBadge[]
   bumps   Bump[]
   votes   Vote[]
   reports Report[]
@@ -86,6 +84,19 @@ model Server {
   @@index([status, rankedAt])
   @@index([status, memberCount])
   @@index([ownerId])
+}
+
+/// One badge on a server. A server can hold several; `kind` is a key of BADGES in src/lib/badges.ts.
+model ServerBadge {
+  serverId    String
+  kind        String
+  grantedAt   DateTime @default(now())
+  /// The staff member who granted it. AuditLog keeps the full trail, including removals.
+  grantedById String?
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, kind])
+  @@index([kind])
 }
 
 model Tag {

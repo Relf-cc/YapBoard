@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { BADGES, isBadge } from '@/lib/badges';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getUser, isAdmin, isStaff } from '@/lib/session';
@@ -107,19 +108,34 @@ export async function moderateServer(input: z.input<typeof serverSchema>): Promi
   return done(action === 'restore' ? 'Server restored' : action === 'hide' ? 'Server hidden' : 'Server removed');
 }
 
-const badgeSchema = z.object({ serverId: z.string().min(1), badge: z.enum(['VERIFIED', 'OFFICIAL', 'NONE']) });
+const badgeSchema = z.object({ serverId: z.string().min(1), badge: z.string().refine(isBadge, 'Unknown badge'), on: z.boolean() });
 
-/** Blue check (verified) or green check (official Yapin' server). One at a time. */
-export async function setBadge(input: z.input<typeof badgeSchema>): Promise<Result> {
+/** Add or take away one badge. A server can hold any number of them (src/lib/badges.ts). */
+export async function toggleBadge(input: z.input<typeof badgeSchema>): Promise<Result> {
   const me = await staff();
   const p = badgeSchema.safeParse(input);
   if (!p.success) return { ok: false, error: 'Bad input' };
-  const { serverId, badge } = p.data;
-  const none = badge === 'NONE';
-  await db.server.update({ where: { id: serverId }, data: { badge: none ? null : badge, badgedAt: none ? null : new Date() } });
-  await log(me.id, none ? 'server.unbadge' : badge === 'OFFICIAL' ? 'server.officiate' : 'server.verify', 'server', serverId, null);
+  const { serverId, badge, on } = p.data;
+  if (!(await db.server.findUnique({ where: { id: serverId }, select: { id: true } }))) return { ok: false, error: 'Server not found' };
+  if (on) {
+    await db.serverBadge.upsert({ where: { serverId_kind: { serverId, kind: badge } }, create: { serverId, kind: badge, grantedById: me.id }, update: {} });
+  } else {
+    await db.serverBadge.deleteMany({ where: { serverId, kind: badge } });
+  }
+  await log(me.id, on ? 'server.badge_add' : 'server.badge_remove', 'server', serverId, BADGES[badge].label);
   revalidatePath('/', 'layout');
-  return done(none ? 'Checkmark removed' : badge === 'OFFICIAL' ? 'Marked official' : 'Verified');
+  return done(on ? `${BADGES[badge].label} added` : `${BADGES[badge].label} removed`);
+}
+
+/** Takes every badge off a server at once. */
+export async function clearBadges(serverId: string): Promise<Result> {
+  const me = await staff();
+  if (typeof serverId !== 'string' || !serverId) return { ok: false, error: 'Bad input' };
+  const r = await db.serverBadge.deleteMany({ where: { serverId } });
+  if (!r.count) return { ok: false, error: 'It has no badges' };
+  await log(me.id, 'server.badges_clear', 'server', serverId, `${r.count} removed`);
+  revalidatePath('/', 'layout');
+  return done(r.count === 1 ? 'Badge removed' : `${r.count} badges removed`);
 }
 
 /* ---------------- users ---------------- */
