@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
+import { env } from '@/lib/env';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { isAdmin } from '@/lib/session';
 import { timeAgo } from '@/lib/format';
@@ -20,9 +21,13 @@ export default async function PortalUsers({ searchParams }: { searchParams: Prom
 
   const where: Prisma.UserWhereInput = {
     ...(q ? { OR: [{ id: q }, { username: { contains: q } }, { displayName: { contains: q } }] } : {}),
-    ...(filter === 'banned' ? { bannedAt: { not: null } } : filter === 'staff' ? { role: { in: ['STAFF', 'ADMIN'] } } : {}),
+    ...(filter === 'banned'
+      ? { bannedAt: { not: null } }
+      : filter === 'staff'
+        ? { AND: [{ OR: [{ role: { in: ['STAFF', 'ADMIN'] } }, { id: { in: env.staffIds } }] }] }
+        : {}),
   };
-  const users = await db.user.findMany({
+  const found = await db.user.findMany({
     where,
     orderBy: { lastLoginAt: 'desc' },
     take: 60,
@@ -31,6 +36,8 @@ export default async function PortalUsers({ searchParams }: { searchParams: Prom
       _count: { select: { servers: true, reports: true } },
     },
   });
+  // Same rule as getUser: STAFF_IDS are admins whatever their saved role says.
+  const users = found.map((u) => (env.staffIds.includes(u.id) ? { ...u, role: 'ADMIN' } : u));
 
   return (
     <div className="max-w-6xl">

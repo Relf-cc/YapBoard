@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
   try {
     const token = await exchangeCode(code, saved.verifier);
     const profile = await fetchProfile(token);
-    const user = await upsertUser(profile, env.staffIds.includes(profile.id) ? 'ADMIN' : undefined);
+    // STAFF_IDS isn't saved as a role: getUser applies it on each request, so removing an ID takes effect at once.
+    const user = await upsertUser(profile);
     if (user.bannedAt) return fail('banned');
     await createSession(user.id);
   } catch (e) {

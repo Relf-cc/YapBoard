@@ -46,9 +46,9 @@ export type YapinProfile = { id: string; username: string; display_name: string 
 export async function fetchProfile(accessToken: string): Promise<YapinProfile> {
   const res = await fetch(ME, { headers: { authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
   const out = await res.json().catch(() => ({}));
-  if (!res.ok || !out.id) throw new Error(out.error || `profile fetch failed (${res.status})`);
   // Some responses wrap the user; accept both shapes.
   const u = out.user ?? out;
+  if (!res.ok || !u.id) throw new Error(out.error || `profile fetch failed (${res.status})`);
   return { id: String(u.id), username: String(u.username), display_name: u.display_name ?? null, avatar_url: u.avatar_url ?? null };
 }
 
