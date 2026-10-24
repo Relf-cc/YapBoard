@@ -3,7 +3,7 @@
 A server list for [Yapin'](https://www.yapin.gg), like Disboard.
 
 - `Site/`: Next.js app: yapboard.dev (public site) and portal.yapboard.dev (staff portal)
-- `Bot/`: the YapBoard bot (`/bump`, `/yapboard`) built on Yapin's `yapper.js` SDK (in progress)
+- `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
 
 ## Run the site locally
 
@@ -20,6 +20,21 @@ portal). With no `YAPPER_BOT_TOKEN`, ownership checks are skipped and listings c
 Neither shortcut works in production.
 
 The staff portal is at http://localhost:3000/portal in dev, and at the root of `portal.*` hosts in production.
+
+## Run the bot
+
+Needs Node 20.12+ (22+ gets events over the gateway instead of long polling) and the site running.
+
+```sh
+cd Bot
+cp .env.example .env      # YAPPER_BOT_TOKEN, YAPBOARD_URL, and the same INTERNAL_API_SECRET as Site/.env
+npm start                 # or: npm run bot (from the root)
+```
+
+On start it logs its bot ID: put that in the site's `NEXT_PUBLIC_BOT_ID`, and the same token in the site's
+`YAPPER_BOT_TOKEN` so ownership checks work. After a `/bump` the bot posts "Ready to bump" in that channel when
+the 2 hour cooldown ends (kept in `Bot/data/` across restarts). Every 30 minutes, and on joins and leaves, it
+sends member counts, names and icons to the site.
 
 ## Production checklist
 

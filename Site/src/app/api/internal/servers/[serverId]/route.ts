@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const { serverId } = await params;
   const s = await db.server.findUnique({
     where: { id: serverId },
-    select: { name: true, status: true, bumpCount: true, bumpedAt: true, memberCount: true, views: true, joins: true, tags: { select: { tag: { select: { name: true } } } } },
+    select: { name: true, iconUrl: true, summary: true, accent: true, badge: true, status: true, bumpCount: true, bumpedAt: true, memberCount: true, views: true, joins: true, tags: { select: { tag: { select: { name: true } } } } },
   });
   if (!s) return json({ listed: false, addUrl: `${env.siteUrl}/add?server=${serverId}` });
   return json({

@@ -30,8 +30,15 @@ export async function POST(req: NextRequest) {
   });
   if (user.bannedAt) return json({ ok: false, reason: 'banned' });
 
-  const server = await db.server.findUnique({ where: { id: serverId }, select: { name: true } });
+  const server = await db.server.findUnique({ where: { id: serverId }, select: { name: true, iconUrl: true, accent: true } });
   const result = await bumpServer(serverId, userId, 'bot');
   if (memberCount !== undefined && server) await db.server.update({ where: { id: serverId }, data: { memberCount } });
-  return json({ ...result, name: server?.name ?? null, url: `${env.siteUrl}/view/${serverId}`, addUrl: `${env.siteUrl}/add?server=${serverId}` });
+  return json({
+    ...result,
+    name: server?.name ?? null,
+    iconUrl: server?.iconUrl ?? null,
+    accent: server?.accent ?? null,
+    url: `${env.siteUrl}/view/${serverId}`,
+    addUrl: `${env.siteUrl}/add?server=${serverId}`,
+  });
 }

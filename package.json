@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "npm --prefix Site run dev",
     "build": "npm --prefix Site run build",
-    "db:reset": "npm --prefix Site run db:reset"
+    "db:reset": "npm --prefix Site run db:reset",
+    "bot": "npm --prefix Bot start"
   }
 }

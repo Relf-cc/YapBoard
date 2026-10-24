@@ -1,0 +1,14 @@
+{
+  "name": "yapboard-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node --watch bot.js",
+    "check": "node --check bot.js && node --check lib/config.js && node --check lib/yapboard.js && node --check lib/ui.js && node --check lib/reminders.js && node --check cogs/listing.js && node --check cogs/general.js && node --check cogs/sync.js"
+  }
+}
