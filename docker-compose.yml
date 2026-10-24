@@ -1,4 +1,4 @@
-# YapBoard in production: site + bot, served at yapboard.dev and portal.yapboard.dev through a Cloudflare Tunnel
+# YapBoard in production: site + bot, served at yapboard.dev, portal.yapboard.dev and api.yapboard.dev through a Cloudflare Tunnel
 # (cloudflared -> Caddy -> site). No ports are opened on the host.
 # cp .env.example .env, fill it in, then: docker compose up -d --build
 
@@ -58,7 +58,7 @@ services:
       - site
 
   # Connects out to Cloudflare. Public hostnames are set on the tunnel in the Cloudflare dashboard:
-  # yapboard.dev and portal.yapboard.dev -> http://caddy:80
+  # yapboard.dev, portal.yapboard.dev and api.yapboard.dev -> http://caddy:80
   cloudflared:
     image: cloudflare/cloudflared:2026.9.3
     restart: unless-stopped

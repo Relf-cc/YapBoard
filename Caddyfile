@@ -1,6 +1,6 @@
 # Internal proxy between the Cloudflare Tunnel (cloudflared) and the site. Cloudflare terminates HTTPS, so this is
-# plain HTTP on the Docker network and nothing here is published to the host. The site and the portal are the same
-# Next app, told apart by Host (cloudflared passes the public hostname through).
+# plain HTTP on the Docker network and nothing here is published to the host. yapboard.dev, portal.yapboard.dev and
+# api.yapboard.dev are the same Next app, told apart by Host (cloudflared passes the public hostname through).
 
 {
 	servers {
@@ -15,7 +15,8 @@
 	encode zstd gzip
 
 	# Only the bot calls these, over the Docker network. Nothing outside needs them.
-	@internal path /api/internal/*
+	# (/internal/* is the same thing on api.yapboard.dev.)
+	@internal path /api/internal /api/internal/* /internal /internal/*
 	respond @internal 404
 
 	reverse_proxy site:3000 {

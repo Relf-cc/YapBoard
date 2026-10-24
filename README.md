@@ -2,7 +2,7 @@
 
 A server list for [Yapin'](https://www.yapin.gg), like Disboard.
 
-- `Site/`: Next.js app: yapboard.dev (public site) and portal.yapboard.dev (staff portal)
+- `Site/`: Next.js app: yapboard.dev (public site), portal.yapboard.dev (staff portal) and api.yapboard.dev (API)
 - `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
 
 ## Run the site locally
@@ -19,7 +19,8 @@ With no `YAPIN_CLIENT_ID`/`YAPIN_CLIENT_SECRET`, `/login` shows a local dev logi
 portal). With no `YAPPER_BOT_TOKEN`, ownership checks are skipped and listings can be bumped from the dashboard.
 Neither shortcut works in production.
 
-The staff portal is at http://localhost:3000/portal in dev, and at the root of `portal.*` hosts in production.
+The staff portal is at http://localhost:3000/portal in dev, and at the root of `portal.*` hosts in production. The
+API is at http://localhost:3000/api (or the root of http://api.localhost:3000), and at the root of `api.*` hosts.
 
 ## Run the bot
 
@@ -46,8 +47,9 @@ Cloudflare (HTTPS) → `cloudflared` → Caddy (plain HTTP, Docker network only)
 1. Add `yapboard.dev` to Cloudflare (nameservers moved to Cloudflare).
 2. Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared. Copy the token from the `docker run` command
    it shows into `TUNNEL_TOKEN` in `.env`.
-3. On the tunnel, add two public hostnames, both type `HTTP` with URL `caddy:80`: `yapboard.dev` and
-   `portal.yapboard.dev`. Cloudflare creates the DNS records. Delete any old A/AAAA records for those names first.
+3. On the tunnel, add three public hostnames, each type `HTTP` with URL `caddy:80`: `yapboard.dev`,
+   `portal.yapboard.dev` and `api.yapboard.dev`. Cloudflare creates the DNS records. Delete any old A/AAAA records
+   for those names first.
 4. Then:
 
 ```sh
@@ -61,8 +63,12 @@ docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_I
 - Bump reminders are in the `bot-data` volume. Back up both volumes.
 - `NEXT_PUBLIC_SITE_URL`, `PORTAL_URL` and `NEXT_PUBLIC_BOT_ID` are baked into the site at build time, so changing
   them needs `--build`. Everything else only needs `docker compose up -d`.
-- The bot calls the site at `http://site:3000` (`YAPBOARD_API_URL`), and Caddy returns 404 for `/api/internal/*` from
-  outside.
+- All three hosts are the same Next app, told apart by Host (`src/proxy.ts`): `yapboard.dev` is the site,
+  `portal.yapboard.dev` the staff portal, and `api.yapboard.dev` the API at its root (`/servers/123` there is
+  `/api/servers/123` on the site). The site's own pages keep calling `/api` on their own origin. Login always happens
+  on `yapboard.dev`: `api.yapboard.dev/auth/*` redirects there.
+- The bot calls the site at `http://site:3000` (`YAPBOARD_API_URL`), and Caddy returns 404 for `/api/internal/*`
+  (and `/internal/*` on the API host) from outside.
 - Caddy sets `X-Real-IP` from `CF-Connecting-IP` (Cloudflare always overwrites it), so rate limits see the
   visitor, not the tunnel. Don't publish the site's or Caddy's port: a request that skips Cloudflare could pick
   its own IP.
