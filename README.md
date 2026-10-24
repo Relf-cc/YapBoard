@@ -38,8 +38,17 @@ sends member counts, names and icons to the site.
 
 ## Deploy with Docker
 
-`docker-compose.yml` runs the site, the bot and [Caddy](https://caddyserver.com) (HTTPS for both hosts) on one
-machine. Point the DNS for `yapboard.dev` and `portal.yapboard.dev` at it and open ports 80 and 443, then:
+`docker-compose.yml` runs the site, the bot, [Caddy](https://caddyserver.com) and a
+[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) on one machine.
+The tunnel connects out to Cloudflare, so no ports are opened and the machine's IP stays hidden. Visitors go
+Cloudflare (HTTPS) → `cloudflared` → Caddy (plain HTTP, Docker network only) → site.
+
+1. Add `yapboard.dev` to Cloudflare (nameservers moved to Cloudflare).
+2. Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared. Copy the token from the `docker run` command
+   it shows into `TUNNEL_TOKEN` in `.env`.
+3. On the tunnel, add two public hostnames, both type `HTTP` with URL `caddy:80`: `yapboard.dev` and
+   `portal.yapboard.dev`. Cloudflare creates the DNS records. Delete any old A/AAAA records for those names first.
+4. Then:
 
 ```sh
 cp .env.example .env      # fill it in (see the checklist below)
@@ -54,9 +63,14 @@ docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_I
   them needs `--build`. Everything else only needs `docker compose up -d`.
 - The bot calls the site at `http://site:3000` (`YAPBOARD_API_URL`), and Caddy returns 404 for `/api/internal/*` from
   outside.
-- Already have a reverse proxy? Remove the `caddy` service, publish the site's port 3000, and make your proxy
-  overwrite `X-Real-IP` with the client address (as the `Caddyfile` does). Otherwise visitors can pick their own IP
-  for rate limits. Behind Cloudflare, that means using `CF-Connecting-IP`, not the connecting address.
+- Caddy sets `X-Real-IP` from `CF-Connecting-IP` (Cloudflare always overwrites it), so rate limits see the
+  visitor, not the tunnel. Don't publish the site's or Caddy's port: a request that skips Cloudflare could pick
+  its own IP.
+- In Cloudflare, under SSL/TLS → Edge Certificates, turn on Always Use HTTPS. Leave Rocket Loader off: it rewrites
+  scripts and breaks the Next.js bootstrap. The site sends its own HSTS header.
+- Not using Cloudflare? Remove the `cloudflared` service, change the `Caddyfile` address from `:80` to
+  `{$SITE_URL}, {$PORTAL_URL}` (Caddy then gets certificates itself), drop the `servers` block, publish ports 80
+  and 443 on `caddy`, and pass `SITE_URL` / `PORTAL_URL` to it.
 
 ## Production checklist
 
@@ -66,6 +80,7 @@ docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_I
 - `SESSION_SECRET` and `INTERNAL_API_SECRET`: real random values. The `change-me` examples are refused
 - Run `prisma db push` (or a migration) on deploy: logins are stored in a `Session` table (the Docker image does
   this on start)
+- `TUNNEL_TOKEN` set, and the tunnel's public hostnames point at `caddy:80`
 - Put the site behind a proxy that sets `X-Forwarded-For` / `X-Real-IP` (Caddy above, Vercel, Fly, nginx): rate
   limits use it
 - Runs as one instance: rate limits are in memory. SQLite is fine at that size. To switch to Postgres, change the

@@ -1,4 +1,5 @@
-# YapBoard in production: site + bot + Caddy (HTTPS for yapboard.dev and portal.yapboard.dev).
+# YapBoard in production: site + bot, served at yapboard.dev and portal.yapboard.dev through a Cloudflare Tunnel
+# (cloudflared -> Caddy -> site). No ports are opened on the host.
 # cp .env.example .env, fill it in, then: docker compose up -d --build
 
 x-shared: &shared
@@ -45,22 +46,27 @@ services:
       site:
         condition: service_healthy
 
+  # Internal only (no ports): blocks /api/internal/* and sets X-Real-IP from CF-Connecting-IP.
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      SITE_URL: ${NEXT_PUBLIC_SITE_URL}
-      PORTAL_URL: ${PORTAL_URL}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
       - site
+
+  # Connects out to Cloudflare. Public hostnames are set on the tunnel in the Cloudflare dashboard:
+  # yapboard.dev and portal.yapboard.dev -> http://caddy:80
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    depends_on:
+      - caddy
 
 volumes:
   site-data:

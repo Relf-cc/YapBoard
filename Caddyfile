@@ -1,7 +1,17 @@
-# HTTPS (Let's Encrypt) for the site and the portal; both are the same Next app, told apart by Host.
-# SITE_URL / PORTAL_URL come from .env through docker-compose.yml (e.g. https://yapboard.dev).
+# Internal proxy between the Cloudflare Tunnel (cloudflared) and the site. Cloudflare terminates HTTPS, so this is
+# plain HTTP on the Docker network and nothing here is published to the host. The site and the portal are the same
+# Next app, told apart by Host (cloudflared passes the public hostname through).
 
-{$SITE_URL}, {$PORTAL_URL} {
+{
+	servers {
+		# Only cloudflared reaches Caddy, over the Docker network. Trust it for X-Forwarded-Proto and take the
+		# visitor's IP from CF-Connecting-IP, which Cloudflare always overwrites (visitors can't choose it).
+		trusted_proxies static private_ranges
+		client_ip_headers CF-Connecting-IP
+	}
+}
+
+:80 {
 	encode zstd gzip
 
 	# Only the bot calls these, over the Docker network. Nothing outside needs them.
@@ -10,6 +20,6 @@
 
 	reverse_proxy site:3000 {
 		# Rate limits read X-Real-IP first, so never pass on one the visitor sent.
-		header_up X-Real-IP {remote_host}
+		header_up X-Real-IP {client_ip}
 	}
 }
