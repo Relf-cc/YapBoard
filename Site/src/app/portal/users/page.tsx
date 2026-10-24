@@ -6,6 +6,7 @@ import { getUser, isAdmin } from '@/lib/session';
 import { timeAgo } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { PageHead } from '@/components/portal/PageHead';
+import { Dropdown } from '@/components/Dropdown';
 import { UserModButtons } from '@/components/portal/ModButtons';
 
 export const metadata: Metadata = { title: 'Users' };
@@ -35,11 +36,18 @@ export default async function PortalUsers({ searchParams }: { searchParams: Prom
     <div className="max-w-6xl">
       <PageHead title="Users" sub="Search by username or Yapin’ ID." />
       <form className="flex flex-wrap gap-2" action={`${base}/users`}>
-        <select name="filter" defaultValue={filter} className="field h-10 w-36 text-sm">
-          <option value="all">Everyone</option>
-          <option value="staff">Staff</option>
-          <option value="banned">Banned</option>
-        </select>
+        <Dropdown
+          name="filter"
+          label="Show"
+          size="md"
+          className="w-36"
+          defaultValue={filter}
+          options={[
+            { value: 'all', label: 'Everyone' },
+            { value: 'staff', label: 'Staff' },
+            { value: 'banned', label: 'Banned' },
+          ]}
+        />
         <input name="q" defaultValue={q} placeholder="Username or ID" className="field h-10 w-64 text-sm" />
         <button className="btn btn-secondary">Search</button>
       </form>

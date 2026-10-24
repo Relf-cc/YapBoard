@@ -2,6 +2,13 @@
 
 import { useTransition } from 'react';
 import { moderateServer, moderateUser, setRole } from '@/app/portal/actions';
+import { Dropdown } from '../Dropdown';
+
+const ROLES = [
+  { value: 'USER', label: 'User' },
+  { value: 'STAFF', label: 'Staff' },
+  { value: 'ADMIN', label: 'Admin' },
+];
 
 const ask = (q: string) => {
   const n = window.prompt(q);
@@ -44,22 +51,21 @@ export function UserModButtons({ userId, banned, role, canSetRole, self }: { use
   return (
     <div className="inline-flex items-center gap-1.5">
       {canSetRole && (
-        <select
-          className="field h-8 w-28 text-xs"
+        <Dropdown
+          label="Role"
+          size="sm"
+          className="w-28"
           value={role}
           disabled={pending}
-          onChange={(e) => {
-            const next = e.target.value as 'USER' | 'STAFF' | 'ADMIN';
+          options={ROLES}
+          onChange={(v) => {
+            const next = v as 'USER' | 'STAFF' | 'ADMIN';
             start(async () => {
               const r = await setRole({ userId, role: next });
               if (!r.ok) alert(r.error);
             });
           }}
-        >
-          <option value="USER">User</option>
-          <option value="STAFF">Staff</option>
-          <option value="ADMIN">Admin</option>
-        </select>
+        />
       )}
       {banned ? (
         <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => start(async () => void (await moderateUser({ userId, action: 'unban' })))}>

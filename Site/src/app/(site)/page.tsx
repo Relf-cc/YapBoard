@@ -8,6 +8,7 @@ import { BumpMarquee } from '@/components/home/BumpMarquee';
 import { ServerGrid } from '@/components/ServerGrid';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
+import { Glyph, type GlyphName } from '@/components/Glyphs';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,9 +129,16 @@ function SectionHead({ title, sub, href, cta = 'See all' }: { title: string; sub
   );
 }
 
+const STEP_GLYPHS: GlyphName[] = ['plus', 'squiggle', 'chevrons'];
+
 function Step({ n, icon, title, body, last }: { n: number; icon: React.ReactNode; title: string; body: string; last?: boolean }) {
   return (
-    <li className={`p-8 ${last ? '' : 'border-b sm:border-b-0 sm:border-r border-line'}`}>
+    <li className={`group relative p-8 ${last ? '' : 'border-b sm:border-b-0 sm:border-r border-line'}`}>
+      <Glyph
+        name={STEP_GLYPHS[n - 1]}
+        size={28}
+        className="absolute bottom-6 right-6 text-ink-3/25 transition-[color,rotate] duration-500 ease-out-soft group-hover:-rotate-12 group-hover:text-accent/60"
+      />
       <div className="flex items-center gap-3">
         <span className="inline-flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent">{icon}</span>
         <span className="font-mono text-xs text-ink-3">0{n}</span>

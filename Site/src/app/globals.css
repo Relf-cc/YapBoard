@@ -323,3 +323,18 @@ h3 {
   scrollbar-width: thin;
   scrollbar-color: #3a3b44 transparent;
 }
+
+/* Slow drift for the decorative glyphs on /pro. `--r` is each glyph's resting tilt. */
+@keyframes glyph-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--r, 0deg));
+  }
+  50% {
+    transform: translateY(-6px) rotate(calc(var(--r, 0deg) + 5deg));
+  }
+}
+.glyph-drift {
+  animation: glyph-drift 8s ease-in-out infinite;
+  animation-delay: var(--drift-delay, 0s);
+}

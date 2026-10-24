@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ChevronsUp } from 'lucide-react';
 import { BadgeMark } from '../Badge';
 
@@ -41,7 +42,9 @@ export function ProCard() {
         <p className="mt-2 text-[14px] leading-relaxed text-ink-2 line-clamp-2">A purple check, stronger bumps and deeper stats for your listing.</p>
 
         <div className="mt-auto pt-4">
-          <span className="btn btn-secondary btn-sm w-full cursor-default text-ink-3">Coming soon</span>
+          <Link href="/pro" className="btn btn-secondary btn-sm w-full">
+            Learn more
+          </Link>
         </div>
       </div>
     </aside>

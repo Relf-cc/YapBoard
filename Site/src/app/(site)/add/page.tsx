@@ -6,6 +6,7 @@ import { getUser } from '@/lib/session';
 import { ListingForm, type ListingValues } from '@/components/manage/ListingForm';
 import { CopyField } from '@/components/CopyField';
 import { Reveal } from '@/components/Reveal';
+import { GlyphScatter } from '@/components/Glyphs';
 
 export const metadata: Metadata = { title: 'Add your server' };
 
@@ -33,7 +34,14 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-10">
-      <Reveal>
+      <Reveal className="relative">
+        <GlyphScatter
+          items={[
+            { g: 'plus', at: { right: '6%', top: '4%' }, size: 24, r: 10, accent: true },
+            { g: 'squiggle', at: { right: '19%', top: '46%' }, size: 32, r: -4 },
+            { g: 'check', at: { right: '3%', top: '70%' }, size: 24, r: -8 },
+          ]}
+        />
         <p className="eyebrow">List your server</p>
         <h1 className="mt-3 text-[34px] sm:text-[44px] font-extrabold leading-tight">Put your server on the board</h1>
         <p className="mt-3 max-w-2xl text-ink-2 leading-relaxed">Free, takes about two minutes. You can change anything later.</p>

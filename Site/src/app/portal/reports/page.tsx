@@ -9,6 +9,7 @@ import { ABUSE_REASONS, REMOVAL_REASONS, reasonLabel } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PageHead } from '@/components/portal/PageHead';
+import { Dropdown } from '@/components/Dropdown';
 
 export const metadata: Metadata = { title: 'Reports' };
 
@@ -74,14 +75,14 @@ export default async function Reports({ searchParams }: Props) {
         <form className="flex gap-2" action={`${base}/reports`}>
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="status" value={status} />
-          <select name="reason" defaultValue={reason ?? ''} className="field h-10 w-48 text-sm">
-            <option value="">Any reason</option>
-            {Object.entries(reasons).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            name="reason"
+            label="Reason"
+            size="md"
+            className="w-48"
+            defaultValue={reason ?? ''}
+            options={[{ value: '', label: 'Any reason' }, ...Object.entries(reasons).map(([value, label]) => ({ value, label }))]}
+          />
           <input name="q" defaultValue={q} placeholder="Server name, ID or text" className="field h-10 w-56 text-sm" />
           <button className="btn btn-secondary">Filter</button>
         </form>

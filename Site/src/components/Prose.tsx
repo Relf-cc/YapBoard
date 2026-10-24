@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Reveal } from './Reveal';
+import { GlyphScatter } from './Glyphs';
 
 /** A paragraph, or `{ ul: [...] }` for a bullet list. */
 export type ProseBlock = ReactNode | { ul: ReactNode[] };
@@ -32,7 +33,13 @@ function Blocks({ blocks }: { blocks: ProseBlock[] }) {
 export function ProsePage({ title, updated, intro, summary, sections }: { title: string; updated?: string; intro?: ReactNode; summary?: ReactNode[]; sections: ProseSection[] }) {
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-12">
-      <Reveal>
+      <Reveal className="relative">
+        <GlyphScatter
+          items={[
+            { g: 'asterisk', at: { right: '2%', top: '0%' }, size: 22, r: 10, accent: true },
+            { g: 'ring', at: { right: '12%', top: '26%' }, size: 14 },
+          ]}
+        />
         <h1 className="text-[34px] sm:text-[44px] font-extrabold">{title}</h1>
         {updated && <p className="mt-2 text-sm text-ink-3">Last updated {updated}</p>}
         {intro && <p className="mt-6 text-[15.5px] leading-relaxed text-ink-2">{intro}</p>}

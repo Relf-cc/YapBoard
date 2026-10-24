@@ -3,7 +3,7 @@ import { Logo } from './Logo';
 
 const COLS: { title: string; links: [string, string][] }[] = [
   { title: 'Browse', links: [['/servers', 'All servers'], ['/tags', 'Tags'], ['/servers?sort=new', 'New servers'], ['/servers?sort=members', 'Biggest servers']] },
-  { title: 'List yours', links: [['/add', 'Add a server'], ['/dashboard', 'Your servers'], ['/bot', 'The bot']] },
+  { title: 'List yours', links: [['/add', 'Add a server'], ['/dashboard', 'Your servers'], ['/bot', 'The bot'], ['/pro', 'YapBoard Pro']] },
   { title: 'YapBoard', links: [['/guidelines', 'Listing guidelines'], ['/terms', 'Terms'], ['/privacy', 'Privacy'], ['https://www.yapin.gg', 'Yapin’ ↗']] },
 ];
 

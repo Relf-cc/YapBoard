@@ -1,14 +1,26 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { SearchBar } from '../SearchBar';
+import { GlyphScatter, type ScatterItem } from '../Glyphs';
 
 const d = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties;
+
+/** Around the headline, mostly in the margins past the copy. */
+const GLYPHS: ScatterItem[] = [
+  { g: 'hash', at: { left: '-8%', top: '22%' }, size: 30, r: -12 },
+  { g: 'ring', at: { left: '-2%', top: '52%' }, size: 16, accent: true },
+  { g: 'zigzag', at: { left: '-12%', top: '74%' }, size: 30, r: 6 },
+  { g: 'chevrons', at: { right: '-7%', top: '18%' }, size: 28, r: 8, accent: true },
+  { g: 'plus', at: { right: '-1%', top: '48%' }, size: 18, r: 14 },
+  { g: 'asterisk', at: { right: '-10%', top: '72%' }, size: 22, r: -6 },
+];
 
 export function Hero({ tags }: { tags: { name: string; count: number }[] }) {
   return (
     <section className="relative overflow-hidden">
       <div aria-hidden className="dots absolute inset-0 -top-16" />
       <div className="relative mx-auto max-w-3xl px-4 sm:px-6 pt-20 pb-14 sm:pt-28 text-center">
+        <GlyphScatter items={GLYPHS} />
         <h1 className="rise text-[44px] leading-[1.02] sm:text-[68px] font-extrabold" style={d(60)}>
           Find a server worth{' '}
           <span className="relative inline-block whitespace-nowrap">

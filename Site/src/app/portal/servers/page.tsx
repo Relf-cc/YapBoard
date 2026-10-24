@@ -9,6 +9,7 @@ import { compact, timeAgo } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PageHead } from '@/components/portal/PageHead';
+import { Dropdown } from '@/components/Dropdown';
 import { ServerModButtons } from '@/components/portal/ModButtons';
 import { BadgeControl } from '@/components/portal/BadgeControl';
 import { Badge } from '@/components/Badge';
@@ -18,6 +19,17 @@ export const metadata: Metadata = { title: 'Servers' };
 
 const STATUSES = ['ALL', 'PUBLIC', 'UNLISTED', 'HIDDEN', 'REMOVED'] as const;
 const PER_PAGE = 40;
+const BADGE_FILTERS = [
+  { value: '', label: 'Any checkmark' },
+  { value: 'ANY', label: 'Has a checkmark' },
+  { value: 'VERIFIED', label: 'Verified' },
+  { value: 'OFFICIAL', label: 'Official' },
+];
+const SORT_OPTIONS = [
+  { value: 'reports', label: 'Most reported' },
+  { value: 'new', label: 'Newest' },
+  { value: 'members', label: 'Biggest' },
+];
 
 type Props = { searchParams: Promise<{ q?: string; status?: string; sort?: string; badge?: string; page?: string }> };
 
@@ -72,17 +84,8 @@ export default async function PortalServers({ searchParams }: Props) {
         </div>
         <form className="flex gap-2" action={`${base}/servers`}>
           {status !== 'ALL' && <input type="hidden" name="status" value={status} />}
-          <select name="badge" defaultValue={badge} className="field h-10 w-48 text-sm">
-            <option value="">Any checkmark</option>
-            <option value="ANY">Has a checkmark</option>
-            <option value="VERIFIED">Verified</option>
-            <option value="OFFICIAL">Official</option>
-          </select>
-          <select name="sort" defaultValue={sort} className="field h-10 w-40 text-sm">
-            <option value="reports">Most reported</option>
-            <option value="new">Newest</option>
-            <option value="members">Biggest</option>
-          </select>
+          <Dropdown name="badge" label="Checkmark" size="md" className="w-48" defaultValue={badge} options={BADGE_FILTERS} />
+          <Dropdown name="sort" label="Sort" size="md" className="w-40" defaultValue={sort} options={SORT_OPTIONS} />
           <input name="q" defaultValue={q} placeholder="Name, server ID, owner" className="field h-10 w-60 text-sm" />
           <button className="btn btn-secondary">Search</button>
         </form>

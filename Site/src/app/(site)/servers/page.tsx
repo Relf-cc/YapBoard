@@ -9,6 +9,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { SortSelect, LanguageSelect } from '@/components/browse/Selects';
 import { FilterPanel } from '@/components/browse/FilterPanel';
 import { Badge } from '@/components/Badge';
+import { GlyphScatter } from '@/components/Glyphs';
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -192,7 +193,15 @@ function Pager({ p, page, pages }: { p: SearchParams; page: number; pages: numbe
 
 function Empty({ p }: { p: SearchParams }) {
   return (
-    <div className="card px-6 py-16 text-center">
+    <div className="relative overflow-hidden card px-6 py-16 text-center">
+      <GlyphScatter
+        items={[
+          { g: 'plus', at: { left: '10%', top: '22%' }, size: 20, r: 12 },
+          { g: 'squiggle', at: { left: '15%', bottom: '22%' }, size: 30, r: -4 },
+          { g: 'ring', at: { right: '12%', top: '26%' }, size: 16, accent: true },
+          { g: 'hash', at: { right: '9%', bottom: '18%' }, size: 24, r: 10 },
+        ]}
+      />
       <SearchX className="mx-auto text-ink-3" size={34} strokeWidth={1.6} />
       <h2 className="mt-4 text-xl font-bold">Nothing yet</h2>
       <p className="mt-2 text-sm text-ink-3 max-w-sm mx-auto">

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Reveal } from '@/components/Reveal';
 import { CopyField } from '@/components/CopyField';
 import { LogoMark } from '@/components/Logo';
+import { GlyphScatter } from '@/components/Glyphs';
 
 export const metadata: Metadata = { title: 'The YapBoard bot' };
 
@@ -17,7 +18,14 @@ export default function BotPage() {
   const botId = process.env.NEXT_PUBLIC_BOT_ID || '';
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-12">
-      <Reveal>
+      <Reveal className="relative">
+        <GlyphScatter
+          items={[
+            { g: 'chevrons', at: { right: '3%', top: '-14%' }, size: 28, r: 8, accent: true },
+            { g: 'hash', at: { right: '16%', top: '34%' }, size: 24, r: -10 },
+            { g: 'ring', at: { right: '7%', top: '78%' }, size: 14 },
+          ]}
+        />
         <div className="flex items-center gap-4">
           <LogoMark size={56} />
           <div>

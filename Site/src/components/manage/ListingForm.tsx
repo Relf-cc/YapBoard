@@ -3,11 +3,14 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { LANGUAGES } from '@/lib/languages';
+import { Dropdown } from '../Dropdown';
 import { ServerCard } from '../ServerCard';
 import { TagInput } from './TagInput';
+
+const LANGUAGE_OPTIONS = Object.entries(LANGUAGES).map(([value, label]) => ({ value, label }));
 
 export const ACCENTS = ['#ff6b4a', '#ffb86b', '#f5d76e', '#7ee2a8', '#3fc1a8', '#5aa9e6', '#8fb8ff', '#5865f2', '#c7a4ff', '#ff9ecb', '#ff5c8a', '#e0304a'];
 
@@ -131,16 +134,8 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
         <Section title="Details">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Main language" error={errors.language}>
-              <div className="relative">
-                <select className="field appearance-none pr-9 cursor-pointer" value={v.language} onChange={(e) => set('language', e.target.value)}>
-                  {Object.entries(LANGUAGES).map(([k, name]) => (
-                    <option key={k} value={k}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3" />
-              </div>
+              <Dropdown label="Main language" value={v.language} onChange={(l) => set('language', l)} options={LANGUAGE_OPTIONS} />
+
             </Field>
             <Field label="Page colour">
               <div className="flex flex-wrap gap-2 pt-1.5">
