@@ -22,5 +22,7 @@
 	reverse_proxy site:3000 {
 		# Rate limits read X-Real-IP first, so never pass on one the visitor sent.
 		header_up X-Real-IP {client_ip}
+		# The app picks site / portal / API by host. Use the hostname Cloudflare routed, never one the visitor sent.
+		header_up X-Forwarded-Host {host}
 	}
 }

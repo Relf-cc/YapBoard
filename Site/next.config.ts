@@ -30,6 +30,7 @@ const csp = [
   "base-uri 'self'",
   `form-action ${formTargets}`,
   "frame-ancestors 'none'",
+  ...(dev ? [] : ['upgrade-insecure-requests']),
 ].join('; ');
 
 const securityHeaders = [
@@ -38,6 +39,8 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  // Pages opened from here (invites, links in descriptions) can't reach back into this window.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   ...(dev ? [] : [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' }]),
 ];
 

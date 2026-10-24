@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
-import { fail, isInternal, json } from '@/lib/http';
+import { fail, isInternal, json, readJson } from '@/lib/http';
 import { bumpServer } from '@/lib/servers';
 
 const schema = z.object({
@@ -17,7 +17,7 @@ const schema = z.object({
 /** Called by the bot when someone types /bump in their server. */
 export async function POST(req: NextRequest) {
   if (!isInternal(req)) return fail('Unauthorized', 401);
-  const parsed = schema.safeParse(await req.json().catch(() => null));
+  const parsed = schema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Bad request', 422);
   const { serverId, userId, username, displayName, avatarUrl, memberCount } = parsed.data;
 

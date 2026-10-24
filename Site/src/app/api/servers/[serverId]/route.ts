@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { fail, json, requireUser } from '@/lib/http';
+import { fail, json, readJson, requireUser } from '@/lib/http';
 import { canManageListing, listingSchema, setTags } from '@/lib/servers';
 import { isStaff } from '@/lib/session';
 
@@ -20,7 +20,7 @@ async function loadManaged(req: NextRequest, ctx: Ctx) {
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const m = await loadManaged(req, ctx);
   if (m.error) return m.error;
-  const parsed = listingSchema.safeParse(await req.json().catch(() => null));
+  const parsed = listingSchema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
   const { tags, unlisted, ...data } = parsed.data;
   // Owners can flip public/unlisted; staff decisions (HIDDEN/REMOVED) stay put.

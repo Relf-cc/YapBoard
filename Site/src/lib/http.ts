@@ -9,6 +9,8 @@ export const fail = (error: string, status = 400, extra?: Record<string, unknown
 
 /** Browsers send Origin on POST/PATCH/DELETE; refuse ones from other sites (CSRF). */
 export function sameOrigin(req: NextRequest) {
+  // Every current browser also says where a request came from; that settles it even when Origin is missing.
+  if (req.headers.get('sec-fetch-site') === 'cross-site') return false;
   const origin = req.headers.get('origin');
   if (!origin) return true;
   try {
@@ -20,7 +22,33 @@ export function sameOrigin(req: NextRequest) {
   }
 }
 
-type Guard = { user: SessionUser; error?: never } | { user?: never; error: NextResponse };
+/**
+ * The request body as JSON, or null if it isn't JSON or is over `max` bytes. Reads at most `max` bytes, so a huge
+ * (or endless chunked) body can't fill memory. Nothing the API takes is anywhere near 64 KB.
+ */
+export async function readJson(req: NextRequest, max = 64 * 1024): Promise<unknown> {
+  if (Number(req.headers.get('content-length') || 0) > max || !req.body) return null;
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+type Guard ={ user: SessionUser; error?: never } | { user?: never; error: NextResponse };
 
 export async function requireUser(req: NextRequest): Promise<Guard> {
   if (!sameOrigin(req)) return { error: fail('Bad origin', 403) };

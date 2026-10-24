@@ -41,7 +41,7 @@ export function canManageListing(user: SessionUser | null, server: { ownerId: st
   return !!user && !user.bannedAt && (user.id === server.ownerId || isStaff(user));
 }
 
-const inviteRe = /^https:\/\/(www\.)?(yapin\.gg|yapper\.website)\/(invite|i)\/[A-Za-z0-9_-]{2,64}\/?$/;
+export const inviteRe = /^https:\/\/(www\.)?(yapin\.gg|yapper\.website)\/(invite|i)\/[A-Za-z0-9_-]{2,64}\/?$/;
 
 export const listingSchema = z.object({
   summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),

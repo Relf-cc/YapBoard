@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { botEnabled } from '@/lib/env';
-import { fail, json, rateLimit, requireUser } from '@/lib/http';
+import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
 import { listingSchema, setTags } from '@/lib/servers';
 import { checkManager, MANAGE_ERRORS } from '@/lib/yapin';
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (g.error) return g.error;
   if (!rateLimit(`create:${g.user.id}`, 10, 60 * 60_000)) return fail('Slow down a little. Try again later.', 429);
 
-  const parsed = createSchema.safeParse(await req.json().catch(() => null));
+  const parsed = createSchema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
   const { serverId, name: devName, tags, unlisted, ...data } = parsed.data;
 

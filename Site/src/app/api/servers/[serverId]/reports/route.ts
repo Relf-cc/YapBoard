@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { fail, json, rateLimit, requireUser } from '@/lib/http';
+import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
 import { ABUSE_REASONS, REMOVAL_REASONS } from '@/lib/reports';
 
 const details = z.string().trim().min(10).max(1500);
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ser
   if (g.error) return g.error;
   if (!rateLimit(`report:${g.user.id}`, 8, 60 * 60_000)) return fail('You’ve sent a lot of reports. Try again later.', 429);
   const { serverId } = await params;
-  const parsed = schema.safeParse(await req.json().catch(() => null));
+  const parsed = schema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Pick a reason and add a few words of detail', 422);
 
   const server = await db.server.findUnique({ where: { id: serverId }, select: { id: true } });

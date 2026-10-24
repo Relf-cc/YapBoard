@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
-import { fail, isInternal, json } from '@/lib/http';
+import { fail, isInternal, json, readJson } from '@/lib/http';
 import { BUMP_COOLDOWN_MS } from '@/lib/servers';
 
 type Ctx = { params: Promise<{ serverId: string }> };
@@ -36,7 +36,7 @@ const patch = z.object({
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!isInternal(req)) return fail('Unauthorized', 401);
   const { serverId } = await params;
-  const parsed = patch.safeParse(await req.json().catch(() => null));
+  const parsed = patch.safeParse(await readJson(req));
   if (!parsed.success) return fail('Bad request', 422);
   const res = await db.server.updateMany({ where: { id: serverId }, data: parsed.data });
   return json({ updated: res.count > 0 });

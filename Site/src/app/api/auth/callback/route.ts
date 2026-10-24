@@ -3,11 +3,14 @@ import { env } from '@/lib/env';
 import { exchangeCode, fetchProfile } from '@/lib/yapin';
 import { createSession, upsertUser } from '@/lib/session';
 import { safeNext, type LoginError } from '@/lib/next-url';
+import { clientIp, rateLimit } from '@/lib/http';
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   // Only a code goes in the URL; the login page has the wording, so nobody can put their own text on it.
   const fail = (code: LoginError) => NextResponse.redirect(new URL(`/login?error=${code}`, env.siteUrl));
+  // Each callback costs two calls to Yapin'; real logins never come close to this.
+  if (!rateLimit(`callback:${clientIp(req.headers)}`, 20, 60_000)) return fail('failed');
 
   let saved: { state: string; verifier: string; next: string };
   try {

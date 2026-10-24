@@ -82,6 +82,9 @@ export async function resolveReport(input: z.input<typeof resolveSchema>): Promi
 /** Puts a handled report back in the queue. */
 export async function reopenReport(reportId: string): Promise<Result> {
   const me = await staff();
+  // Server actions can be called with anything, whatever the TypeScript type says.
+  if (typeof reportId !== 'string' || !reportId) return { ok: false, error: 'Bad input' };
+  if (!(await db.report.findUnique({ where: { id: reportId }, select: { id: true } }))) return { ok: false, error: 'Report not found' };
   await db.report.update({ where: { id: reportId }, data: { status: 'OPEN', resolution: null, handledById: null, handledAt: null } });
   await log(me.id, 'report.reopen', 'report', reportId, null);
   return done('Report reopened');
