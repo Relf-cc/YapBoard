@@ -40,6 +40,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Self-contained server in .next/standalone for the Docker image (see Dockerfile).
+  output: 'standalone',
   poweredByHeader: false,
   images: {
     remotePatterns: [

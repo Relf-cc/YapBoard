@@ -36,12 +36,38 @@ On start it logs its bot ID: put that in the site's `NEXT_PUBLIC_BOT_ID`, and th
 the 2 hour cooldown ends (kept in `Bot/data/` across restarts). Every 30 minutes, and on joins and leaves, it
 sends member counts, names and icons to the site.
 
+## Deploy with Docker
+
+`docker-compose.yml` runs the site, the bot and [Caddy](https://caddyserver.com) (HTTPS for both hosts) on one
+machine. Point the DNS for `yapboard.dev` and `portal.yapboard.dev` at it and open ports 80 and 443, then:
+
+```sh
+cp .env.example .env      # fill it in (see the checklist below)
+docker compose up -d --build
+docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_ID, then up -d --build again
+```
+
+- The database is SQLite in the `site-data` volume (`/data/yapboard.db`). On every start the site runs
+  `prisma db push`. A schema change that would drop data stops the start instead: fix it by hand, don't force it.
+- Bump reminders are in the `bot-data` volume. Back up both volumes.
+- `NEXT_PUBLIC_SITE_URL`, `PORTAL_URL` and `NEXT_PUBLIC_BOT_ID` are baked into the site at build time, so changing
+  them needs `--build`. Everything else only needs `docker compose up -d`.
+- The bot calls the site at `http://site:3000` (`YAPBOARD_API_URL`), and Caddy returns 404 for `/api/internal/*` from
+  outside.
+- Already have a reverse proxy? Remove the `caddy` service, publish the site's port 3000, and make your proxy
+  overwrite `X-Real-IP` with the client address (as the `Caddyfile` does). Otherwise visitors can pick their own IP
+  for rate limits. Behind Cloudflare, that means using `CF-Connecting-IP`, not the connecting address.
+
 ## Production checklist
 
-- `prisma/schema.prisma`: switch the provider to `postgresql` and point `DATABASE_URL` at it
 - `NEXT_PUBLIC_SITE_URL=https://yapboard.dev`, `PORTAL_URL=https://portal.yapboard.dev`, `COOKIE_DOMAIN=.yapboard.dev`
 - Login with Yapin' redirect URI: `https://yapboard.dev/api/auth/callback`
 - `STAFF_IDS` = your Yapin' user ID(s); grant others staff from the portal's Users page
 - `SESSION_SECRET` and `INTERNAL_API_SECRET`: real random values. The `change-me` examples are refused
-- Run `prisma db push` (or a migration) on deploy: logins are stored in a `Session` table
-- Put the site behind a proxy that sets `X-Forwarded-For` / `X-Real-IP` (Vercel, Fly, nginx): rate limits use it
+- Run `prisma db push` (or a migration) on deploy: logins are stored in a `Session` table (the Docker image does
+  this on start)
+- Put the site behind a proxy that sets `X-Forwarded-For` / `X-Real-IP` (Caddy above, Vercel, Fly, nginx): rate
+  limits use it
+- Runs as one instance: rate limits are in memory. SQLite is fine at that size. To switch to Postgres, change the
+  provider in `prisma/schema.prisma` and add `mode: 'insensitive'` to the `contains` searches (`src/lib/search.ts`,
+  portal pages). Postgres matches case, SQLite doesn't, so search would quietly get worse otherwise

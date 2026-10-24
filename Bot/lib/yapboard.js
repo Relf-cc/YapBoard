@@ -2,7 +2,7 @@ import { config } from './config.js';
 
 /** Calls the site's /api/internal/* routes with the shared secret. Throws on network errors and non-2xx. */
 async function call(method, path, body) {
-  const res = await fetch(`${config.siteUrl}/api/internal${path}`, {
+  const res = await fetch(`${config.apiUrl}/api/internal${path}`, {
     method,
     headers: { authorization: `Bearer ${config.internalSecret}`, 'content-type': 'application/json', 'user-agent': 'yapboard-bot/1' },
     body: body === undefined ? undefined : JSON.stringify(body),

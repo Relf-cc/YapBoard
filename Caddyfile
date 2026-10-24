@@ -1,0 +1,15 @@
+# HTTPS (Let's Encrypt) for the site and the portal; both are the same Next app, told apart by Host.
+# SITE_URL / PORTAL_URL come from .env through docker-compose.yml (e.g. https://yapboard.dev).
+
+{$SITE_URL}, {$PORTAL_URL} {
+	encode zstd gzip
+
+	# Only the bot calls these, over the Docker network. Nothing outside needs them.
+	@internal path /api/internal/*
+	respond @internal 404
+
+	reverse_proxy site:3000 {
+		# Rate limits read X-Real-IP first, so never pass on one the visitor sent.
+		header_up X-Real-IP {remote_host}
+	}
+}
