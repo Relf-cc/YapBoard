@@ -89,7 +89,8 @@ export async function bumpServer(serverId: string, userId: string, source: 'bot'
     // Re-check inside the transaction so two bumps at once can't both land.
     const res = await tx.server.updateMany({
       where: { id: serverId, OR: [{ bumpedAt: null }, { bumpedAt: { lt: new Date(now - BUMP_COOLDOWN_MS) } }] },
-      data: { bumpedAt: new Date(now), bumpCount: { increment: 1 } },
+      // No votes since this bump yet, so it ranks exactly at the bump (see lib/votes.ts).
+      data: { bumpedAt: new Date(now), rankedAt: new Date(now), bumpCount: { increment: 1 } },
     });
     if (!res.count) return null;
     await tx.bump.create({ data: { serverId, userId, source } });

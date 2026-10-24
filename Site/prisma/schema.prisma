@@ -26,6 +26,7 @@ model User {
   reports      Report[]   @relation("reporter")
   handled      Report[]   @relation("handler")
   bumps        Bump[]
+  votes        Vote[]
   auditEntries AuditLog[]
   sessions     Session[]
 }
@@ -65,6 +66,10 @@ model Server {
   memberCount Int       @default(0)
   bumpCount   Int       @default(0)
   bumpedAt    DateTime?
+  /// Sort key for "recently bumped": the last bump, moved forward a little by votes since then (src/lib/votes.ts)
+  rankedAt    DateTime?
+  /// Staff turned voting off for this server
+  votingOff   Boolean   @default(false)
   views       Int       @default(0)
   joins       Int       @default(0)
   ownerId     String
@@ -74,9 +79,11 @@ model Server {
 
   tags    ServerTag[]
   bumps   Bump[]
+  votes   Vote[]
   reports Report[]
 
   @@index([status, bumpedAt])
+  @@index([status, rankedAt])
   @@index([status, memberCount])
   @@index([ownerId])
 }
@@ -109,6 +116,32 @@ model Bump {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([serverId, createdAt])
+}
+
+/// A vote for a server. Never deleted by staff, only revoked, so it can be restored (src/lib/votes.ts).
+model Vote {
+  id         Int       @id @default(autoincrement())
+  serverId   String
+  userId     String
+  /// Keyed hash of the voter's IP, to spot (and optionally limit) many accounts voting from one network
+  ipHash     String
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  /// Which staff action revoked it: server | user. Restoring undoes exactly that.
+  revokedFor String?
+  server     Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([serverId, createdAt])
+  @@index([userId, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+/// Settings staff change from the portal, as JSON per key (e.g. "voting").
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 /// Abuse reports and removal requests, reviewed on portal.yapboard.dev

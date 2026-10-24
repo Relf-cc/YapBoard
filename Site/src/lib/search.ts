@@ -133,8 +133,9 @@ export type SearchResult = {
 };
 
 const orderBy: Record<Exclude<Sort, 'relevance'>, Prisma.ServerOrderByWithRelationInput[]> = {
-  bumped: [{ bumpedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
-  members: [{ memberCount: 'desc' }, { bumpedAt: { sort: 'desc', nulls: 'last' } }],
+  // rankedAt: the last bump, nudged forward by votes since (lib/votes.ts).
+  bumped: [{ rankedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+  members: [{ memberCount: 'desc' }, { rankedAt: { sort: 'desc', nulls: 'last' } }],
   new: [{ createdAt: 'desc' }],
 };
 
@@ -157,7 +158,7 @@ export async function search(p: SearchParams): Promise<SearchResult> {
     const pool = await db.server.findMany({
       where,
       select: { ...cardSelect, description: true },
-      orderBy: { bumpedAt: { sort: 'desc', nulls: 'last' } },
+      orderBy: { rankedAt: { sort: 'desc', nulls: 'last' } },
       take: RELEVANCE_POOL,
     });
     const now = Date.now();

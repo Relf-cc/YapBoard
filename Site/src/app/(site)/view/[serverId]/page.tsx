@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import { ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Globe2, Pencil, Users } from 'lucide-react';
+import { ArrowBigUp, ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Globe2, Pencil, Users } from 'lucide-react';
 import { db } from '@/lib/db';
 import { getUser } from '@/lib/session';
 import { countOnce } from '@/lib/http';
@@ -19,6 +19,8 @@ import { Reveal } from '@/components/Reveal';
 import { ReportButton } from '@/components/view/ReportButton';
 import { ShareButton } from '@/components/view/ShareButton';
 import { Description } from '@/components/view/Description';
+import { VoteButton } from '@/components/view/VoteButton';
+import { getVotingConfig, nextVoteAt, recentVotes, VOTES_SHOWN_DAYS } from '@/lib/votes';
 
 type Props = { params: Promise<{ serverId: string }> };
 
@@ -48,13 +50,18 @@ export default async function ViewServer({ params }: Props) {
 
   if (countOnce('view', s.id, await headers())) db.server.update({ where: { id: s.id }, data: { views: { increment: 1 } } }).catch(() => {});
 
+  // Voting shows only while it's on, for this server too, and only on public listings.
+  const voting = await getVotingConfig();
+  const canVote = voting.enabled && !s.votingOff && s.status === 'PUBLIC';
+  const [votes, votedUntil] = canVote ? await Promise.all([recentVotes(s.id), user ? nextVoteAt(s.id, user.id, voting) : null]) : [0, null];
+
   const tags = s.tags.map((t) => t.tag.name);
   const similar = tags.length
     ? (
         await db.server.findMany({
           where: { id: { not: s.id }, status: 'PUBLIC', nsfw: s.nsfw ? undefined : false, tags: { some: { tag: { name: { in: tags } } } } },
           select: cardSelect,
-          orderBy: { bumpedAt: { sort: 'desc', nulls: 'last' } },
+          orderBy: { rankedAt: { sort: 'desc', nulls: 'last' } },
           take: 24,
         })
       )
@@ -143,6 +150,15 @@ export default async function ViewServer({ params }: Props) {
                   Join server
                   <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
+                {canVote && (
+                  <VoteButton
+                    serverId={s.id}
+                    accent={s.accent}
+                    votes={votes}
+                    blocked={!user ? 'login' : user.id === s.ownerId ? 'own' : null}
+                    nextAt={votedUntil ? votedUntil.toISOString() : null}
+                  />
+                )}
                 <ShareButton url={`/view/${s.id}`} />
                 {manager && (
                   <Link href={`/manage/${s.id}`} className="btn btn-secondary btn-lg">
@@ -169,7 +185,11 @@ export default async function ViewServer({ params }: Props) {
                   <Fact label="Members" value={compact(s.memberCount)} icon={<Users size={14} />} />
                   <Fact label="Bumps" value={compact(s.bumpCount)} icon={<ChevronsUp size={14} />} />
                   <Fact label="Last bump" value={timeAgo(s.bumpedAt)} icon={<ChevronsUp size={14} />} />
-                  <Fact label="Listed" value={s.createdAt.toLocaleDateString('en', { month: 'short', year: 'numeric' })} icon={<CalendarDays size={14} />} />
+                  {canVote ? (
+                    <Fact label={`Votes (${VOTES_SHOWN_DAYS} days)`} value={compact(votes)} icon={<ArrowBigUp size={14} />} />
+                  ) : (
+                    <Fact label="Listed" value={s.createdAt.toLocaleDateString('en', { month: 'short', year: 'numeric' })} icon={<CalendarDays size={14} />} />
+                  )}
                 </dl>
                 <div className="mt-5 pt-5 border-t border-line flex items-center gap-3">
                   <Avatar src={s.owner.avatarUrl} name={owner} id={s.owner.id} size={34} round />

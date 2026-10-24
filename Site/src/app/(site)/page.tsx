@@ -18,7 +18,7 @@ export default async function Home() {
   const weekAgo = new Date(Date.now() - 7 * 864e5);
   const [tags, bumped, fresh, stats, bumpsToday] = await Promise.all([
     popularTags(24),
-    db.server.findMany({ where: listed, select: cardSelect, orderBy: { bumpedAt: { sort: 'desc', nulls: 'last' } }, take: 18 }),
+    db.server.findMany({ where: listed, select: cardSelect, orderBy: { rankedAt: { sort: 'desc', nulls: 'last' } }, take: 18 }),
     db.server.findMany({ where: { ...listed, createdAt: { gte: weekAgo } }, select: cardSelect, orderBy: { createdAt: 'desc' }, take: 3 }),
     db.server.aggregate({ where: { status: 'PUBLIC' }, _count: true, _sum: { memberCount: true } }),
     db.bump.count({ where: { createdAt: { gte: dayAgo } } }),

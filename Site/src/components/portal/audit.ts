@@ -13,6 +13,15 @@ const LABELS: Record<string, string> = {
   'role.user': 'removed staff from',
   'role.staff': 'made staff:',
   'role.admin': 'made admin:',
+  'voting.pause': 'paused voting',
+  'voting.resume': 'turned voting back on',
+  'voting.settings': 'changed voting settings',
+  'votes.revoke_server': 'revoked votes for server',
+  'votes.restore_server': 'restored votes for server',
+  'votes.revoke_user': 'revoked votes by user',
+  'votes.restore_user': 'restored votes by user',
+  'server.voting_off': 'turned voting off for server',
+  'server.voting_on': 'turned voting back on for server',
 };
 
 export const auditLabel = (action: string) => LABELS[action] ?? action;

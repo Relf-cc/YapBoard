@@ -20,6 +20,11 @@ export function checkProductionConfig() {
   for (const p of problems) console.error(`[config] ${p}`);
 }
 
+/** Servers listed before voting existed have no rankedAt yet (lib/votes.ts), and would drop out of "recently bumped". */
+export async function backfillRanks() {
+  await db.$executeRaw`UPDATE "Server" SET "rankedAt" = COALESCE("bumpedAt", "createdAt") WHERE "rankedAt" IS NULL`;
+}
+
 export async function resetUngrantedRoles() {
   const staffIds = (process.env.STAFF_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
   console.log(`[roles] STAFF_IDS: ${staffIds.length ? staffIds.join(', ') : '(none)'}`);

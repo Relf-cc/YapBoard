@@ -48,10 +48,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const now = new Date();
   await db.$transaction(async (tx) => {
     await tx.server.create({
       // The count comes along with the manager check, so a new listing doesn't show 0 until the bot's next sync.
-      data: { id: serverId, name, iconUrl, bannerUrl, ...(memberCount !== null && { memberCount }), ...data, status: unlisted ? 'UNLISTED' : 'PUBLIC', ownerId: g.user.id, bumpedAt: new Date() },
+      data: { id: serverId, name, iconUrl, bannerUrl, ...(memberCount !== null && { memberCount }), ...data, status: unlisted ? 'UNLISTED' : 'PUBLIC', ownerId: g.user.id, bumpedAt: now, rankedAt: now },
     });
     await setTags(tx, serverId, tags);
   });

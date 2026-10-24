@@ -17,7 +17,7 @@ export default async function Audit({ searchParams }: { searchParams: Promise<{ 
     db.auditLog.count(),
   ]);
   const target = (type: string, id: string) =>
-    type === 'server' ? `${base}/servers?q=${id}` : type === 'user' ? `${base}/users?q=${id}` : type === 'report' ? `${base}/reports/${id}` : '#';
+    type === 'server' ? `${base}/servers?q=${id}` : type === 'user' ? `${base}/users?q=${id}` : type === 'report' ? `${base}/reports/${id}` : type === 'setting' && id === 'voting' ? `${base}/voting` : '#';
 
   return (
     <div className="max-w-5xl">

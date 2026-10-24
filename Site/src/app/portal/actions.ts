@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getUser, isAdmin, isStaff } from '@/lib/session';
+import { getVotingConfig, refreshAllRanks, refreshRank, refreshRanksForUser, saveVotingConfig, votingSchema, type VotingConfig } from '@/lib/votes';
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
 
@@ -76,6 +77,7 @@ export async function resolveReport(input: z.input<typeof resolveSchema>): Promi
     }
     await tx.auditLog.create({ data: { actorId: me.id, action: `report.${outcome}`, targetType: 'report', targetId: reportId, note: n } });
   });
+  if (outcome === 'action' && banOwner) await refreshRanksForUser(report.server.ownerId);
   return done(outcome === 'dismiss' ? 'Report dismissed' : 'Report actioned');
 }
 
@@ -141,6 +143,8 @@ export async function moderateUser(input: z.input<typeof userSchema>): Promise<R
     await db.user.update({ where: { id: userId }, data: { bannedAt: null, banReason: null } });
   }
   await log(me.id, `user.${action}`, 'user', userId, n);
+  // Banned voters' votes don't count (and count again on unban).
+  await refreshRanksForUser(userId);
   return done(action === 'ban' ? 'User banned' : 'User unbanned');
 }
 
@@ -155,4 +159,87 @@ export async function setRole(input: z.input<typeof roleSchema>): Promise<Result
   await db.user.update({ where: { id: p.data.userId }, data: { role: p.data.role } });
   await log(me.id, `role.${p.data.role.toLowerCase()}`, 'user', p.data.userId, null);
   return done(`Role set to ${p.data.role.toLowerCase()}`);
+}
+
+/* ---------------- voting (lib/votes.ts) ---------------- */
+
+const changes = (a: VotingConfig, b: VotingConfig) =>
+  (Object.keys(b) as (keyof VotingConfig)[])
+    .filter((k) => a[k] !== b[k])
+    .map((k) => `${k} ${a[k]} → ${b[k]}`)
+    .join(', ') || null;
+
+/** Pause or resume all voting. Any staff member can, so abuse can be stopped without waiting for an admin. */
+export async function setVotingEnabled(enabled: boolean): Promise<Result> {
+  const me = await staff();
+  if (typeof enabled !== 'boolean') return { ok: false, error: 'Bad input' };
+  const next = { ...(await getVotingConfig()), enabled };
+  await saveVotingConfig(next);
+  await refreshAllRanks(next);
+  await log(me.id, enabled ? 'voting.resume' : 'voting.pause', 'setting', 'voting', null);
+  revalidatePath('/', 'layout');
+  return done(enabled ? 'Voting is on' : 'Voting is paused, and votes no longer move servers');
+}
+
+/** The numbers and switches. Admins only. Every server's rank is worked out again with the new values. */
+export async function saveVotingSettings(input: VotingConfig): Promise<Result> {
+  const me = await staff();
+  if (!isAdmin(me)) return { ok: false, error: 'Admins only' };
+  const p = votingSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Check the numbers: one is out of range' };
+  const before = await getVotingConfig();
+  await saveVotingConfig(p.data);
+  await refreshAllRanks(p.data);
+  await log(me.id, 'voting.settings', 'setting', 'voting', changes(before, p.data));
+  revalidatePath('/', 'layout');
+  return done('Voting settings saved');
+}
+
+const voteTarget = z.object({ kind: z.enum(['server', 'user']), id: z.string().min(1).max(100), note });
+
+/** Revoke every counted vote for a server, or by a user. Nothing is deleted: restoreVotes undoes it. */
+export async function revokeVotes(input: z.input<typeof voteTarget>): Promise<Result> {
+  const me = await staff();
+  const p = voteTarget.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { kind, id, note: n } = p.data;
+  const r = await db.vote.updateMany({
+    where: { ...(kind === 'server' ? { serverId: id } : { userId: id }), revokedAt: null },
+    data: { revokedAt: new Date(), revokedFor: kind },
+  });
+  if (kind === 'server') await refreshRank(id);
+  else await refreshRanksForUser(id);
+  await log(me.id, `votes.revoke_${kind}`, kind, id, n ?? `${r.count} votes`);
+  return done(`${r.count} vote${r.count === 1 ? '' : 's'} revoked`);
+}
+
+/** Puts back the votes that revokeVotes took away for this server (or user). */
+export async function restoreVotes(input: z.input<typeof voteTarget>): Promise<Result> {
+  const me = await staff();
+  const p = voteTarget.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { kind, id } = p.data;
+  const r = await db.vote.updateMany({
+    where: { ...(kind === 'server' ? { serverId: id } : { userId: id }), revokedFor: kind },
+    data: { revokedAt: null, revokedFor: null },
+  });
+  if (kind === 'server') await refreshRank(id);
+  else await refreshRanksForUser(id);
+  await log(me.id, `votes.restore_${kind}`, kind, id, `${r.count} votes`);
+  return done(`${r.count} vote${r.count === 1 ? '' : 's'} restored`);
+}
+
+const serverVoting = z.object({ serverId: z.string().min(1).max(100), off: z.boolean(), note });
+
+/** Turn voting off (or back on) for one server. While off its votes don't count and nobody can vote for it. */
+export async function setServerVoting(input: z.input<typeof serverVoting>): Promise<Result> {
+  const me = await staff();
+  const p = serverVoting.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { serverId, off, note: n } = p.data;
+  const r = await db.server.updateMany({ where: { id: serverId }, data: { votingOff: off } });
+  if (!r.count) return { ok: false, error: 'Server not found' };
+  await refreshRank(serverId);
+  await log(me.id, off ? 'server.voting_off' : 'server.voting_on', 'server', serverId, n);
+  return done(off ? 'Voting is off for this server' : 'Voting is back on for this server');
 }
