@@ -5,7 +5,10 @@ import { cardSelect, toCard, type ServerCard } from './servers';
 import { normalizeTag } from './tags';
 import { LANGUAGES } from './languages';
 
-export const PAGE_SIZE = 24;
+/** 23 so a full page plus the YapBoard Pro card fills the grid evenly (8 rows of 3, 12 of 2). */
+export const PAGE_SIZE = 23;
+/** Fewer results than this on a page and the Pro card stays out of the way. */
+export const AD_MIN_RESULTS = 12;
 const RELEVANCE_POOL = 400;
 
 export const SORTS = { relevance: 'Best match', bumped: 'Recently bumped', members: 'Most members', new: 'Newest' } as const;

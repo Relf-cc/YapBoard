@@ -20,7 +20,12 @@ const STAR = 'M20.6 1.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65
 const COLORS = {
   VERIFIED: { from: '#5cbcff', to: '#1683ea', glow: '#2b9bff' },
   OFFICIAL: { from: '#3fe39e', to: '#0d9e62', glow: '#1fc47f' },
+  /** YapBoard Pro. Not staff-granted, so it isn't in BADGES. */
+  PRO: { from: '#c39bff', to: '#7a45f0', glow: '#9a6bff' },
 };
+
+type MarkKind = keyof typeof COLORS;
+const markLabel = (kind: MarkKind) => (kind === 'PRO' ? 'YapBoard Pro' : BADGES[kind].long);
 
 /**
  * Blue (verified) or green (official) checkmark that glistens: a light sweep crosses it every few seconds
@@ -49,14 +54,14 @@ export function Badge({ kind, size = 18, seed = '', className, tooltip = true }:
   );
 }
 
-function BadgeMark({ kind, size, seed, className }: { kind: 'VERIFIED' | 'OFFICIAL'; size: number; seed: string; className?: string }) {
+export function BadgeMark({ kind, size, seed = '', className }: { kind: MarkKind; size: number; seed?: string; className?: string }) {
   const id = useId().replace(/:/g, '');
   const c = COLORS[kind];
   const delay = `${((hueFor(seed || kind) % 36) / 10).toFixed(1)}s`;
   return (
     <span
       role="img"
-      aria-label={BADGES[kind].long}
+      aria-label={markLabel(kind)}
       className={clsx('badge-mark relative inline-flex shrink-0 align-middle', className)}
       style={{ width: size, height: size, '--badge-delay': delay, '--badge-glow': `${c.glow}66` } as CSSProperties}
     >

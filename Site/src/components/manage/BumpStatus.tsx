@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { ChevronsUp } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDuration } from '@/lib/format';
+import { Tooltip } from '../Tooltip';
 
 const COOLDOWN = 2 * 60 * 60 * 1000;
 
@@ -65,9 +66,11 @@ export function BumpStatus({ serverId, bumpedAt, canWebBump, compact }: { server
   }
 
   return (
-    <div className={clsx('inline-flex items-center gap-2 text-[13px]', compact ? 'px-2' : '')} title={ready ? 'Type /bump in your server' : 'Next bump'}>
-      {ring}
-      <span className={ready ? 'text-ok font-medium' : 'text-ink-3 tabular-nums'}>{ready ? (compact ? 'Ready: /bump' : 'Ready to bump. Type /bump in your server') : `Bump in ${formatDuration(left)}`}</span>
-    </div>
+    <Tooltip content={ready ? 'Type /bump in your server to move back to the top' : `Next bump at ${new Date(new Date(last!).getTime() + COOLDOWN).toLocaleTimeString(undefined, { timeStyle: 'short' })}`}>
+      <div className={clsx('inline-flex items-center gap-2 text-[13px]', compact ? 'px-2' : '')}>
+        {ring}
+        <span className={ready ? 'text-ok font-medium' : 'text-ink-3 tabular-nums'}>{ready ? (compact ? 'Ready: /bump' : 'Ready to bump. Type /bump in your server') : `Bump in ${formatDuration(left)}`}</span>
+      </div>
+    </Tooltip>
   );
 }

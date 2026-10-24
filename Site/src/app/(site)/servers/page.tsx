@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ChevronLeft, ChevronRight, SearchX, X } from 'lucide-react';
 import clsx from 'clsx';
-import { parseSearch, search, searchHref, SIZES, SORTS, type SearchParams } from '@/lib/search';
+import { AD_MIN_RESULTS, parseSearch, search, searchHref, SIZES, SORTS, type SearchParams } from '@/lib/search';
 import { LANGUAGES, languageName } from '@/lib/languages';
 import { ServerGrid } from '@/components/ServerGrid';
 import { SearchBar } from '@/components/SearchBar';
@@ -25,6 +25,8 @@ export default async function Browse({ searchParams }: Props) {
   const page = Math.min(p.page, res.pages);
   const filtered = p.q || p.tags.length || p.lang || p.size !== 'any' || p.nsfw || p.verified;
   const title = p.q ? `Results for “${p.q}”` : p.tags.length ? p.tags.map((t) => `#${t}`).join(' + ') : 'All servers';
+  // A random slot for the YapBoard Pro card, picked fresh on each request.
+  const adAt = res.items.length >= AD_MIN_RESULTS ? Math.floor(Math.random() * (res.items.length + 1)) : undefined;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-8">
@@ -110,7 +112,7 @@ export default async function Browse({ searchParams }: Props) {
 
           <div className="mt-6">
             {res.items.length ? (
-              <ServerGrid servers={res.items} activeTags={p.tags} animationKey={JSON.stringify({ ...p, page })} />
+              <ServerGrid servers={res.items} activeTags={p.tags} animationKey={JSON.stringify({ ...p, page })} adAt={adAt} />
             ) : (
               <Empty p={p} />
             )}

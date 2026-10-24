@@ -96,7 +96,7 @@ export function Tooltip({ content, children, side = 'top', delay = 160, classNam
                 exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }}
                 transition={{ type: 'spring', stiffness: 520, damping: 32 }}
                 style={{ position: 'fixed', left: pos?.x ?? -9999, top: pos?.y ?? -9999, transformOrigin: `${pos?.arrow ?? 0}px ${s === 'top' ? '100%' : '0%'}` }}
-                className="pointer-events-none z-[100] max-w-[260px] rounded-[10px] border border-line-strong bg-[#0c0d0f]/95 px-3 py-2 text-[12.5px] leading-snug text-ink-2 shadow-[0_12px_32px_-8px_#000d] backdrop-blur-sm"
+                className="pointer-events-none z-[100] max-w-[260px] rounded-[10px] border border-line-strong bg-[#0c0d0f] px-3 py-2 text-[12.5px] leading-snug text-ink-2 shadow-[0_12px_32px_-8px_#000d]"
               >
                 {content}
                 <span

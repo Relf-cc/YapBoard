@@ -6,6 +6,7 @@ import { ArrowUpRight, ChevronsUp, Users } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { Badge } from './Badge';
 import { NsfwMark } from './NsfwMark';
+import { Tooltip } from './Tooltip';
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import type { ServerCard as Card } from '@/lib/servers';
@@ -39,10 +40,12 @@ export function ServerCard({ server, activeTags = [] }: { server: Card; activeTa
             </span>
             <span className="truncate">{languageName(server.language)}</span>
             {server.bumpedAt && (
-              <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 tabular-nums" title="Last bumped">
-                <ChevronsUp size={13} className="text-accent" />
-                {timeAgo(server.bumpedAt)}
-              </span>
+              <Tooltip className="relative z-10 ml-auto shrink-0" content={`Last bumped ${new Date(server.bumpedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`}>
+                <span className="inline-flex items-center gap-0.5 tabular-nums">
+                  <ChevronsUp size={13} className="text-accent" />
+                  {timeAgo(server.bumpedAt)}
+                </span>
+              </Tooltip>
             )}
           </div>
         </div>
