@@ -64,6 +64,13 @@ export function answer(msg, embed, ...linkPairs) {
   return msg.reply('', { embeds: [embed], components });
 }
 
+/** A card only the person who clicked sees. Those can't have buttons, so the links go in the text. */
+export function privately(i, embed, ...linkPairs) {
+  const ok = linkPairs.filter(([, url]) => url);
+  if (ok.length) embed.description((embed.data.description || '') + '\n\n' + ok.map(([label, url]) => `[${label} →](${url})`).join('   '));
+  return i.ephemeral('', { embeds: [embed] });
+}
+
 /** 2h 0m → "2h", 83m → "1h 23m", 40s → "under a minute". */
 export function duration(ms) {
   const mins = Math.ceil(Math.max(0, ms) / 60_000);

@@ -91,10 +91,14 @@ export async function fetchServer(serverId: string): Promise<YapinServer | null>
 }
 
 /**
- * Yapin's OpenAPI spec (www.yapin.gg/openapi.json, schema Role): `manage_server` is a boolean on the role.
- * Only an explicit `true` counts; anything missing or unexpected means no.
+ * Yapin's OpenAPI spec (www.yapin.gg/openapi.json, schema Role): `manage_server` is a boolean on the role, and
+ * other permissions are in `perms`, where an admin flag counts too. Only an explicit `true` counts; anything
+ * missing or unexpected means no.
  */
-const roleCanManage = (role: Record<string, unknown>) => role.manage_server === true;
+const roleCanManage = (role: Record<string, unknown>) => {
+  const perms = role.perms && typeof role.perms === 'object' ? (role.perms as Record<string, unknown>) : {};
+  return role.manage_server === true || perms.administrator === true || perms.admin === true;
+};
 
 export type ManageCheck =
   | { ok: true; server: YapinServer }
@@ -125,6 +129,6 @@ export async function checkManager(serverId: string, userId: string): Promise<Ma
 export const MANAGE_ERRORS: Record<Exclude<ManageCheck, { ok: true }>['reason'], string> = {
   bot_missing: "YapBoard's bot isn't in that server yet. Add it first, then try again.",
   not_member: "You're not a member of that server.",
-  no_permission: 'You need to own the server or have a role with Manage Server.',
+  no_permission: 'Only the server’s owner or an admin (a role with Manage Server) can add it.',
   unavailable: "Couldn't reach Yapin' right now. Try again in a minute.",
 };

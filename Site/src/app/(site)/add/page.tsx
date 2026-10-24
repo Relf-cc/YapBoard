@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Bot, Terminal } from 'lucide-react';
-import { botEnabled } from '@/lib/env';
+import { botEnabled, env } from '@/lib/env';
 import { getUser } from '@/lib/session';
 import { ListingForm, type ListingValues } from '@/components/manage/ListingForm';
 import { CopyField } from '@/components/CopyField';
@@ -14,7 +14,9 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
   const user = await getUser();
   if (!user) redirect('/login?next=/add');
   const { server } = await searchParams;
-  const devMode = !botEnabled();
+  // Owners and admins are checked through the bot. Without its token: dev skips the check, production can't add.
+  const offline = !botEnabled() && env.isProd;
+  const devMode = !botEnabled() && !env.isProd;
   const botId = process.env.NEXT_PUBLIC_BOT_ID || '';
 
   const initial: ListingValues = {
@@ -47,7 +49,11 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
         <p className="mt-3 max-w-2xl text-ink-2 leading-relaxed">Free, takes about two minutes. You can change anything later.</p>
       </Reveal>
 
-      {!devMode && (
+      {offline && (
+        <div className="card mt-8 p-6 text-sm text-ink-2">Adding servers is switched off right now. Try again later.</div>
+      )}
+
+      {!devMode && !offline && (
         <Reveal delay={0.05}>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div className="card p-6">
@@ -70,16 +76,18 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
                 <h2 className="font-bold">2. Type /yapboard in your server</h2>
               </div>
               <p className="mt-3 text-sm text-ink-3 leading-relaxed">
-                The bot replies with a link back here with your server ID filled in. You need to own the server or have a role with Manage Server.
+                The bot replies with a link back here with your server ID filled in. Only the owner or an admin (a role with Manage Server) can add it: we check with Yapin’ before anything is listed.
               </p>
             </div>
           </div>
         </Reveal>
       )}
 
-      <div className="mt-10">
-        <ListingForm mode="create" initial={initial} devMode={devMode} />
-      </div>
+      {!offline && (
+        <div className="mt-10">
+          <ListingForm mode="create" initial={initial} devMode={devMode} />
+        </div>
+      )}
     </div>
   );
 }

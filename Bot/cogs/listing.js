@@ -1,6 +1,12 @@
 import * as yapboard from '../lib/yapboard.js';
 import { createReminders } from '../lib/reminders.js';
-import { answer, authorOf, card, cooldownBar, memberCountOf, number, serverIdOf, siteLink, tagLine, until } from '../lib/ui.js';
+import { Button, Row } from '../lib/yapper.js';
+import { isOwnerOrAdmin } from '../lib/perms.js';
+import { answer, authorOf, card, cooldownBar, memberCountOf, number, privately, serverIdOf, siteLink, tagLine, until } from '../lib/ui.js';
+
+/** How long the /yapboard button stays if nobody opens it. */
+const PROMPT_TTL = 5 * 60_000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const STATUS = { PUBLIC: 'Public', UNLISTED: 'Unlisted', HIDDEN: 'Hidden by staff', REMOVED: 'Removed' };
 const BADGE = { VERIFIED: 'Verified on YapBoard', OFFICIAL: 'Official Yapin’ server' };
@@ -116,18 +122,41 @@ export default async function setup(bot) {
     }
   });
 
-  bot.command('yapboard', 'This server’s YapBoard listing and stats', async (msg) => {
+  /**
+   * Stats are for the owner and admins, and only the person who asked should see them. Yapin' can only answer
+   * privately to a button click (a command is a normal message, so replies to it are public), so /yapboard posts a
+   * button that only that person can use, and the card comes back as an ephemeral reply to the click.
+   */
+  bot.command('yapboard', 'Your server’s listing and stats (owner and admins, only you see them)', async (msg) => {
     const serverId = await serverIdOf(bot, msg);
     if (!serverId) return answer(msg, card({ description: 'Run `/yapboard` in a server, not in DMs.', tone: 'muted' }));
+    const sent = await msg
+      .reply('', {
+        embeds: [card({ description: `${msg.authorMention}, your YapBoard listing is ready. Only you can open it, and only you will see it.`, tone: 'muted' })],
+        components: [new Row(Button.primary('Show my listing', `yb:stats:${serverId}:${msg.author_id}`))],
+      })
+      .catch(() => null);
+    // Not opened? Tidy up anyway.
+    if (sent?.id) setTimeout(() => bot.delete(msg.channel_id, sent.id).catch(() => {}), PROMPT_TTL).unref?.();
+  });
 
-    let l;
-    try {
-      l = await yapboard.listing(serverId);
-    } catch (e) {
-      console.error('[yapboard] /yapboard:', e.message);
-      return answer(msg, OFFLINE());
+  bot.onButton(/^yb:stats:/, async (i) => {
+    const [, , serverId, askedBy] = i.custom_id.split(':');
+    if (String(i.user_id) !== askedBy) return i.ephemeral('This one isn’t yours. Type `/yapboard` to get your own.');
+
+    // Clicks must be answered within 3 seconds. If Yapin' and the site are slow, say "got it" first and answer after.
+    const work = Promise.all([isOwnerOrAdmin(bot, serverId, i.user_id), yapboard.listing(serverId).catch((e) => e)]);
+    if (!(await Promise.race([work.then(() => true), sleep(2_500).then(() => false)]))) await i.ack();
+    const [allowed, l] = await work;
+
+    if (!allowed) return i.ephemeral('Only the server’s owner or an admin (a role with Manage Server) can see this.');
+    // Opened: the button has done its job, so it goes.
+    bot.delete(i.channel_id, i.message_id).catch(() => {});
+    if (l instanceof Error) {
+      console.error('[yapboard] /yapboard:', l.message);
+      return privately(i, OFFLINE());
     }
-    if (!l.listed) return answer(msg, notListed(), ['List this server', l.addUrl]);
+    if (!l.listed) return privately(i, notListed(), ['List this server', l.addUrl]);
 
     const live = l.status === 'PUBLIC';
     const viewable = live || l.status === 'UNLISTED';
@@ -146,7 +175,7 @@ export default async function setup(bot) {
       .field('Views', number(l.views), true)
       .field('Joins', number(l.joins), true)
       .field('Status', STATUS[l.status] || l.status, true);
-    return answer(msg, e, ['View listing', viewable ? l.url : null], ['Manage', l.manageUrl]);
+    return privately(i, e, ['View listing', viewable ? l.url : null], ['Manage', l.manageUrl]);
   });
 }
 

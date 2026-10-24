@@ -3,7 +3,7 @@ import { answer, card, siteLink } from '../lib/ui.js';
 // Same wording as the site's /bot page.
 const HELP = [
   ['/bump', 'Moves your server to the top of the list. Anyone in the server can do it, once every 2 hours.'],
-  ['/yapboard', 'Shows your listing’s stats, or a link to list the server if it isn’t on YapBoard yet.'],
+  ['/yapboard', 'Owner and admins: your listing’s stats (only you see them), or a link to list the server.'],
   ['/invite', 'Gets the link to add YapBoard to another server.'],
   ['/help', 'Lists the commands.'],
 ];

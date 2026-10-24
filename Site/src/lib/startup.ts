@@ -14,6 +14,7 @@ export function checkProductionConfig() {
     weak(process.env.SESSION_SECRET, 32) && 'SESSION_SECRET is missing, short or the example value: nobody can log in',
     weak(process.env.INTERNAL_API_SECRET, 16) && 'INTERNAL_API_SECRET is missing, short or the example value: the bot is locked out',
     !(process.env.YAPIN_CLIENT_ID && process.env.YAPIN_CLIENT_SECRET) && 'YAPIN_CLIENT_ID / YAPIN_CLIENT_SECRET not set: login is off',
+    !process.env.YAPPER_BOT_TOKEN && 'YAPPER_BOT_TOKEN not set: nobody can add servers (owners and admins can’t be checked)',
     !/^https:\/\//.test(process.env.NEXT_PUBLIC_SITE_URL || '') && 'NEXT_PUBLIC_SITE_URL is not https://',
   ].filter(Boolean);
   for (const p of problems) console.error(`[config] ${p}`);

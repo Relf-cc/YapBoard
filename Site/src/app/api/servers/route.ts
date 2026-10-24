@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { botEnabled } from '@/lib/env';
+import { botEnabled, env } from '@/lib/env';
 import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
 import { listingSchema, setTags } from '@/lib/servers';
 import { checkManager, MANAGE_ERRORS } from '@/lib/yapin';
@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
     const check = await checkManager(serverId, g.user.id);
     if (!check.ok) return fail(MANAGE_ERRORS[check.reason], 403, { reason: check.reason });
     ({ name, iconUrl, bannerUrl, memberCount } = check.server);
+  } else if (env.isProd) {
+    // Without the bot token nobody can be checked, so nobody gets to list anything (dev only skips the check).
+    return fail('Adding servers is switched off right now. Try again later.', 503);
   } else if (!name) {
     return fail('Server name is required in dev mode', 422, { fields: { name: ['Give it a name'] } });
   }
