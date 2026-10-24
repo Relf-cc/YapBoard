@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { AlertCircle, FlaskConical } from 'lucide-react';
 import { devLoginEnabled, env, oauthEnabled } from '@/lib/env';
 import { getUser } from '@/lib/session';
-import { safeNext } from '@/lib/next-url';
+import { loginError, safeNext } from '@/lib/next-url';
 import { LogoMark } from '@/components/Logo';
 import { Reveal } from '@/components/Reveal';
 
@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: 'Log in' };
 type Props = { searchParams: Promise<{ next?: string; error?: string }> };
 
 export default async function Login({ searchParams }: Props) {
-  const { next: rawNext, error } = await searchParams;
+  const { next: rawNext, error: errorCode } = await searchParams;
+  const error = loginError(errorCode);
   const next = safeNext(rawNext, env.portalUrl);
   if (await getUser()) redirect(next);
 

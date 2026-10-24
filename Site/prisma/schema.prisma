@@ -27,6 +27,18 @@ model User {
   handled      Report[]   @relation("handler")
   bumps        Bump[]
   auditEntries AuditLog[]
+  sessions     Session[]
+}
+
+/// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
 }
 
 /// A listed server. `id` is the Yapin' server id.

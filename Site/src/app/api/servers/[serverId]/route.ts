@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { fail, json, requireUser } from '@/lib/http';
 import { canManageListing, listingSchema, setTags } from '@/lib/servers';
+import { isStaff } from '@/lib/session';
 
 type Ctx = { params: Promise<{ serverId: string }> };
 
@@ -36,6 +37,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   if (m.error) return m.error;
   // A staff-removed listing stays as a tombstone so it can't simply be re-added.
   if (m.server.status === 'REMOVED') return fail('This listing was removed by staff', 403);
+  if (!isStaff(m.user)) {
+    // Deleting and re-adding would otherwise undo a staff hide, and take the reports against it with it.
+    if (m.server.status === 'HIDDEN') return fail('YapBoard staff hid this listing, so it can’t be deleted. Contact us if you think that’s a mistake.', 403);
+    const open = await db.report.count({ where: { serverId: m.server.id, status: 'OPEN' } });
+    if (open) return fail('This listing has a report waiting for YapBoard staff. You can delete it once they’ve looked at it.', 409);
+  }
   await db.server.delete({ where: { id: m.server.id } });
   return json({ ok: true });
 }

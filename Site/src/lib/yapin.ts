@@ -89,16 +89,11 @@ export async function fetchServer(serverId: string): Promise<YapinServer | null>
   };
 }
 
-const MANAGE_PERM = /admin|manage[_\s-]?server|manage[_\s-]?guild|manageserver/i;
-
-/** Role permissions aren't documented, so accept arrays, objects of booleans and strings. */
-function roleCanManage(role: Record<string, unknown>): boolean {
-  const p = role.permissions ?? role.perms;
-  if (Array.isArray(p)) return p.some((x) => MANAGE_PERM.test(String(x)));
-  if (p && typeof p === 'object') return Object.entries(p).some(([k, v]) => v === true && MANAGE_PERM.test(k));
-  if (typeof p === 'string') return MANAGE_PERM.test(p);
-  return role.administrator === true || role.manage_server === true;
-}
+/**
+ * Yapin's OpenAPI spec (www.yapin.gg/openapi.json, schema Role): `manage_server` is a boolean on the role.
+ * Only an explicit `true` counts; anything missing or unexpected means no.
+ */
+const roleCanManage = (role: Record<string, unknown>) => role.manage_server === true;
 
 export type ManageCheck =
   | { ok: true; server: YapinServer }
@@ -113,9 +108,11 @@ export async function checkManager(serverId: string, userId: string): Promise<Ma
 
     const m = await botGet<{ member?: { roles?: unknown[] } }>(`/servers/${encodeURIComponent(serverId)}/members/${encodeURIComponent(userId)}`);
     if (!m.ok || !m.data.member) return { ok: false, reason: 'not_member' };
-    const mine = new Set((m.data.member.roles ?? []).map((r) => String(typeof r === 'object' && r ? (r as { id: unknown }).id : r)));
+    // Spec (Member.roles): an array of role ids.
+    const mine = new Set((m.data.member.roles ?? []).filter((r): r is string => typeof r === 'string'));
 
     const r = await botGet<{ roles?: Record<string, unknown>[] }>(`/servers/${encodeURIComponent(serverId)}/roles`);
+    if (!r.ok) return { ok: false, reason: 'unavailable' };
     const roles = r.data.roles ?? [];
     if (roles.some((role) => mine.has(String(role.id)) && roleCanManage(role))) return { ok: true, server };
     return { ok: false, reason: 'no_permission' };

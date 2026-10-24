@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { db } from '@/lib/db';
-import { portalBase } from '@/lib/portal';
+import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
 import { reasonLabel } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
@@ -10,6 +10,7 @@ import { PageHead } from '@/components/portal/PageHead';
 import { auditLabel } from '@/components/portal/audit';
 
 export default async function Overview() {
+  await requireStaffPage();
   const base = await portalBase();
   const weekAgo = new Date(Date.now() - 7 * 864e5);
   const [openAbuse, openRemoval, listed, hidden, handledWeek, newWeek, queue, audit] = await Promise.all([

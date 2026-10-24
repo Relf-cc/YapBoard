@@ -42,3 +42,6 @@ sends member counts, names and icons to the site.
 - `NEXT_PUBLIC_SITE_URL=https://yapboard.dev`, `PORTAL_URL=https://portal.yapboard.dev`, `COOKIE_DOMAIN=.yapboard.dev`
 - Login with Yapin' redirect URI: `https://yapboard.dev/api/auth/callback`
 - `STAFF_IDS` = your Yapin' user ID(s); grant others staff from the portal's Users page
+- `SESSION_SECRET` and `INTERNAL_API_SECRET`: real random values. The `change-me` examples are refused
+- Run `prisma db push` (or a migration) on deploy: logins are stored in a `Session` table
+- Put the site behind a proxy that sets `X-Forwarded-For` / `X-Real-IP` (Vercel, Fly, nginx): rate limits use it

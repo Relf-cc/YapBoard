@@ -1,6 +1,6 @@
 import 'server-only';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { env } from './env';
 import { getUser, isStaff } from './session';
 
@@ -20,4 +20,15 @@ export async function requirePortalUser(path = '') {
     redirect(`${base ? '' : env.siteUrl}/login?next=${encodeURIComponent(back)}`);
   }
   return { user, staff: isStaff(user) && !user.bannedAt };
+}
+
+/**
+ * Every portal page calls this first, before loading anything. The layout's check is not enough on its own:
+ * Next renders a page alongside its layout, so a page that skips this sends its data even when the layout
+ * shows "Staff only" or redirects to login.
+ */
+export async function requireStaffPage(path = '') {
+  const { user, staff } = await requirePortalUser(path);
+  if (!staff) notFound();
+  return user;
 }

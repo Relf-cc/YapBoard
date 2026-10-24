@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
-import { portalBase } from '@/lib/portal';
+import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
 import { reasonLabel } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
@@ -17,6 +17,7 @@ export const metadata: Metadata = { title: 'Report' };
 
 export default async function ReportDetail({ params }: { params: Promise<{ reportId: string }> }) {
   const { reportId } = await params;
+  await requireStaffPage(`/reports/${encodeURIComponent(reportId)}`);
   const base = await portalBase();
   const r = await db.report.findUnique({
     where: { id: reportId },

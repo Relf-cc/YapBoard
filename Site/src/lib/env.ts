@@ -12,6 +12,9 @@ export const env = {
   isProd: process.env.NODE_ENV === 'production',
 };
 
+/** Missing, too short, or still the "change-me…" value from .env.example (anyone who has read the repo knows it). */
+export const weakSecret = (s: string | undefined, min: number) => !s || s.length < min || /change-me/i.test(s);
+
 /** Real "Login with Yapin'" is configured. Otherwise dev login is used (never in production). */
 export const oauthEnabled = () => Boolean(env.clientId && env.clientSecret);
 export const devLoginEnabled = () => !oauthEnabled() && !env.isProd;

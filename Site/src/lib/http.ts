@@ -1,7 +1,7 @@
 import 'server-only';
 import { NextResponse, type NextRequest } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
-import { env } from './env';
+import { env, weakSecret } from './env';
 import { getUser, isStaff, type SessionUser } from './session';
 
 export const json = (data: unknown, status = 200) => NextResponse.json(data, { status });
@@ -41,14 +41,23 @@ export async function requireStaff(req: NextRequest): Promise<Guard> {
 export function isInternal(req: NextRequest) {
   const want = env.internalSecret;
   const got = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  if (!want || want.length < 16 || got.length !== want.length) return false;
+  if (weakSecret(want, 16) || got.length !== want.length) return false;
   return timingSafeEqual(Buffer.from(got), Buffer.from(want));
 }
 
 /** Tiny in-memory rate limiter (per process). Good enough for one instance; use Redis when scaling out. */
 const buckets = new Map<string, { n: number; reset: number }>();
+const MAX_BUCKETS = 50_000;
 export function rateLimit(key: string, max: number, windowMs: number) {
   const now = Date.now();
+  // Keys include IPs, so the map could grow without end: drop expired buckets, and if that's not enough, the oldest.
+  if (buckets.size >= MAX_BUCKETS) {
+    for (const [k, v] of buckets) if (v.reset < now) buckets.delete(k);
+    for (const k of buckets.keys()) {
+      if (buckets.size < MAX_BUCKETS * 0.9) break;
+      buckets.delete(k);
+    }
+  }
   const b = buckets.get(key);
   if (!b || b.reset < now) {
     buckets.set(key, { n: 1, reset: now + windowMs });
@@ -58,3 +67,14 @@ export function rateLimit(key: string, max: number, windowMs: number) {
   b.n++;
   return true;
 }
+
+/**
+ * The visitor's IP, for rate limits. Trusts the first X-Forwarded-For entry, which is right behind a proxy that
+ * sets it (Vercel, Fly, nginx with proxy_set_header). Without one, people can choose their own value.
+ */
+export function clientIp(h: Headers) {
+  return (h.get('x-real-ip') || h.get('x-forwarded-for')?.split(',')[0] || '').trim() || 'unknown';
+}
+
+/** Views and joins count once per visitor per server every 30 minutes, so refreshing can't pump the stats. */
+export const countOnce = (kind: 'view' | 'join', serverId: string, h: Headers) => rateLimit(`${kind}:${serverId}:${clientIp(h)}`, 1, 30 * 60_000);

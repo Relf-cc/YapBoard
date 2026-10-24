@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
-import { portalBase } from '@/lib/portal';
-import { getUser, isAdmin } from '@/lib/session';
+import { portalBase, requireStaffPage } from '@/lib/portal';
+import { isAdmin } from '@/lib/session';
 import { timeAgo } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { PageHead } from '@/components/portal/PageHead';
@@ -12,9 +12,9 @@ import { UserModButtons } from '@/components/portal/ModButtons';
 export const metadata: Metadata = { title: 'Users' };
 
 export default async function PortalUsers({ searchParams }: { searchParams: Promise<{ q?: string; filter?: string }> }) {
+  const me = await requireStaffPage('/users');
   const sp = await searchParams;
   const base = await portalBase();
-  const me = await getUser();
   const q = (sp.q || '').trim().slice(0, 80);
   const filter = sp.filter === 'banned' ? 'banned' : sp.filter === 'staff' ? 'staff' : 'all';
 

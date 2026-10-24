@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Globe2, Pencil, Users } from 'lucide-react';
 import { db } from '@/lib/db';
 import { getUser } from '@/lib/session';
+import { countOnce } from '@/lib/http';
 import { canManageListing, cardSelect, isViewable, toCard } from '@/lib/servers';
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
@@ -44,7 +46,7 @@ export default async function ViewServer({ params }: Props) {
   // Hidden/removed listings 404 for everyone except their managers and staff.
   if (!s || (!isViewable(s.status) && !manager)) notFound();
 
-  db.server.update({ where: { id: s.id }, data: { views: { increment: 1 } } }).catch(() => {});
+  if (countOnce('view', s.id, await headers())) db.server.update({ where: { id: s.id }, data: { views: { increment: 1 } } }).catch(() => {});
 
   const tags = s.tags.map((t) => t.tag.name);
   const similar = tags.length

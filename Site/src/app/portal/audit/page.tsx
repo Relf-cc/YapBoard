@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { db } from '@/lib/db';
-import { portalBase } from '@/lib/portal';
+import { portalBase, requireStaffPage } from '@/lib/portal';
 import { PageHead } from '@/components/portal/PageHead';
 import { auditLabel } from '@/components/portal/audit';
 
@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: 'Audit log' };
 const PER_PAGE = 50;
 
 export default async function Audit({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  await requireStaffPage('/audit');
   const base = await portalBase();
   const page = Math.max(1, parseInt((await searchParams).page || '1', 10) || 1);
   const [rows, total] = await Promise.all([

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { env } from '@/lib/env';
 import { getUser, isAdmin, isStaff } from '@/lib/session';
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
@@ -14,6 +15,16 @@ async function staff() {
 }
 
 const note = z.string().trim().max(500).optional().transform((v) => v || null);
+
+/** Staff can ban users; banning staff (or admins) is for admins only. STAFF_IDS count as admins even if the DB says otherwise. */
+async function canBan(me: Awaited<ReturnType<typeof staff>>, userId: string): Promise<string | null> {
+  if (userId === me.id) return 'You can’t ban yourself';
+  const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (!target) return 'User not found';
+  const role = env.staffIds.includes(userId) ? 'ADMIN' : target.role;
+  if (role !== 'USER' && !isAdmin(me)) return 'Only admins can ban staff';
+  return null;
+}
 
 function log(actorId: string, action: string, targetType: string, targetId: string, n: string | null) {
   return db.auditLog.create({ data: { actorId, action, targetType, targetId, note: n } });
@@ -44,6 +55,10 @@ export async function resolveReport(input: z.input<typeof resolveSchema>): Promi
   const report = await db.report.findUnique({ where: { id: reportId }, include: { server: { select: { id: true, ownerId: true, status: true } } } });
   if (!report) return { ok: false, error: 'Report not found' };
   if (report.status !== 'OPEN') return { ok: false, error: 'Already handled by someone else' };
+  if (outcome === 'action' && banOwner) {
+    const why = await canBan(me, report.server.ownerId);
+    if (why) return { ok: false, error: why };
+  }
 
   await db.$transaction(async (tx) => {
     const status = outcome === 'dismiss' ? 'DISMISSED' : 'ACTIONED';
@@ -111,10 +126,8 @@ export async function moderateUser(input: z.input<typeof userSchema>): Promise<R
   const p = userSchema.safeParse(input);
   if (!p.success) return { ok: false, error: 'Bad input' };
   const { userId, action, hideServers, note: n } = p.data;
-  if (userId === me.id) return { ok: false, error: 'You can’t ban yourself' };
-  const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (!target) return { ok: false, error: 'User not found' };
-  if (target.role !== 'USER' && !isAdmin(me)) return { ok: false, error: 'Only admins can ban staff' };
+  const why = await canBan(me, userId);
+  if (why) return { ok: false, error: why };
 
   if (action === 'ban') {
     await db.$transaction([

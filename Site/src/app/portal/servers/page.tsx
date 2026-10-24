@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import clsx from 'clsx';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
-import { portalBase } from '@/lib/portal';
+import { portalBase, requireStaffPage } from '@/lib/portal';
 import { compact, timeAgo } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -34,6 +34,7 @@ const SORT_OPTIONS = [
 type Props = { searchParams: Promise<{ q?: string; status?: string; sort?: string; badge?: string; page?: string }> };
 
 export default async function PortalServers({ searchParams }: Props) {
+  await requireStaffPage('/servers');
   const sp = await searchParams;
   const base = await portalBase();
   const q = (sp.q || '').trim().slice(0, 80);

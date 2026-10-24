@@ -36,7 +36,8 @@ export function SearchBar({ defaultValue = '', size = 'md', autoFocus = false, s
     const ctl = new AbortController();
     const t = setTimeout(() => {
       fetch(`/api/search/suggest?q=${encodeURIComponent(term)}`, { signal: ctl.signal })
-        .then((r) => r.json())
+        // A 429 (typing very fast) keeps the last suggestions instead of blanking the list.
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
         .then((d: Suggest) => {
           setData(d);
           setActive(0);

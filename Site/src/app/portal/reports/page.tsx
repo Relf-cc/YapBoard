@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import type { Prisma } from '@prisma/client';
 import clsx from 'clsx';
 import { db } from '@/lib/db';
-import { portalBase } from '@/lib/portal';
+import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
 import { ABUSE_REASONS, REMOVAL_REASONS, reasonLabel } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
@@ -19,6 +19,7 @@ const PER_PAGE = 30;
 type Props = { searchParams: Promise<{ kind?: string; status?: string; reason?: string; q?: string; page?: string }> };
 
 export default async function Reports({ searchParams }: Props) {
+  await requireStaffPage('/reports');
   const sp = await searchParams;
   const base = await portalBase();
   const kind = sp.kind === 'REMOVAL' ? 'REMOVAL' : 'ABUSE';

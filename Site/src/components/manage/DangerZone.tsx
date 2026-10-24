@@ -10,12 +10,16 @@ export function DangerZone({ serverId, name }: { serverId: string; name: string 
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   async function remove() {
     setBusy(true);
-    const res = await fetch(`/api/servers/${serverId}`, { method: 'DELETE' });
-    if (res.ok) router.push('/dashboard');
-    else setBusy(false);
+    setError('');
+    const res = await fetch(`/api/servers/${serverId}`, { method: 'DELETE' }).catch(() => null);
+    if (res?.ok) return router.push('/dashboard');
+    const out = await res?.json().catch(() => ({}));
+    setError(out?.error || 'Couldn’t delete the listing. Try again.');
+    setBusy(false);
   }
 
   return (
@@ -43,6 +47,11 @@ export function DangerZone({ serverId, name }: { serverId: string; name: string 
                 {busy ? 'Deleting…' : 'Delete for good'}
               </button>
             </div>
+            {error && (
+              <p role="alert" className="mt-3 text-sm text-danger">
+                {error}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
