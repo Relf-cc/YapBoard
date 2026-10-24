@@ -6,11 +6,12 @@ import { AnimatePresence, motion } from 'motion/react';
 import { CornerDownLeft, Hash, Search, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { Avatar } from './Avatar';
+import { Badge } from './Badge';
 import { compact } from '@/lib/format';
 
 type Suggest = {
   tags: { name: string; count: number }[];
-  servers: { id: string; name: string; iconUrl: string | null; memberCount: number }[];
+  servers: { id: string; name: string; iconUrl: string | null; memberCount: number; badge: string | null }[];
 };
 type Option = { key: string; href: string; kind: 'query' | 'tag' | 'server'; label: string; meta?: string; server?: Suggest['servers'][number] };
 
@@ -167,6 +168,7 @@ export function SearchBar({ defaultValue = '', size = 'md', autoFocus = false, s
                         o.label
                       )}
                     </span>
+                    {o.server && <Badge kind={o.server.badge} seed={o.server.id} size={14} />}
                   </span>
                   <span className="relative shrink-0 text-xs text-ink-3 inline-flex items-center gap-1">
                     {o.kind === 'server' && <Users size={12} />}

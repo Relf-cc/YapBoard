@@ -8,6 +8,8 @@ import { getUser } from '@/lib/session';
 import { canManageListing } from '@/lib/servers';
 import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
+import { Badge } from '@/components/Badge';
+import { NsfwMark } from '@/components/NsfwMark';
 import { Reveal } from '@/components/Reveal';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ListingForm } from '@/components/manage/ListingForm';
@@ -48,6 +50,8 @@ export default async function Manage({ params, searchParams }: Props) {
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-[28px] font-extrabold truncate">{s.name}</h1>
+                <Badge kind={s.badge} seed={s.id} size={22} />
+                {s.nsfw && <NsfwMark size="md" />}
                 <StatusBadge status={s.status} />
               </div>
               <p className="mt-0.5 text-sm text-ink-3 font-mono">{s.id}</p>
@@ -103,6 +107,7 @@ export default async function Manage({ params, searchParams }: Props) {
             unlisted: s.status === 'UNLISTED',
             accent: s.accent,
             tags: s.tags.map((t) => t.tag.name),
+            badge: s.badge,
           }}
         />
       </div>

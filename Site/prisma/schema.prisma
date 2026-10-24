@@ -47,6 +47,9 @@ model Server {
   /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
   status      String    @default("PUBLIC")
   statusNote  String?
+  /// Staff-granted checkmark: VERIFIED (blue) | OFFICIAL (green, run by Yapin') | null
+  badge       String?
+  badgedAt    DateTime?
   memberCount Int       @default(0)
   bumpCount   Int       @default(0)
   bumpedAt    DateTime?

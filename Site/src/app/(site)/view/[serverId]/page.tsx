@@ -8,6 +8,9 @@ import { canManageListing, cardSelect, isViewable, toCard } from '@/lib/servers'
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
+import { Badge } from '@/components/Badge';
+import { NsfwMark } from '@/components/NsfwMark';
+import { BADGES, isBadge } from '@/lib/badges';
 import { TagChip } from '@/components/TagChip';
 import { ServerGrid } from '@/components/ServerGrid';
 import { Reveal } from '@/components/Reveal';
@@ -98,7 +101,18 @@ export default async function ViewServer({ params }: Props) {
               <div className="-mt-12 sm:-mt-14 flex flex-col sm:flex-row sm:items-end gap-5">
                 <Avatar src={s.iconUrl} name={s.name} id={s.id} size={112} className="ring-[6px] ring-bg shadow-xl" />
                 <div className="min-w-0 pb-1">
-                  <h1 className="text-[32px] sm:text-[40px] font-extrabold leading-[1.05] break-words">{s.name}</h1>
+                  <h1 className="text-[32px] sm:text-[40px] font-extrabold leading-[1.05] break-words">
+                    {s.name}
+                    {s.badge && (
+                      <>
+                        {' '}
+                        <Badge kind={s.badge} seed={s.id} size={30} className="-mt-1.5" />
+                      </>
+                    )}
+                  </h1>
+                  {isBadge(s.badge) && (
+                    <p className={`mt-1.5 text-[13px] font-semibold ${s.badge === 'OFFICIAL' ? 'text-[#3fe39e]' : 'text-[#5cbcff]'}`}>{BADGES[s.badge].long}</p>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
                     <span className="inline-flex items-center gap-1.5">
                       <Users size={15} />
@@ -108,7 +122,7 @@ export default async function ViewServer({ params }: Props) {
                       <Globe2 size={15} />
                       {languageName(s.language)}
                     </span>
-                    {s.nsfw && <span className="rounded px-1.5 py-0.5 text-[11px] font-bold text-danger border border-danger/40">18+</span>}
+                    {s.nsfw && <NsfwMark size="md" />}
                   </div>
                 </div>
               </div>

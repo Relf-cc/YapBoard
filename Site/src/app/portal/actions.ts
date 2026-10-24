@@ -87,6 +87,21 @@ export async function moderateServer(input: z.input<typeof serverSchema>): Promi
   return done(action === 'restore' ? 'Server restored' : action === 'hide' ? 'Server hidden' : 'Server removed');
 }
 
+const badgeSchema = z.object({ serverId: z.string().min(1), badge: z.enum(['VERIFIED', 'OFFICIAL', 'NONE']) });
+
+/** Blue check (verified) or green check (official Yapin' server). One at a time. */
+export async function setBadge(input: z.input<typeof badgeSchema>): Promise<Result> {
+  const me = await staff();
+  const p = badgeSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { serverId, badge } = p.data;
+  const none = badge === 'NONE';
+  await db.server.update({ where: { id: serverId }, data: { badge: none ? null : badge, badgedAt: none ? null : new Date() } });
+  await log(me.id, none ? 'server.unbadge' : badge === 'OFFICIAL' ? 'server.officiate' : 'server.verify', 'server', serverId, null);
+  revalidatePath('/', 'layout');
+  return done(none ? 'Checkmark removed' : badge === 'OFFICIAL' ? 'Marked official' : 'Verified');
+}
+
 /* ---------------- users ---------------- */
 
 const userSchema = z.object({ userId: z.string().min(1), action: z.enum(['ban', 'unban']), hideServers: z.boolean().default(true), note });

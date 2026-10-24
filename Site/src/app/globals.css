@@ -205,6 +205,86 @@ h3 {
   mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
 }
 
+/* Entrance animations are CSS so content is visible before (and without) JS. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise-y, 14px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.7s var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+/* Below-the-fold sections rise as they scroll in, where the browser supports it. */
+.reveal {
+  animation: rise 0.7s var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation-timeline: view();
+    animation-range: entry 0% entry 30%;
+    animation-delay: 0ms;
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.55s forwards;
+}
+
+/* Verified / official checkmarks: soft glow, a light sweep, and a twinkle. */
+.badge-mark svg {
+  filter: drop-shadow(0 0 3px var(--badge-glow));
+}
+.badge-shine {
+  animation: badge-shine 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: var(--badge-delay, 0s);
+}
+@keyframes badge-shine {
+  0% {
+    transform: translateX(0);
+  }
+  38%,
+  100% {
+    transform: translateX(44px);
+  }
+}
+.badge-spark {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: badge-spark 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--badge-delay, 0s) + 0.45s);
+}
+@keyframes badge-spark {
+  0%,
+  28% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.15) rotate(45deg);
+  }
+  56%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(90deg);
+  }
+}
+
 /* Endless marquee of recently bumped servers. */
 @keyframes marquee {
   to {
@@ -213,9 +293,6 @@ h3 {
 }
 .marquee {
   animation: marquee 60s linear infinite;
-}
-.marquee:hover {
-  animation-play-state: paused;
 }
 
 @keyframes pulse-dot {

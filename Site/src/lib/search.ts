@@ -21,6 +21,8 @@ export type SearchParams = {
   size: Size;
   sort: Sort;
   nsfw: boolean;
+  /** Only servers with a verified or official checkmark. */
+  verified: boolean;
   page: number;
 };
 
@@ -43,6 +45,7 @@ export function parseSearch(raw: Raw): SearchParams {
     size: size in SIZES ? size : 'any',
     sort: sort in SORTS ? sort : q ? 'relevance' : 'bumped',
     nsfw: first(raw.nsfw) === '1',
+    verified: first(raw.verified) === '1',
     page,
   };
 }
@@ -55,6 +58,7 @@ export function searchHref(p: Partial<SearchParams>, base = '/servers') {
   if (p.size && p.size !== 'any') u.set('size', p.size);
   if (p.sort && !(p.sort === 'relevance' && p.q) && !(p.sort === 'bumped' && !p.q)) u.set('sort', p.sort);
   if (p.nsfw) u.set('nsfw', '1');
+  if (p.verified) u.set('verified', '1');
   if (p.page && p.page > 1) u.set('page', String(p.page));
   const s = u.toString();
   return s ? `${base}?${s}` : base;
@@ -84,6 +88,7 @@ function buildWhere(p: SearchParams, tokens: string[], mode: 'all' | 'any'): Pri
   const and: Prisma.ServerWhereInput[] = [{ status: 'PUBLIC' }, sizeWhere[p.size]];
   if (!p.nsfw) and.push({ nsfw: false });
   if (p.lang) and.push({ language: p.lang });
+  if (p.verified) and.push({ badge: { not: null } });
   for (const t of p.tags) and.push({ tags: { some: { tag: { name: t } } } });
   if (tokens.length) and.push(mode === 'all' ? { AND: tokens.map(tokenWhere) } : { OR: tokens.map(tokenWhere) });
   return { AND: and };
@@ -111,6 +116,8 @@ function score(s: ServerCard & { description: string }, tokens: string[], phrase
   // Light tie-breakers: active (recently bumped) and bigger servers float up a little.
   if (s.bumpedAt) total += Math.max(0, 3 - (now - new Date(s.bumpedAt).getTime()) / 8.64e7);
   total += Math.log10(s.memberCount + 1) * 0.8;
+  if (s.badge === 'OFFICIAL') total += 3;
+  else if (s.badge === 'VERIFIED') total += 2;
   return total;
 }
 
@@ -199,13 +206,16 @@ export async function suggest(q: string) {
         })
       : [],
     db.server.findMany({
-      where: { status: 'PUBLIC', name: { contains: t } },
-      select: { id: true, name: true, iconUrl: true, memberCount: true },
+      where: { status: 'PUBLIC', nsfw: false, name: { contains: t } },
+      select: { id: true, name: true, iconUrl: true, memberCount: true, badge: true },
       orderBy: { memberCount: 'desc' },
-      take: 5,
+      take: 20,
     }),
   ]);
-  return { tags: tags.map((x) => ({ name: x.name, count: x._count.servers })), servers };
+  // Official, then verified, then biggest.
+  const rank = (b: string | null) => (b === 'OFFICIAL' ? 2 : b === 'VERIFIED' ? 1 : 0);
+  servers.sort((a, b) => rank(b.badge) - rank(a.badge) || b.memberCount - a.memberCount);
+  return { tags: tags.map((x) => ({ name: x.name, count: x._count.servers })), servers: servers.slice(0, 5) };
 }
 
 export async function popularTags(limit = 24) {

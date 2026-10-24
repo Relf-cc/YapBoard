@@ -10,13 +10,16 @@ import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PageHead } from '@/components/portal/PageHead';
 import { ServerModButtons } from '@/components/portal/ModButtons';
+import { BadgeControl } from '@/components/portal/BadgeControl';
+import { Badge } from '@/components/Badge';
+import { NsfwMark } from '@/components/NsfwMark';
 
 export const metadata: Metadata = { title: 'Servers' };
 
 const STATUSES = ['ALL', 'PUBLIC', 'UNLISTED', 'HIDDEN', 'REMOVED'] as const;
 const PER_PAGE = 40;
 
-type Props = { searchParams: Promise<{ q?: string; status?: string; sort?: string; page?: string }> };
+type Props = { searchParams: Promise<{ q?: string; status?: string; sort?: string; badge?: string; page?: string }> };
 
 export default async function PortalServers({ searchParams }: Props) {
   const sp = await searchParams;
@@ -24,10 +27,12 @@ export default async function PortalServers({ searchParams }: Props) {
   const q = (sp.q || '').trim().slice(0, 80);
   const status = STATUSES.includes(sp.status as (typeof STATUSES)[number]) ? sp.status! : 'ALL';
   const sort = sp.sort === 'new' ? 'new' : sp.sort === 'members' ? 'members' : 'reports';
+  const badge = sp.badge === 'VERIFIED' || sp.badge === 'OFFICIAL' || sp.badge === 'ANY' ? sp.badge : '';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
 
   const where: Prisma.ServerWhereInput = {
     ...(status !== 'ALL' ? { status } : {}),
+    ...(badge === 'ANY' ? { badge: { not: null } } : badge ? { badge } : {}),
     ...(q ? { OR: [{ id: q }, { name: { contains: q } }, { ownerId: q }, { owner: { username: { contains: q } } }] } : {}),
   };
   const orderBy: Prisma.ServerOrderByWithRelationInput =
@@ -40,7 +45,7 @@ export default async function PortalServers({ searchParams }: Props) {
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
       select: {
-        id: true, name: true, iconUrl: true, status: true, memberCount: true, createdAt: true, bumpedAt: true,
+        id: true, name: true, iconUrl: true, status: true, badge: true, nsfw: true, memberCount: true, createdAt: true, bumpedAt: true,
         owner: { select: { username: true } },
         _count: { select: { reports: { where: { status: 'OPEN' } } } },
       },
@@ -49,7 +54,7 @@ export default async function PortalServers({ searchParams }: Props) {
   ]);
   const href = (o: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
-    for (const [k, v] of Object.entries({ q, status, sort, ...o })) if (v && v !== 'ALL') u.set(k, v);
+    for (const [k, v] of Object.entries({ q, status, sort, badge, ...o })) if (v && v !== 'ALL') u.set(k, v);
     return `${base}/servers${u.size ? `?${u}` : ''}`;
   };
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
@@ -67,6 +72,12 @@ export default async function PortalServers({ searchParams }: Props) {
         </div>
         <form className="flex gap-2" action={`${base}/servers`}>
           {status !== 'ALL' && <input type="hidden" name="status" value={status} />}
+          <select name="badge" defaultValue={badge} className="field h-10 w-48 text-sm">
+            <option value="">Any checkmark</option>
+            <option value="ANY">Has a checkmark</option>
+            <option value="VERIFIED">Verified</option>
+            <option value="OFFICIAL">Official</option>
+          </select>
           <select name="sort" defaultValue={sort} className="field h-10 w-40 text-sm">
             <option value="reports">Most reported</option>
             <option value="new">Newest</option>
@@ -86,6 +97,7 @@ export default async function PortalServers({ searchParams }: Props) {
               <th className="font-medium px-3">Members</th>
               <th className="font-medium px-3">Open reports</th>
               <th className="font-medium px-3">Listed</th>
+              <th className="font-medium px-3">Checkmark</th>
               <th className="font-medium px-5 text-right">Actions</th>
             </tr>
           </thead>
@@ -98,6 +110,8 @@ export default async function PortalServers({ searchParams }: Props) {
                     <span className="min-w-0">
                       <span className="flex items-center gap-2">
                         <span className="font-semibold truncate max-w-[220px] group-hover:text-accent">{s.name}</span>
+                        <Badge kind={s.badge} seed={s.id} size={15} />
+                        {s.nsfw && <NsfwMark />}
                         <StatusBadge status={s.status} />
                       </span>
                       <span className="block font-mono text-[11px] text-ink-3">{s.id}</span>
@@ -116,6 +130,9 @@ export default async function PortalServers({ searchParams }: Props) {
                   )}
                 </td>
                 <td className="px-3 py-3 text-ink-3 whitespace-nowrap">{timeAgo(s.createdAt)}</td>
+                <td className="px-3 py-3">
+                  <BadgeControl serverId={s.id} badge={s.badge} />
+                </td>
                 <td className="px-5 py-3 text-right">
                   <ServerModButtons serverId={s.id} status={s.status} />
                 </td>

@@ -9,6 +9,8 @@ import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { Reveal } from '@/components/Reveal';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Badge } from '@/components/Badge';
+import { NsfwMark } from '@/components/NsfwMark';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 
 export const metadata: Metadata = { title: 'Your servers' };
@@ -19,7 +21,7 @@ export default async function Dashboard() {
   const servers = await db.server.findMany({
     where: { ownerId: user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, iconUrl: true, status: true, memberCount: true, views: true, joins: true, bumpCount: true, bumpedAt: true },
+    select: { id: true, name: true, iconUrl: true, status: true, badge: true, nsfw: true, memberCount: true, views: true, joins: true, bumpCount: true, bumpedAt: true },
   });
 
   return (
@@ -59,6 +61,8 @@ export default async function Dashboard() {
                       <Link href={`/view/${s.id}`} className="font-display text-[17px] font-bold truncate hover:text-accent transition-colors">
                         {s.name}
                       </Link>
+                      <Badge kind={s.badge} seed={s.id} size={17} />
+                      {s.nsfw && <NsfwMark />}
                       <StatusBadge status={s.status} />
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-3">

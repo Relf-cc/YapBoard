@@ -9,7 +9,7 @@ const COLS: { title: string; links: [string, string][] }[] = [
 
 export function Footer() {
   return (
-    <footer className="mt-24 border-t border-line">
+    <footer className="mt-24 border-t border-line overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <Logo />
@@ -31,6 +31,11 @@ export function Footer() {
         ))}
       </div>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-10 text-xs text-ink-3">YapBoard is a community project and isn’t run by Yapin’.</div>
+      <div aria-hidden className="overflow-hidden select-none pointer-events-none">
+        <p className="text-center font-display font-extrabold leading-[0.8] tracking-[-0.05em] whitespace-nowrap text-[21vw] translate-y-[12%] bg-gradient-to-b from-ink/[0.09] to-ink/[0.015] bg-clip-text text-transparent">
+          YapBoard
+        </p>
+      </div>
     </footer>
   );
 }

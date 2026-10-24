@@ -7,6 +7,8 @@ import { LANGUAGES, languageName } from '@/lib/languages';
 import { ServerGrid } from '@/components/ServerGrid';
 import { SearchBar } from '@/components/SearchBar';
 import { SortSelect, LanguageSelect } from '@/components/browse/Selects';
+import { FilterPanel } from '@/components/browse/FilterPanel';
+import { Badge } from '@/components/Badge';
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -21,7 +23,7 @@ export default async function Browse({ searchParams }: Props) {
   const p = parseSearch(await searchParams);
   const res = await search(p);
   const page = Math.min(p.page, res.pages);
-  const filtered = p.q || p.tags.length || p.lang || p.size !== 'any' || p.nsfw;
+  const filtered = p.q || p.tags.length || p.lang || p.size !== 'any' || p.nsfw || p.verified;
   const title = p.q ? `Results for “${p.q}”` : p.tags.length ? p.tags.map((t) => `#${t}`).join(' + ') : 'All servers';
 
   return (
@@ -30,9 +32,9 @@ export default async function Browse({ searchParams }: Props) {
         <SearchBar defaultValue={p.q} />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
+      <div className="grid gap-6 lg:gap-8 lg:grid-cols-[240px_1fr]">
         {/* ---------- filters ---------- */}
-        <aside className="space-y-7 lg:sticky lg:top-24 lg:self-start">
+        <FilterPanel active={[p.lang, p.size !== 'any', p.nsfw, p.verified].filter(Boolean).length}>
           <FilterGroup title="Size">
             <div className="flex flex-wrap lg:flex-col gap-1">
               {(Object.keys(SIZES) as (keyof typeof SIZES)[]).map((s) => (
@@ -62,14 +64,18 @@ export default async function Browse({ searchParams }: Props) {
           )}
 
           <FilterGroup title="Content">
-            <Link href={searchHref({ ...p, nsfw: !p.nsfw, page: 1 })} className="flex items-center justify-between gap-3 text-sm text-ink-2 hover:text-ink group">
-              Show 18+ servers
-              <span className={clsx('relative h-5 w-9 rounded-full transition-colors', p.nsfw ? 'bg-accent' : 'bg-surface-3')}>
-                <span className={clsx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform duration-200', p.nsfw ? 'translate-x-[18px]' : 'translate-x-0.5')} />
-              </span>
-            </Link>
+            <div className="space-y-3">
+              <ToggleLink href={searchHref({ ...p, verified: !p.verified, page: 1 })} on={p.verified}>
+                <span className="inline-flex items-center gap-1.5">
+                  Verified &amp; official only <Badge kind="VERIFIED" size={15} />
+                </span>
+              </ToggleLink>
+              <ToggleLink href={searchHref({ ...p, nsfw: !p.nsfw, page: 1 })} on={p.nsfw}>
+                Show 18+ servers
+              </ToggleLink>
+            </div>
           </FilterGroup>
-        </aside>
+        </FilterPanel>
 
         {/* ---------- results ---------- */}
         <section className="min-w-0">
@@ -94,6 +100,7 @@ export default async function Browse({ searchParams }: Props) {
               ))}
               {p.lang && <ActiveChip href={searchHref({ ...p, lang: null, page: 1 })}>{languageName(p.lang)}</ActiveChip>}
               {p.size !== 'any' && <ActiveChip href={searchHref({ ...p, size: 'any', page: 1 })}>{SIZES[p.size]}</ActiveChip>}
+              {p.verified && <ActiveChip href={searchHref({ ...p, verified: false, page: 1 })}>Verified only</ActiveChip>}
               {p.nsfw && <ActiveChip href={searchHref({ ...p, nsfw: false, page: 1 })}>18+ shown</ActiveChip>}
               <Link href="/servers" className="text-[13px] font-medium text-ink-3 hover:text-ink ml-1">
                 Clear all
@@ -135,6 +142,17 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
       )}
     >
       {children}
+    </Link>
+  );
+}
+
+function ToggleLink({ href, on, children }: { href: string; on: boolean; children: React.ReactNode }) {
+  return (
+    <Link href={href} role="switch" aria-checked={on} className="flex items-center justify-between gap-3 text-sm text-ink-2 hover:text-ink">
+      {children}
+      <span className={clsx('relative h-5 w-9 shrink-0 rounded-full transition-colors', on ? 'bg-accent' : 'bg-surface-3')}>
+        <span className={clsx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform duration-200', on ? 'translate-x-[18px]' : 'translate-x-0.5')} />
+      </span>
     </Link>
   );
 }

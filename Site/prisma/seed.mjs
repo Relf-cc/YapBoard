@@ -1,0 +1,152 @@
+// Demo data for local dev: `npm run db:seed` (or `npm run db:reset` to start clean).
+import { PrismaClient } from '@prisma/client';
+
+const db = new PrismaClient();
+
+// [name, summary, tags, members, language, nsfw]
+const SERVERS = [
+  ['Yapin’ Developers', 'The official place to build bots and apps on Yapin’. SDK help, API news and showcases.', ['developers', 'bots', 'programming', 'official'], 3260, 'en'],
+  ['The Yap Shack', 'Late-night chats, bad takes and good people. Come yap.', ['community', 'chill', 'social', 'memes'], 4820, 'en'],
+  ['Valorant Grind Club', 'Find a five-stack, review VODs, climb together. All ranks welcome.', ['valorant', 'fps', 'gaming', 'lfg', 'competitive'], 12940, 'en'],
+  ['Pixel Pals', 'Pixel artists sharing WIPs, palettes and weekly prompts.', ['pixel-art', 'art', 'creative', 'feedback'], 2310, 'en'],
+  ['Study With Strangers', 'Pomodoro rooms on voice, accountability threads and exam season survival.', ['study', 'productivity', 'students', 'voice'], 8730, 'en'],
+  ['Anime Afterhours', 'Seasonal discussion, watch parties every Friday, zero gatekeeping.', ['anime', 'manga', 'watch-party', 'social'], 15420, 'en'],
+  ['Minecraft Cozy SMP', 'Whitelisted survival server with farms, shops and a very serious town council.', ['minecraft', 'smp', 'gaming', 'survival'], 1640, 'en'],
+  ['Lo-fi Lounge', 'Music on 24/7 in voice. Share what you’re listening to.', ['music', 'lofi', 'chill', 'voice'], 3920, 'en'],
+  ['Indie Dev Den', 'Game devs posting devlogs, playtests and jam teams.', ['gamedev', 'programming', 'indie', 'feedback'], 6210, 'en'],
+  ['Code & Coffee', 'Web devs helping each other ship. Code reviews, career chat, no gatekeeping.', ['programming', 'webdev', 'javascript', 'career'], 9480, 'en'],
+  ['League Of Yappers', 'Clash teams, ranked duos, ARAM nights and a lot of copium.', ['league-of-legends', 'moba', 'gaming', 'lfg'], 7230, 'en'],
+  ['Bookworm Burrow', 'Monthly book club, buddy reads and endless TBR piles.', ['books', 'reading', 'book-club', 'chill'], 1180, 'en'],
+  ['Kpop Central', 'Comebacks, streaming parties and fancams. Every fandom welcome.', ['kpop', 'music', 'fandom', 'social'], 11300, 'en'],
+  ['Fitness Accountability', 'Log your workouts, share meals, get hyped. Beginner friendly.', ['fitness', 'health', 'accountability', 'community'], 2890, 'en'],
+  ['Retro Respawn', 'Emulation, CRTs, speedruns and arguing about the best console.', ['retro', 'gaming', 'speedrun', 'emulation'], 1420, 'en'],
+  ['Comunidad Hispana', 'El servidor para hablar de todo en español. Juegos, música y memes.', ['spanish', 'community', 'gaming', 'memes'], 5640, 'es'],
+  ['Le Coin Français', 'Discussions, soirées jeux et entraide. Bienvenue à tous !', ['french', 'community', 'social', 'gaming'], 2470, 'fr'],
+  ['Deutsche Zocker', 'Deutschsprachige Gaming-Community mit wöchentlichen Events.', ['german', 'gaming', 'community', 'events'], 3310, 'de'],
+  ['Brasil Yap', 'Galera brasileira reunida pra jogar, conversar e zoar.', ['portuguese', 'brazil', 'gaming', 'social'], 6870, 'pt'],
+  ['Nihongo Practice', 'Practice Japanese with natives and learners. Voice rooms by level.', ['japanese', 'language-learning', 'study', 'voice'], 4150, 'ja'],
+  ['Photography Hub', 'Weekly themes, gear talk and kind critique.', ['photography', 'art', 'creative', 'feedback'], 1960, 'en'],
+  ['Crypto Free Finance', 'Budgeting, investing basics and FIRE talk. No shilling, ever.', ['finance', 'investing', 'money', 'career'], 3780, 'en'],
+  ['Tabletop Tavern', 'Find D&D groups, share homebrew and roll some dice.', ['dnd', 'tabletop', 'roleplay', 'lfg'], 5520, 'en'],
+  ['Cozy Gamers', 'Stardew, Animal Crossing, cosy co-op. Wholesome only.', ['cozy', 'gaming', 'wholesome', 'chill'], 8990, 'en'],
+  ['Apex Legends LFG', 'Ranked, pubs and mixtape. Find your trio fast.', ['apex-legends', 'fps', 'lfg', 'gaming'], 6040, 'en'],
+  ['Fortnite Builders', 'Box fights, creative maps and tournament scrims.', ['fortnite', 'battle-royale', 'gaming', 'competitive'], 10220, 'en'],
+  ['Art Den', 'Digital and traditional artists. Commissions board and monthly challenges.', ['art', 'digital-art', 'commissions', 'creative'], 7310, 'en'],
+  ['Meme Factory', 'Fresh memes daily. Templates, OC and mild chaos.', ['memes', 'funny', 'community', 'social'], 18400, 'en'],
+  ['Night Owls', 'For people who are awake at 3am for no good reason.', ['chill', 'social', 'night-owls', 'voice'], 2050, 'en'],
+  ['Linux Lab', 'Distros, dotfiles and helping each other unbreak things.', ['linux', 'programming', 'tech', 'open-source'], 4460, 'en'],
+  ['Rocket League Rumble', '2v2 and 3v3 teams, replay reviews and weekly cups.', ['rocket-league', 'gaming', 'competitive', 'lfg'], 3120, 'en'],
+  ['Writers Room', 'Sprints, critique swaps and NaNoWriMo every November.', ['writing', 'creative', 'feedback', 'books'], 1730, 'en'],
+  ['Hip Hop Heads', 'New drops, classics, producers sharing beats.', ['hip-hop', 'music', 'production', 'social'], 4990, 'en'],
+  ['Genshin Travellers', 'Co-op, builds, theorycrafting and pull reactions.', ['genshin-impact', 'gacha', 'gaming', 'rpg'], 13700, 'en'],
+  ['Plant Parents', 'Houseplant help, propagation swaps and leaf pics.', ['plants', 'gardening', 'wholesome', 'hobbies'], 980, 'en'],
+  ['Car Culture', 'JDM, euro, muscle. Builds, meets and track days.', ['cars', 'automotive', 'hobbies', 'community'], 3650, 'en'],
+  ['Mental Health Corner', 'A gentle place to talk. Peer support, not therapy.', ['mental-health', 'support', 'wholesome', 'community'], 2740, 'en'],
+  ['Roblox Creators', 'Builders and scripters teaming up on games.', ['roblox', 'gamedev', 'gaming', 'programming'], 5260, 'en'],
+  ['Chess Club', 'Daily puzzles, arenas and post-game analysis.', ['chess', 'strategy', 'games', 'competitive'], 2210, 'en'],
+  ['Türk Oyuncular', 'Türk oyuncular için sohbet ve etkinlik sunucusu.', ['turkish', 'gaming', 'community', 'social'], 3380, 'tr'],
+  ['Overwatch Arena', 'Scrims, coaching and hero discussions.', ['overwatch', 'fps', 'competitive', 'lfg'], 4710, 'en'],
+  ['Small Server Energy', 'Under 50 people and proud. Everyone knows everyone.', ['small', 'chill', 'community', 'social'], 34, 'en'],
+  ['Night City Roleplay', 'Cyberpunk text roleplay with a living story.', ['roleplay', 'cyberpunk', 'writing', 'community'], 860, 'en'],
+  ['After Dark Lounge', 'Adults-only chat for 18+. Verification required.', ['adult', 'social', 'chill'], 2400, 'en', true],
+  ['Speedrun Central', 'Routes, splits and world record watch parties.', ['speedrun', 'gaming', 'retro', 'competitive'], 1890, 'en'],
+  ['Film Buffs', 'Weekly movie nights and long arguments about endings.', ['movies', 'film', 'watch-party', 'social'], 3090, 'en'],
+  ['Hackathon Hub', 'Find teammates, share projects, win prizes.', ['programming', 'hackathons', 'career', 'tech'], 2560, 'en'],
+];
+
+// Staff checkmarks: green = official Yapin’ server, blue = verified.
+const BADGE = { 'Yapin’ Developers': 'OFFICIAL', 'Valorant Grind Club': 'VERIFIED', 'Code & Coffee': 'VERIFIED', 'Anime Afterhours': 'VERIFIED', 'Study With Strangers': 'VERIFIED' };
+
+const DESC = (name, tags) => `Welcome to **${name}**.
+
+We started as a handful of friends and grew into a proper community. It's a friendly place, mods actually reply, and new people get a proper hello.
+
+- Channels for ${tags.slice(0, 3).join(', ')}
+- Weekly events in voice
+- Roles you can pick yourself
+- No spam, no drama
+
+Read the rules when you join and grab your roles. See you inside.`;
+
+const ACCENTS = ['#ff6b4a', '#ffb86b', '#7ee2a8', '#5aa9e6', '#c7a4ff', '#ff9ecb', '#3fc1a8', '#8fb8ff'];
+const rand = (n) => Math.floor(Math.random() * n);
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const id = (i) => `srv_${(1000003 * (i + 7)).toString(36)}${i}`;
+
+async function main() {
+  console.log('Seeding…');
+  await db.auditLog.deleteMany();
+  await db.report.deleteMany();
+  await db.bump.deleteMany();
+  await db.serverTag.deleteMany();
+  await db.tag.deleteMany();
+  await db.server.deleteMany();
+  await db.user.deleteMany({ where: { id: { startsWith: 'seed-' } } });
+
+  const users = [];
+  for (const name of ['mira', 'jonah', 'kai_dev', 'sol', 'nova', 'rhea', 'teo', 'lux', 'pip', 'ash']) {
+    users.push(await db.user.create({ data: { id: `seed-${name}`, username: name, displayName: name.replace('_', ' ') } }));
+  }
+
+  const now = Date.now();
+  for (const [i, [name, summary, tags, members, language, nsfw]] of SERVERS.entries()) {
+    const owner = users[i % users.length];
+    const createdAt = new Date(now - rand(160) * 864e5 - rand(864e5));
+    // Most servers bumped in the last day, some long ago, a few just now.
+    const bumpedAgo = i < 8 ? rand(110) * 60_000 : i % 5 === 0 ? rand(20) * 864e5 : rand(24 * 60) * 60_000;
+    const serverId = id(i);
+    await db.server.create({
+      data: {
+        id: serverId,
+        name,
+        summary,
+        description: DESC(name, tags),
+        inviteUrl: name === 'Yapin’ Developers' ? 'https://yapin.gg/invite/developers' : `https://yapin.gg/invite/${slug(name)}`,
+        badge: BADGE[name] ?? null,
+        badgedAt: BADGE[name] ? createdAt : null,
+        language,
+        nsfw: !!nsfw,
+        accent: ACCENTS[i % ACCENTS.length],
+        memberCount: members,
+        bumpCount: 5 + rand(400),
+        bumpedAt: new Date(Math.max(createdAt.getTime(), now - bumpedAgo)),
+        views: members * (2 + rand(6)),
+        joins: Math.round(members * (0.2 + Math.random() * 0.5)),
+        createdAt: i >= SERVERS.length - 4 ? new Date(now - rand(5) * 864e5) : createdAt,
+        ownerId: owner.id,
+        tags: {
+          create: await Promise.all(
+            tags.map(async (t) => ({ tag: { connect: { id: (await db.tag.upsert({ where: { name: t }, create: { name: t }, update: {} })).id } } })),
+          ),
+        },
+      },
+    });
+    const bumps = 1 + rand(3);
+    for (let b = 0; b < bumps; b++) {
+      await db.bump.create({ data: { serverId, userId: users[rand(users.length)].id, createdAt: new Date(now - rand(20) * 3600_000) } });
+    }
+  }
+
+  const reports = [
+    [4, 'ABUSE', 'spam', 'They DM everyone who joins with an invite to another server. Got 3 messages in 10 minutes.'],
+    [27, 'ABUSE', 'nsfw', 'There is an unmarked adult channel visible as soon as you join. Should be marked 18+.'],
+    [27, 'ABUSE', 'nsfw', 'NSFW content in the general channel, not tagged.'],
+    [21, 'ABUSE', 'scam', '“Free crypto airdrop” pinned in announcements, links to a wallet drainer.'],
+    [11, 'REMOVAL', 'owner_request', 'I am the owner of this server, we are shutting it down at the end of the month. Please remove the listing.'],
+    [34, 'REMOVAL', 'outdated', 'The invite link is dead and the server appears to have been deleted.'],
+    [9, 'REMOVAL', 'not_owner', 'I run this server and did not list it. The person who did was banned from our server last month.'],
+  ];
+  for (const [i, kind, reason, details] of reports) {
+    await db.report.create({
+      data: { serverId: id(i), kind, reason, details, reporterId: users[(i + 3) % users.length].id, createdAt: new Date(now - rand(72) * 3600_000) },
+    });
+  }
+  console.log(`Seeded ${SERVERS.length} servers, ${users.length} users, ${reports.length} reports.`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => db.$disconnect());

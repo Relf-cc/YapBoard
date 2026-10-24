@@ -8,6 +8,8 @@ import { portalBase } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
 import { reasonLabel } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
+import { Badge } from '@/components/Badge';
+import { NsfwMark } from '@/components/NsfwMark';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ReportActions } from '@/components/portal/ReportActions';
 
@@ -74,8 +76,9 @@ export default async function ReportDetail({ params }: { params: Promise<{ repor
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-extrabold">{s.name}</h2>
+                  <Badge kind={s.badge} seed={s.id} size={19} />
                   <StatusBadge status={s.status} />
-                  {s.nsfw && <span className="text-[11px] font-bold text-danger border border-danger/40 rounded px-1">18+</span>}
+                  {s.nsfw && <NsfwMark />}
                 </div>
                 <p className="mt-0.5 font-mono text-xs text-ink-3">{s.id}</p>
               </div>

@@ -20,6 +20,7 @@ export const cardSelect = {
   language: true,
   nsfw: true,
   accent: true,
+  badge: true,
   tags: { select: { tag: { select: { name: true } } } },
 } satisfies Prisma.ServerSelect;
 

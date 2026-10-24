@@ -1,19 +1,14 @@
-'use client';
+import type { CSSProperties, ReactNode } from 'react';
+import clsx from 'clsx';
 
-import { motion } from 'motion/react';
-import type { ReactNode } from 'react';
-
-/** Fades + lifts its children in once, when scrolled into view. */
+/**
+ * Fades + lifts its children in. Pure CSS: rises as it scrolls into view where supported
+ * (scroll-driven animations), otherwise on load. Never hides content when JS is slow.
+ */
 export function Reveal({ children, delay = 0, y = 16, className }: { children: ReactNode; delay?: number; y?: number; className?: string }) {
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <div className={clsx('reveal', className)} style={{ '--d': `${delay * 1000}ms`, '--rise-y': `${y}px` } as CSSProperties}>
       {children}
-    </motion.div>
+    </div>
   );
 }

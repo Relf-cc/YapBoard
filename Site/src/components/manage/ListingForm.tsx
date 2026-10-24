@@ -24,6 +24,8 @@ export type ListingValues = {
   unlisted: boolean;
   accent: string;
   tags: string[];
+  /** Staff-granted checkmark; shown in the preview, never sent. */
+  badge?: string | null;
 };
 
 type Errors = Partial<Record<keyof ListingValues, string[]>>;
@@ -76,6 +78,7 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
     language: v.language,
     nsfw: v.nsfw,
     accent: v.accent,
+    badge: v.badge ?? null,
     tags: v.tags.length ? v.tags : ['your-tags'],
   };
 

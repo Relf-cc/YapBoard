@@ -6,7 +6,7 @@ export function normalizeTag(raw: string): string {
   return raw
     .toLowerCase()
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[̀-ͯ]/g, '') // drop accents: café → cafe
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, MAX_TAG_LEN)
