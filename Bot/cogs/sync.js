@@ -33,18 +33,21 @@ export default function setup(bot) {
     if (failed) console.error(`[yapboard] sync: ${failed} of ${servers.length} servers failed (is the site up?)`);
   };
 
+  // Join and leave events only say which server (no count), so once things settle, ask Yapin' for the count.
   const countChanged = (ev) => {
+    if (!ev.server_id) return;
     const serverId = String(ev.server_id);
-    const count = memberCountOf(ev);
-    if (count === undefined || !ev.server_id) return;
-    const had = pending.get(serverId);
-    pending.set(serverId, { count, timer: had?.timer ?? setTimeout(() => flush(serverId), SETTLE) });
+    if (!pending.has(serverId)) pending.set(serverId, { timer: setTimeout(() => void flush(serverId), SETTLE) });
   };
 
-  const flush = (serverId) => {
-    const p = pending.get(serverId);
+  const flush = async (serverId) => {
     pending.delete(serverId);
-    if (p) yapboard.syncServer(serverId, { memberCount: p.count }).catch((e) => console.error('[yapboard] sync:', e.message));
+    try {
+      const memberCount = memberCountOf(await bot.server(serverId));
+      if (memberCount !== undefined) await yapboard.syncServer(serverId, { memberCount });
+    } catch (e) {
+      console.error('[yapboard] sync:', e.message);
+    }
   };
 
   bot.on('member_join', countChanged);

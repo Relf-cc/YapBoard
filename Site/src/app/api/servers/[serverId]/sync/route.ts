@@ -5,7 +5,7 @@ import { fail, json, rateLimit, requireUser } from '@/lib/http';
 import { canManageListing } from '@/lib/servers';
 import { fetchServer } from '@/lib/yapin';
 
-/** Pull the latest name and icon from Yapin'. */
+/** Pull the latest name, icon and member count from Yapin'. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ serverId: string }> }) {
   const g = await requireUser(req);
   if (g.error) return g.error;
@@ -18,8 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ser
   if (!live) return fail('YapBoard’s bot isn’t in that server any more', 404);
   const updated = await db.server.update({
     where: { id: serverId },
-    data: { name: live.name, iconUrl: live.iconUrl, bannerUrl: live.bannerUrl },
-    select: { name: true, iconUrl: true },
+    data: { name: live.name, iconUrl: live.iconUrl, bannerUrl: live.bannerUrl, ...(live.memberCount !== null && { memberCount: live.memberCount }) },
+    select: { name: true, iconUrl: true, memberCount: true },
   });
   return json(updated);
 }

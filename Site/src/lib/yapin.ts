@@ -74,7 +74,7 @@ export function fileUrl(kind: 'icons' | 'avatars' | 'banners', path: unknown): s
   return `https://files.yapper.website/${kind}/${path}`;
 }
 
-export type YapinServer = { id: string; name: string; iconUrl: string | null; bannerUrl: string | null; ownerId: string | null };
+export type YapinServer = { id: string; name: string; iconUrl: string | null; bannerUrl: string | null; ownerId: string | null; memberCount: number | null };
 
 export async function fetchServer(serverId: string): Promise<YapinServer | null> {
   const r = await botGet<{ server?: Record<string, unknown> }>(`/servers/${encodeURIComponent(serverId)}`);
@@ -86,6 +86,7 @@ export async function fetchServer(serverId: string): Promise<YapinServer | null>
     iconUrl: fileUrl('icons', s.icon_path ?? s.icon),
     bannerUrl: fileUrl('banners', s.banner_path ?? s.banner),
     ownerId: s.owner_id != null ? String(s.owner_id) : null,
+    memberCount: Number.isSafeInteger(s.member_count) && (s.member_count as number) >= 0 ? (s.member_count as number) : null,
   };
 }
 

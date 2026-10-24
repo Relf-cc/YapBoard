@@ -24,10 +24,11 @@ export async function POST(req: NextRequest) {
   let name = devName ?? '';
   let iconUrl: string | null = null;
   let bannerUrl: string | null = null;
+  let memberCount: number | null = null;
   if (botEnabled()) {
     const check = await checkManager(serverId, g.user.id);
     if (!check.ok) return fail(MANAGE_ERRORS[check.reason], 403, { reason: check.reason });
-    ({ name, iconUrl, bannerUrl } = check.server);
+    ({ name, iconUrl, bannerUrl, memberCount } = check.server);
   } else if (!name) {
     return fail('Server name is required in dev mode', 422, { fields: { name: ['Give it a name'] } });
   }
@@ -46,7 +47,8 @@ export async function POST(req: NextRequest) {
 
   await db.$transaction(async (tx) => {
     await tx.server.create({
-      data: { id: serverId, name, iconUrl, bannerUrl, ...data, status: unlisted ? 'UNLISTED' : 'PUBLIC', ownerId: g.user.id, bumpedAt: new Date() },
+      // The count comes along with the manager check, so a new listing doesn't show 0 until the bot's next sync.
+      data: { id: serverId, name, iconUrl, bannerUrl, ...(memberCount !== null && { memberCount }), ...data, status: unlisted ? 'UNLISTED' : 'PUBLIC', ownerId: g.user.id, bumpedAt: new Date() },
     });
     await setTags(tx, serverId, tags);
   });
