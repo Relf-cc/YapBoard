@@ -15,6 +15,7 @@ services:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?set NEXT_PUBLIC_SITE_URL in .env}
         NEXT_PUBLIC_BOT_ID: ${NEXT_PUBLIC_BOT_ID:-}
         PORTAL_URL: ${PORTAL_URL:?set PORTAL_URL in .env}
+        NEXT_PUBLIC_BUG_REPORT_URL: ${NEXT_PUBLIC_BUG_REPORT_URL:-}
     restart: unless-stopped
     environment:
       <<: *shared

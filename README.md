@@ -61,7 +61,7 @@ docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_I
 - The database is SQLite in the `site-data` volume (`/data/yapboard.db`). On every start the site runs
   `prisma db push`. A schema change that would drop data stops the start instead: fix it by hand, don't force it.
 - Bump reminders are in the `bot-data` volume. Back up both volumes.
-- `NEXT_PUBLIC_SITE_URL`, `PORTAL_URL` and `NEXT_PUBLIC_BOT_ID` are baked into the site at build time, so changing
+- `NEXT_PUBLIC_SITE_URL`, `PORTAL_URL`, `NEXT_PUBLIC_BOT_ID` and `NEXT_PUBLIC_BUG_REPORT_URL` are baked into the site at build time, so changing
   them needs `--build`. Everything else only needs `docker compose up -d`.
 - All three hosts are the same Next app, told apart by Host (`src/proxy.ts`): `yapboard.dev` is the site,
   `portal.yapboard.dev` the staff portal, and `api.yapboard.dev` the API at its root (`/servers/123` there is

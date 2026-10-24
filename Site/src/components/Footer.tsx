@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
+import { BugReportButton } from './BugReport';
 
 const COLS: { title: string; links: [string, string][] }[] = [
   { title: 'Browse', links: [['/servers', 'All servers'], ['/tags', 'Tags'], ['/servers?sort=new', 'New servers'], ['/servers?sort=members', 'Biggest servers']] },
@@ -26,6 +27,11 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              {c.title === 'YapBoard' && (
+                <li>
+                  <BugReportButton className="text-sm text-ink-3 hover:text-ink transition-colors" />
+                </li>
+              )}
             </ul>
           </div>
         ))}

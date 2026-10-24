@@ -11,6 +11,8 @@ const origin = (url: string | undefined) => {
 
 // Forms may land on the site or the portal (login with ?next= a portal page redirects there).
 const formTargets = [...new Set(["'self'", origin(process.env.NEXT_PUBLIC_SITE_URL), origin(process.env.PORTAL_URL)].filter(Boolean))].join(' ');
+// Bug reports are posted from the browser to a Kern stream (src/components/BugReport.tsx).
+const bugStream = origin(process.env.NEXT_PUBLIC_BUG_REPORT_URL);
 
 /**
  * Inline scripts stay allowed (Next's bootstrap needs them without a nonce setup), so this mainly stops framing
@@ -23,7 +25,7 @@ const csp = [
   // Server icons and avatars come from Yapin's file hosts; any https image is fine, nothing else.
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self'${dev ? ' ws: wss:' : ''}`,
+  `connect-src 'self'${bugStream ? ` ${bugStream}` : ''}${dev ? ' ws: wss:' : ''}`,
   "object-src 'none'",
   "base-uri 'self'",
   `form-action ${formTargets}`,
