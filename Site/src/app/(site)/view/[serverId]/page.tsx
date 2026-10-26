@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -75,23 +76,31 @@ export default async function ViewServer({ params }: Props) {
   const owner = s.owner.displayName || s.owner.username;
 
   return (
-    <div>
+    <div style={{ '--listing-accent': s.accent } as CSSProperties}>
       {/* banner */}
-      <div className="relative h-40 sm:h-56 overflow-hidden border-b border-line" style={{ background: `color-mix(in srgb, ${s.accent} 22%, var(--bg))` }}>
+      <div className="relative h-40 sm:h-56 overflow-hidden border-b border-line" style={{ background: `color-mix(in srgb, ${s.accent} 34%, var(--bg))` }}>
         {s.bannerUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={s.bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
         ) : (
-          <div
-            aria-hidden
-            className="absolute inset-0 opacity-60"
-            style={{
-              backgroundImage: `radial-gradient(circle at 1px 1px, color-mix(in srgb, ${s.accent} 55%, transparent) 1px, transparent 0)`,
-              backgroundSize: '18px 18px',
-            }}
-          />
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0 opacity-70"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, color-mix(in srgb, ${s.accent} 70%, transparent) 1px, transparent 0)`,
+                backgroundSize: '18px 18px',
+              }}
+            />
+            <div
+              aria-hidden
+              className="absolute -left-10 bottom-0 h-56 w-56 sm:h-72 sm:w-72 rounded-full blur-3xl opacity-50"
+              style={{ background: `color-mix(in srgb, ${s.accent} 85%, transparent)` }}
+            />
+          </>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/10" />
       </div>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -108,7 +117,7 @@ export default async function ViewServer({ params }: Props) {
           <div className="min-w-0">
             <Reveal y={10}>
               <div className="-mt-12 sm:-mt-14 flex flex-col sm:flex-row sm:items-end gap-5">
-                <Avatar src={s.iconUrl} name={s.name} id={s.id} size={112} className="ring-[6px] ring-bg shadow-xl" />
+                <Avatar src={s.iconUrl} name={s.name} id={s.id} size={112} glow={s.accent} className="ring-[6px] ring-bg shadow-xl" />
                 <div className="min-w-0 pb-1">
                   <h1 className="text-[32px] sm:text-[40px] font-extrabold leading-[1.05] break-words">
                     {s.name}
@@ -144,7 +153,11 @@ export default async function ViewServer({ params }: Props) {
               </div>
 
               <div className="mt-8 flex flex-wrap gap-2.5">
-                <a href={`/join/${s.id}`} className="btn btn-primary btn-lg group min-w-40">
+                <a
+                  href={`/join/${s.id}`}
+                  className="btn btn-primary btn-lg group min-w-40"
+                  style={{ boxShadow: `0 10px 28px -10px color-mix(in srgb, ${s.accent} 75%, transparent), inset 0 1px 0 #ffffff40, 0 1px 2px #0006` }}
+                >
                   Join server
                   <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
@@ -178,15 +191,16 @@ export default async function ViewServer({ params }: Props) {
           {/* sidebar */}
           <aside className="lg:pt-8 space-y-4">
             <Reveal delay={0.08}>
-              <div className="card p-5">
+              <div className="card relative overflow-hidden p-5">
+                <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${s.accent} 85%, transparent), transparent)` }} />
                 <dl className="grid grid-cols-2 gap-y-5 gap-x-4">
-                  <Fact label="Members" value={compact(s.memberCount)} icon={<Users size={14} />} />
-                  <Fact label="Bumps" value={compact(s.bumpCount)} icon={<ChevronsUp size={14} />} />
-                  <Fact label="Last bump" value={timeAgo(s.bumpedAt)} icon={<ChevronsUp size={14} />} />
+                  <Fact label="Members" value={compact(s.memberCount)} icon={<Users size={14} style={{ color: s.accent }} />} />
+                  <Fact label="Bumps" value={compact(s.bumpCount)} icon={<ChevronsUp size={14} style={{ color: s.accent }} />} />
+                  <Fact label="Last bump" value={timeAgo(s.bumpedAt)} icon={<ChevronsUp size={14} style={{ color: s.accent }} />} />
                   {canVote ? (
-                    <Fact label={`Votes (${VOTES_SHOWN_DAYS} days)`} value={compact(votes)} icon={<ArrowBigUp size={14} />} />
+                    <Fact label={`Votes (${VOTES_SHOWN_DAYS} days)`} value={compact(votes)} icon={<ArrowBigUp size={14} style={{ color: s.accent }} />} />
                   ) : (
-                    <Fact label="Listed" value={s.createdAt.toLocaleDateString('en', { month: 'short', year: 'numeric' })} icon={<CalendarDays size={14} />} />
+                    <Fact label="Listed" value={s.createdAt.toLocaleDateString('en', { month: 'short', year: 'numeric' })} icon={<CalendarDays size={14} style={{ color: s.accent }} />} />
                   )}
                 </dl>
                 <div className="mt-5 pt-5 border-t border-line flex items-center gap-3">
