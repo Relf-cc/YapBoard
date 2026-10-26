@@ -77,15 +77,32 @@ We started as a handful of friends and grew into a proper community. It's a frie
 
 Read the rules when you join and grab your roles. See you inside.`;
 
+// [name, summary, prefix, tags, servers, library]
+const BOTS = [
+  ['Yapper', 'The official Yapin’ example bot. Moderation, roles and a good night’s sleep.', null, ['moderation', 'utility', 'official'], 18400, 'yapper.js'],
+  ['Tunebox', 'Music in voice without the nonsense. Queues, playlists, no paywall.', '!', ['music', 'voice', 'fun'], 9340, 'yapper.js'],
+  ['Gatekeep', 'Verification, anti-raid and a very patient audit log.', null, ['moderation', 'security', 'utility'], 6120, 'yapper.js'],
+  ['Pollster', 'Polls, votes and scheduled questions your server will actually answer.', '?', ['utility', 'polls', 'community'], 3480, 'yapper.js'],
+  ['Levels', 'XP, ranks and leaderboards. Configurable down to the last pixel.', null, ['levels', 'community', 'fun'], 7750, 'yapper.js'],
+  ['Ticketly', 'Support tickets with transcripts, so nothing gets lost in DMs.', '-', ['support', 'utility', 'moderation'], 2210, 'yapper.js'],
+];
+
 const ACCENTS = ['#ff6b4a', '#ffb86b', '#7ee2a8', '#5aa9e6', '#c7a4ff', '#ff9ecb', '#3fc1a8', '#8fb8ff'];
 const rand = (n) => Math.floor(Math.random() * n);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const id = (i) => `srv_${(1000003 * (i + 7)).toString(36)}${i}`;
+const botId = (i) => `bot_${(1000033 * (i + 11)).toString(36)}${i}`;
 
 async function main() {
   console.log('Seeding…');
   await db.auditLog.deleteMany();
   await db.report.deleteMany();
+  await db.announcement.deleteMany();
+  await db.broadcast.deleteMany();
+  await db.botBump.deleteMany();
+  await db.botBadge.deleteMany();
+  await db.botTag.deleteMany();
+  await db.botListing.deleteMany();
   await db.bump.deleteMany();
   await db.serverBadge.deleteMany();
   await db.serverTag.deleteMany();
@@ -136,6 +153,64 @@ async function main() {
     }
   }
 
+  // Bots. The first one is "official" and points at the Yapin' Developers server for support.
+  for (const [i, [name, summary, prefix, tags, servers, library]] of BOTS.entries()) {
+    const owner = users[(i + 2) % users.length];
+    const createdAt = new Date(now - rand(140) * 864e5);
+    const thisBot = botId(i);
+    await db.botListing.create({
+      data: {
+        id: thisBot,
+        name,
+        summary,
+        description: DESC(name, tags),
+        prefix,
+        library,
+        website: i % 2 === 0 ? `https://${slug(name)}.example` : null,
+        inviteUrl: i % 3 === 0 ? `https://${slug(name)}.example/add` : null,
+        accent: ACCENTS[(i + 3) % ACCENTS.length],
+        serverCount: servers,
+        views: servers * (1 + rand(4)),
+        adds: Math.round(servers * (0.1 + Math.random() * 0.3)),
+        bumpCount: 2 + rand(120),
+        bumpedAt: new Date(now - rand(40) * 3600_000),
+        createdAt,
+        // The official bot's support server is the developers one, which is seeded first.
+        supportServerId: i === 0 ? id(0) : i % 2 === 1 ? id(i) : null,
+        badges: { create: i === 0 ? [{ kind: 'OFFICIAL', grantedAt: createdAt }] : i === 1 ? [{ kind: 'FEATURED', grantedAt: createdAt }] : [] },
+        ownerId: owner.id,
+        tags: {
+          create: await Promise.all(
+            tags.map(async (t) => ({ tag: { connect: { id: (await db.tag.upsert({ where: { name: t }, create: { name: t }, update: {} })).id } } })),
+          ),
+        },
+      },
+    });
+    for (let b = 0; b < 1 + rand(3); b++) {
+      await db.botBump.create({ data: { botId: thisBot, userId: users[rand(users.length)].id, createdAt: new Date(now - rand(40) * 3600_000) } });
+    }
+  }
+
+  // A banner, written but not live: staff publish it from the portal when they're ready.
+  await db.announcement.create({
+    data: {
+      kind: 'BANNER',
+      title: 'Bots are on the board',
+      body: 'You can now list the bots you run, right alongside your servers.',
+      linkUrl: '/bots',
+      linkLabel: 'Browse bots',
+      tone: 'accent',
+      audience: 'everyone',
+      active: false,
+      authorId: users[0].id,
+    },
+  });
+
+  // Half the servers have used /bump, so broadcasts have somewhere to go in dev.
+  for (let i = 0; i < SERVERS.length; i += 2) {
+    await db.server.update({ where: { id: id(i) }, data: { bumpChannelId: `chn_seed_${i}`, bumpChannelAt: new Date(now - rand(48) * 3600_000) } });
+  }
+
   const reports = [
     [4, 'ABUSE', 'spam', 'They DM everyone who joins with an invite to another server. Got 3 messages in 10 minutes.'],
     [27, 'ABUSE', 'nsfw', 'There is an unmarked adult channel visible as soon as you join. Should be marked 18+.'],
@@ -150,7 +225,7 @@ async function main() {
       data: { serverId: id(i), kind, reason, details, reporterId: users[(i + 3) % users.length].id, createdAt: new Date(now - rand(72) * 3600_000) },
     });
   }
-  console.log(`Seeded ${SERVERS.length} servers, ${users.length} users, ${reports.length} reports.`);
+  console.log(`Seeded ${SERVERS.length} servers, ${BOTS.length} bots, ${users.length} users, ${reports.length} reports.`);
 }
 
 main()

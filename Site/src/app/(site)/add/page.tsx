@@ -30,6 +30,7 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
     language: 'en',
     nsfw: false,
     unlisted: false,
+    broadcastsOff: false,
     accent: '#ff6b4a',
     tags: [],
   };

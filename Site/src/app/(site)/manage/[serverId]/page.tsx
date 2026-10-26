@@ -105,6 +105,7 @@ export default async function Manage({ params, searchParams }: Props) {
             language: s.language,
             nsfw: s.nsfw,
             unlisted: s.status === 'UNLISTED',
+            broadcastsOff: s.broadcastsOff,
             accent: s.accent,
             tags: s.tags.map((t) => t.tag.name),
             badges: s.badges.map((b) => b.kind),

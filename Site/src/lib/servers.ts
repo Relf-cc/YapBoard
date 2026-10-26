@@ -56,6 +56,8 @@ export const listingSchema = z.object({
   language: z.string().refine((v) => v in LANGUAGES, 'Pick a language'),
   nsfw: z.boolean(),
   unlisted: z.boolean(),
+  /// Opt out of the global messages YapBoard staff send through the bot (src/lib/broadcasts.ts).
+  broadcastsOff: z.boolean(),
   accent: z.string().regex(/^#[0-9a-f]{6}$/i, 'Pick a colour'),
   tags: z
     .array(z.string().max(40))

@@ -26,6 +26,7 @@ export type ListingValues = {
   language: string;
   nsfw: boolean;
   unlisted: boolean;
+  broadcastsOff: boolean;
   accent: string;
   tags: string[];
   /** Staff-granted badges; shown in the preview, never sent. */
@@ -161,6 +162,12 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
           <div className="mt-6 grid gap-3">
             <Toggle checked={v.nsfw} onChange={(b) => set('nsfw', b)} title="18+ server" body="Hidden from search unless people turn on 18+ results. Required if your server has adult content." />
             <Toggle checked={v.unlisted} onChange={(b) => set('unlisted', b)} title="Unlisted" body="Keep the page, but leave it out of search and browse. Anyone with the link can still see it." />
+            <Toggle
+              checked={v.broadcastsOff}
+              onChange={(b) => set('broadcastsOff', b)}
+              title="No announcements from YapBoard"
+              body="We occasionally post something worth knowing in the channel you bump from. Turn this on and we won’t."
+            />
           </div>
         </Section>
       </div>

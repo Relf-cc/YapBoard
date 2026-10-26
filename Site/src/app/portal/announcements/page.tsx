@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { requireStaffPage } from '@/lib/portal';
-import type { Audience, AnnouncementKind, Tone } from '@/lib/announcements';
+import { AUDIENCES, KINDS, TONES, type Audience, type AnnouncementKind, type Tone } from '@/lib/announcements';
 import { PageHead } from '@/components/portal/PageHead';
 import { AnnouncementEditor, type EditorRow } from '@/components/portal/AnnouncementEditor';
 
@@ -42,7 +42,7 @@ export default async function AnnouncementsPage() {
   return (
     <div className="max-w-5xl">
       <PageHead title="Announcements" sub="A bar across the top of the site, or a dialog people see once. Only one of each shows at a time — the newest live one wins." />
-      <AnnouncementEditor rows={editorRows} />
+      <AnnouncementEditor rows={editorRows} labels={{ kinds: KINDS, audiences: AUDIENCES, tones: TONES }} />
     </div>
   );
 }

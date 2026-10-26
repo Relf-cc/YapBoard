@@ -55,23 +55,25 @@ export function canManageBot(user: SessionUser | null, bot: { ownerId: string })
   return !!user && !user.bannedAt && (user.id === bot.ownerId || isStaff(user));
 }
 
+/** An optional text field: missing, empty and null all mean "not set". */
 const optional = (max: number) =>
   z
     .string()
     .trim()
     .max(max)
-    .transform((v) => v || null)
-    .nullable();
+    .nullish()
+    .transform((v) => v || null);
 
+/** The same, for a link. A bare "example.com" is read as https, anything else has to look like a URL. */
 const httpsUrl = (message: string) =>
   z
     .string()
     .trim()
     .max(500)
+    .nullish()
     .transform((v) => (v && !/^https?:\/\//.test(v) ? `https://${v}` : v))
     .transform((v) => v || null)
-    .refine((v) => v === null || /^https:\/\/\S+\.\S+/.test(v), message)
-    .nullable();
+    .refine((v) => v === null || /^https:\/\/\S+\.\S+/.test(v), message);
 
 export const botListingSchema = z.object({
   summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),

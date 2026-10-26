@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { deleteAnnouncement, saveAnnouncement, setAnnouncementActive } from '@/app/portal/actions';
-import { AUDIENCES, KINDS, TONES, type Audience, type AnnouncementKind, type LiveAnnouncement, type Tone } from '@/lib/announcements';
+import type { Audience, AnnouncementKind, LiveAnnouncement, Tone } from '@/lib/announcements';
 import { Dropdown } from '../Dropdown';
 import { Announcements } from '../Announcements';
 
@@ -46,10 +46,16 @@ const blank = (): EditorRow => ({
   seenBy: 0,
 });
 
+/**
+ * The label maps live in src/lib/announcements.ts, which is server-only (it talks to the database), so the
+ * page hands them down rather than this file importing them.
+ */
+export type Labels = { kinds: Record<string, string>; audiences: Record<string, string>; tones: Record<string, string> };
+
 const options = (o: Record<string, string>) => Object.entries(o).map(([value, label]) => ({ value, label }));
 
 /** Write, preview and publish the site-wide notices (src/lib/announcements.ts). */
-export function AnnouncementEditor({ rows }: { rows: EditorRow[] }) {
+export function AnnouncementEditor({ rows, labels }: { rows: EditorRow[]; labels: Labels }) {
   const [editing, setEditing] = useState<EditorRow | null>(null);
   return (
     <>
@@ -59,19 +65,19 @@ export function AnnouncementEditor({ rows }: { rows: EditorRow[] }) {
         </button>
       </div>
 
-      {editing && <Form key={editing.id || 'new'} row={editing} onDone={() => setEditing(null)} />}
+      {editing && <Form key={editing.id || 'new'} row={editing} labels={labels} onDone={() => setEditing(null)} />}
 
       <div className="mt-6 space-y-3">
         {rows.length === 0 && !editing && <p className="card px-5 py-14 text-center text-sm text-ink-3">Nothing written yet.</p>}
         {rows.map((r) => (
-          <Row key={r.id} row={r} onEdit={() => setEditing(r)} />
+          <Row key={r.id} row={r} labels={labels} onEdit={() => setEditing(r)} />
         ))}
       </div>
     </>
   );
 }
 
-function Row({ row, onEdit }: { row: EditorRow; onEdit: () => void }) {
+function Row({ row, labels, onEdit }: { row: EditorRow; labels: Labels; onEdit: () => void }) {
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     start(async () => {
@@ -87,8 +93,8 @@ function Row({ row, onEdit }: { row: EditorRow; onEdit: () => void }) {
             <span className={clsx('inline-flex h-5 items-center rounded-full border px-2 text-[11px] font-semibold', row.active ? 'border-ok/30 bg-ok/10 text-ok' : 'border-line-strong bg-surface-2 text-ink-3')}>
               {row.active ? 'Live' : 'Draft'}
             </span>
-            <span className="text-[11px] uppercase tracking-wider text-ink-3">{KINDS[row.kind]}</span>
-            <span className="text-[11px] text-ink-3">· {AUDIENCES[row.audience]}</span>
+            <span className="text-[11px] uppercase tracking-wider text-ink-3">{labels.kinds[row.kind]}</span>
+            <span className="text-[11px] text-ink-3">· {labels.audiences[row.audience]}</span>
             {row.kind === 'BANNER' && !row.dismissible && <span className="text-[11px] text-warn">· can’t be closed</span>}
             {row.seenBy > 0 && <span className="text-[11px] text-ink-3">· closed by {row.seenBy}</span>}
           </div>
@@ -124,7 +130,7 @@ function Row({ row, onEdit }: { row: EditorRow; onEdit: () => void }) {
   );
 }
 
-function Form({ row, onDone }: { row: EditorRow; onDone: () => void }) {
+function Form({ row, labels, onDone }: { row: EditorRow; labels: Labels; onDone: () => void }) {
   const router = useRouter();
   const [v, setV] = useState(row);
   const [pending, start] = useTransition();
@@ -176,17 +182,17 @@ function Form({ row, onDone }: { row: EditorRow; onDone: () => void }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block">
           <span className="label">Shown as</span>
-          <Dropdown label="Shown as" value={v.kind} onChange={(x) => set('kind', x as AnnouncementKind)} options={options(KINDS)} />
+          <Dropdown label="Shown as" value={v.kind} onChange={(x) => set('kind', x as AnnouncementKind)} options={options(labels.kinds)} />
           <span className="mt-1 block text-xs text-ink-3">{v.kind === 'MODAL' ? 'A dialog, once per person.' : 'A bar at the top of every page.'}</span>
         </label>
         <label className="block">
           <span className="label">Who sees it</span>
-          <Dropdown label="Who sees it" value={v.audience} onChange={(x) => set('audience', x as Audience)} options={options(AUDIENCES)} />
+          <Dropdown label="Who sees it" value={v.audience} onChange={(x) => set('audience', x as Audience)} options={options(labels.audiences)} />
           <span className="mt-1 block text-xs text-ink-3">Logged-out visitors always count as new.</span>
         </label>
         <label className="block">
           <span className="label">Colour</span>
-          <Dropdown label="Colour" value={v.tone} onChange={(x) => set('tone', x as Tone)} options={options(TONES)} />
+          <Dropdown label="Colour" value={v.tone} onChange={(x) => set('tone', x as Tone)} options={options(labels.tones)} />
         </label>
         {v.audience === 'new' ? (
           <label className="block">
