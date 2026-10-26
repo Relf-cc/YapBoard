@@ -11,9 +11,11 @@ import { countOnce } from '@/lib/http';
 import { languageName } from '@/lib/languages';
 import { getUser } from '@/lib/session';
 import { Avatar } from '@/components/Avatar';
+import { hasSupport } from '@/lib/badges';
 import { BadgeNames, BadgeRow } from '@/components/Badge';
 import { BotGrid } from '@/components/BotGrid';
 import { CopyField } from '@/components/CopyField';
+import { SupportBanner } from '@/components/SupportFlair';
 import { NsfwMark } from '@/components/NsfwMark';
 import { Reveal } from '@/components/Reveal';
 import { TagChip } from '@/components/TagChip';
@@ -115,6 +117,7 @@ export default async function ViewBot({ params }: Props) {
                     )}
                   </h1>
                   <BadgeNames kinds={badges} seed={b.id} className="mt-2.5" />
+                  {hasSupport(badges) && <SupportBanner seed={b.id} className="mt-3.5 max-w-xl" />}
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
                     <span className="inline-flex items-center gap-1.5">
                       <Server size={15} />

@@ -12,6 +12,7 @@ const STATUS = { PUBLIC: 'Public', UNLISTED: 'Unlisted', HIDDEN: 'Hidden by staf
 // Keys match BADGES in Site/src/lib/badges.ts; the listing shows the first one the site sent.
 const BADGE = {
   OFFICIAL: 'Official Yapin’ server',
+  SUPPORT: 'Official YapBoard support server',
   VERIFIED: 'Verified on YapBoard',
   PARTNER: 'YapBoard partner',
   FOUNDER: 'Founding server',

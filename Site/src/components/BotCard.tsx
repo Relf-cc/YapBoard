@@ -2,28 +2,33 @@
 
 import Link from 'next/link';
 import { motion } from 'motion/react';
+import clsx from 'clsx';
 import { ArrowUpRight, ChevronsUp, Server, Terminal } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { BadgeRow } from './Badge';
+import { SupportFlair } from './SupportFlair';
 import { NsfwMark } from './NsfwMark';
 import { Tooltip } from './Tooltip';
 import { compact, timeAgo } from '@/lib/format';
+import { hasSupport } from '@/lib/badges';
 import type { BotCard as Card } from '@/lib/bots';
 
 /** The server card's twin, for the bot board: servers instead of members, and a prefix instead of a language. */
 export function BotCard({ bot, activeTags = [] }: { bot: Card; activeTags?: string[] }) {
+  const support = hasSupport(bot.badges);
   return (
     <motion.article
       whileHover={{ y: -3 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className="group relative flex w-full flex-col card p-5 overflow-hidden hover:border-line-strong transition-colors"
+      className={clsx('group relative flex w-full flex-col card p-5 overflow-hidden transition-colors', support ? 'support-card' : 'hover:border-line-strong')}
     >
+      {support && <SupportFlair seed={bot.id} />}
       <span
         aria-hidden
         className="absolute left-0 top-5 h-10 w-[3px] rounded-r-full origin-center scale-y-0 group-hover:scale-y-100 transition-transform duration-300 ease-out-soft"
         style={{ background: bot.accent }}
       />
-      <div className="flex items-start gap-3.5">
+      <div className="relative flex items-start gap-3.5">
         <Avatar src={bot.avatarUrl} name={bot.name} id={bot.id} size={52} round className="transition-transform duration-300 ease-out-soft group-hover:-rotate-3" />
         <div className="min-w-0 flex-1">
           <h3 className="flex items-center gap-1.5 font-display text-[16.5px] font-bold leading-tight">
@@ -56,7 +61,7 @@ export function BotCard({ bot, activeTags = [] }: { bot: Card; activeTags?: stri
         </div>
       </div>
 
-      <p className="mt-3.5 text-[14px] leading-relaxed text-ink-2 line-clamp-2 min-h-[2lh]">{bot.summary}</p>
+      <p className="relative mt-3.5 text-[14px] leading-relaxed text-ink-2 line-clamp-2 min-h-[2lh]">{bot.summary}</p>
 
       <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
         {bot.tags.slice(0, 4).map((t) => (

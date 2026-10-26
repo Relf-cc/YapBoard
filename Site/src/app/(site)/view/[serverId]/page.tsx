@@ -11,7 +11,9 @@ import { canManageListing, cardSelect, isViewable, toCard } from '@/lib/servers'
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
+import { hasSupport } from '@/lib/badges';
 import { BadgeNames, BadgeRow } from '@/components/Badge';
+import { SupportBanner } from '@/components/SupportFlair';
 import { NsfwMark } from '@/components/NsfwMark';
 import { TagChip } from '@/components/TagChip';
 import { ServerGrid } from '@/components/ServerGrid';
@@ -129,6 +131,7 @@ export default async function ViewServer({ params }: Props) {
                     )}
                   </h1>
                   <BadgeNames kinds={badges} seed={s.id} className="mt-2.5" />
+                  {hasSupport(badges) && <SupportBanner seed={s.id} className="mt-3.5 max-w-xl" />}
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
                     <span className="inline-flex items-center gap-1.5">
                       <Users size={15} />

@@ -21,6 +21,8 @@
   --ok: #3ecf8e;
   --warn: #f5b84a;
   --danger: #f2555a;
+  /* The support badge's orange (BADGES.SUPPORT.glow in src/lib/badges.ts), for listings that hold it. */
+  --support: #ff8c1a;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -282,6 +284,50 @@ h3 {
   100% {
     opacity: 0;
     transform: scale(0) rotate(90deg);
+  }
+}
+
+/* ---------- the official support listing ---------- */
+/* A listing holding the SUPPORT badge is lit in the badge's orange: a brighter frame, a wash from the top-left
+   corner and a beam that sweeps across every few seconds, so help is easy to spot on a long board. */
+.support-card {
+  border-color: color-mix(in srgb, var(--support) 42%, var(--line));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--support) 16%, transparent),
+    0 18px 44px -26px var(--support);
+}
+.support-card:hover {
+  border-color: color-mix(in srgb, var(--support) 68%, var(--line));
+}
+.support-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 85% at 10% 0%, color-mix(in srgb, var(--support) 20%, transparent), transparent 60%);
+}
+.support-beam {
+  position: absolute;
+  top: -40%;
+  left: -35%;
+  width: 38%;
+  height: 180%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--support) 26%, transparent), transparent);
+  animation: support-beam 7s var(--ease-out) infinite;
+  animation-delay: var(--beam-delay, 0s);
+}
+@keyframes support-beam {
+  0% {
+    transform: translateX(-30%) rotate(14deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  52%,
+  100% {
+    transform: translateX(340%) rotate(14deg);
+    opacity: 0;
   }
 }
 

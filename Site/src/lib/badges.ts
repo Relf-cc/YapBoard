@@ -32,6 +32,11 @@ const STAR: BadgeIcon = [{ d: 'M12 5.4 13.82 9.49 18.28 9.96 14.95 12.96 15.88 1
 const FLAME: BadgeIcon = [{ d: 'M12 5.27c2.73 2.64 4.55 4.46 4.55 7.19a4.55 4.55 0 0 1-9.1 0c0-1.46.55-2.64 1.36-3.55.09 1.09.73 1.82 1.55 2.09-.55-2.46.09-4.19 1.64-5.73z' }];
 const HEART: BadgeIcon = [{ d: 'M12 17.4C8.76 14.88 6.78 13.08 6.78 11.1a2.7 2.7 0 0 1 5.22-1.08 2.7 2.7 0 0 1 5.22 1.08c0 1.98-1.98 3.78-5.22 6.3z' }];
 const HOURGLASS: BadgeIcon = [{ d: 'M8.6 7.4h6.8M8.6 16.6h6.8', w: 1.8 }, { d: 'M9.5 7.8h5L12 12l2.5 4.2h-5L12 12z' }];
+const LIFEBUOY: BadgeIcon = [
+  { d: 'M18.6 12a6.6 6.6 0 1 1-13.2 0 6.6 6.6 0 1 1 13.2 0', w: 1.9 },
+  { d: 'M14.8 12a2.8 2.8 0 1 1-5.6 0 2.8 2.8 0 1 1 5.6 0', w: 1.9 },
+  { d: 'M13.98 10.02 16.67 7.33M10.02 10.02 7.33 7.33M13.98 13.98 16.67 16.67M10.02 13.98 7.33 16.67', w: 1.9 },
+];
 const BOLT: BadgeIcon = [{ d: 'M12.81 5.34 8.31 12.81h2.7l-.72 5.85 4.5-7.47h-2.7z' }];
 
 export const BADGES = {
@@ -43,6 +48,16 @@ export const BADGES = {
     to: '#0d9e62',
     glow: '#1fc47f',
     icon: CHECK,
+  },
+  SUPPORT: {
+    label: 'Support',
+    long: 'Official YapBoard support server',
+    blurb: 'The YapBoard team’s own server — help, bug reports and updates.',
+    // A hotter, purer orange than the board's coral accent, so it reads as YapBoard's own without matching Featured.
+    from: '#ffab4d',
+    to: '#f06400',
+    glow: '#ff8c1a',
+    icon: LIFEBUOY,
   },
   VERIFIED: {
     label: 'Verified',
@@ -121,6 +136,12 @@ export const sortBadges = (kinds: readonly (string | null | undefined)[]): Badge
 
 /** The one badge that stands for a server in tight spots (search suggestions, sorting). */
 export const topBadge = (kinds: readonly (string | null | undefined)[]): BadgeKind | null => BADGE_ORDER.find((k) => kinds.includes(k)) ?? null;
+
+/**
+ * The support badge is the one badge that changes the listing around it: cards and listing pages holding it get
+ * a lit orange frame and a slow beam (`.support-card` and friends in src/app/globals.css).
+ */
+export const hasSupport = (kinds: readonly (string | null | undefined)[]): boolean => kinds.includes('SUPPORT');
 
 /** YapBoard Pro. Bought, not granted, so it isn't a badge — but it's drawn as the same seal. */
 export const PRO_MARK: MarkDef = {
