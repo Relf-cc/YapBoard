@@ -58,6 +58,21 @@ export default function BotPage() {
       </Reveal>
 
       <Reveal delay={0.12}>
+        <div className="mt-12 card p-6">
+          <h2 className="font-bold">What else it posts</h2>
+          <p className="mt-2 text-sm text-ink-3 leading-relaxed">
+            Two things, both in the channel you bump from: a nudge when your next <code className="font-mono text-ink-2">/bump</code> is ready, and — rarely — something
+            from us that’s worth knowing, like a new feature or a change to how listings work. Never ads for anyone else. You can turn the announcements off on your
+            listing’s{' '}
+            <Link href="/dashboard" className="text-accent font-semibold hover:underline">
+              manage page
+            </Link>
+            .
+          </p>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.14}>
         <p className="mt-10 text-sm text-ink-3">
           Ready? <Link href="/add" className="text-accent font-semibold hover:underline">List your server →</Link>
         </p>

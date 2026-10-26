@@ -13,13 +13,15 @@ export default async function Overview() {
   await requireStaffPage();
   const base = await portalBase();
   const weekAgo = new Date(Date.now() - 7 * 864e5);
-  const [openAbuse, openRemoval, listed, hidden, handledWeek, newWeek, queue, audit] = await Promise.all([
+  const [openAbuse, openRemoval, listed, hidden, handledWeek, newWeek, bots, liveNotices, queue, audit] = await Promise.all([
     db.report.count({ where: { status: 'OPEN', kind: 'ABUSE' } }),
     db.report.count({ where: { status: 'OPEN', kind: 'REMOVAL' } }),
     db.server.count({ where: { status: 'PUBLIC' } }),
     db.server.count({ where: { status: { in: ['HIDDEN', 'REMOVED'] } } }),
     db.report.count({ where: { handledAt: { gte: weekAgo } } }),
     db.server.count({ where: { createdAt: { gte: weekAgo } } }),
+    db.botListing.count({ where: { status: 'PUBLIC' } }),
+    db.announcement.count({ where: { active: true } }),
     db.report.findMany({
       where: { status: 'OPEN' },
       orderBy: { createdAt: 'asc' },
@@ -36,13 +38,15 @@ export default async function Overview() {
     ['Public servers', listed, `${base}/servers`],
     ['New this week', newWeek, `${base}/servers?sort=new`],
     ['Hidden or removed', hidden, `${base}/servers?status=HIDDEN`],
+    ['Listed bots', bots, `${base}/bots`],
+    ['Live announcements', liveNotices, `${base}/announcements`],
   ];
 
   return (
     <div className="max-w-6xl">
       <PageHead title="Overview" sub="What needs looking at, oldest first." />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         {tiles.map(([label, n, href], i) => {
           const body = (
             <>

@@ -5,6 +5,29 @@ A server list for [Yapin'](https://www.yapin.gg), like Disboard.
 - `Site/`: Next.js app: yapboard.dev (public site), portal.yapboard.dev (staff portal) and api.yapboard.dev (API)
 - `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
 
+Two boards: servers at `/servers`, and the bots people run at `/bots`. Both share tags, badges, reports and the
+staff portal. Staff can also put a notice on the site and send one message out through the bot — see below.
+
+## Three things staff can do from the portal
+
+**Announcements** (`/portal/announcements`, `Site/src/lib/announcements.ts`). A bar across the top of the site, or
+a dialog shown once. Each one picks who sees it — everyone, logged-in people, or accounts younger than a set
+number of hours — and can be scheduled with a start and an end. A banner can be made permanent (no close button).
+Closing one is remembered per account, and in the browser for logged-out visitors; publishing an announcement
+again clears that, so an edited notice reaches people who already dismissed the old one.
+
+**Broadcasts** (`/portal/broadcasts`, `Site/src/lib/broadcasts.ts`). One message, posted by the bot in every
+server that has used it — specifically the channel that server last typed `/bump` in, which the bot now reports
+with each bump. Servers that have never bumped get nothing, and owners can opt out on their manage page. Staff
+write a draft; only admins can send. Sending writes one row per server and the bot drains the queue by polling
+`/api/internal/broadcasts`, so nothing is lost if the bot is restarting or offline. Failures (deleted channel,
+bot kicked) are recorded per server and shown as progress in the portal.
+
+**Bot listings** (`/portal/bots`, `Site/src/lib/bots.ts`). People list the bots they run at `/bots/add`. The lister
+has to own or admin the bot's support server, which is checked with Yapin' the same way server listings are — that
+link is also what puts a "support server" card on the bot's page. Bots bump on the same 2 hour cooldown, from the
+site rather than a command, and take the same badges, tags and reports as servers.
+
 ## Run the site locally
 
 ```sh
@@ -35,7 +58,8 @@ npm start                 # or: npm run bot (from the root)
 On start it logs its bot ID: put that in the site's `NEXT_PUBLIC_BOT_ID`, and the same token in the site's
 `YAPPER_BOT_TOKEN` so ownership checks work. After a `/bump` the bot posts "Ready to bump" in that channel when
 the 2 hour cooldown ends (kept in `Bot/data/` across restarts). Every 30 minutes, and on joins and leaves, it
-sends member counts, names and icons to the site.
+sends member counts, names and icons to the site. It also asks the site once a minute whether staff have a
+broadcast waiting, and posts it in the channel each server last bumped from (`Bot/cogs/broadcast.js`).
 
 ## Deploy with Docker
 
