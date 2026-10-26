@@ -13,7 +13,7 @@ import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
 import { hasSupport } from '@/lib/badges';
 import { BadgeNames, BadgeRow } from '@/components/Badge';
-import { SupportBanner } from '@/components/SupportFlair';
+import { SupportBanner, SupportNoReport } from '@/components/SupportFlair';
 import { NsfwMark } from '@/components/NsfwMark';
 import { TagChip } from '@/components/TagChip';
 import { ServerGrid } from '@/components/ServerGrid';
@@ -59,6 +59,8 @@ export default async function ViewServer({ params }: Props) {
 
   const tags = s.tags.map((t) => t.tag.name);
   const badges = s.badges.map((b) => b.kind);
+  // The support listing says so in its own panel below, so the chip would only repeat it.
+  const supportBadge = hasSupport(badges);
   const similar = tags.length
     ? (
         await db.server.findMany({
@@ -130,8 +132,8 @@ export default async function ViewServer({ params }: Props) {
                       </>
                     )}
                   </h1>
-                  <BadgeNames kinds={badges} seed={s.id} className="mt-2.5" />
-                  {hasSupport(badges) && <SupportBanner seed={s.id} className="mt-3.5 max-w-xl" />}
+                  <BadgeNames kinds={supportBadge ? badges.filter((k) => k !== 'SUPPORT') : badges} seed={s.id} className="mt-2.5" />
+                  {supportBadge && <SupportBanner seed={s.id} className="mt-3.5 max-w-xl" />}
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
                     <span className="inline-flex items-center gap-1.5">
                       <Users size={15} />
@@ -218,7 +220,7 @@ export default async function ViewServer({ params }: Props) {
             <Reveal delay={0.12}>
               <div className="flex items-center justify-between px-1 text-xs text-ink-3">
                 <span className="font-mono">ID {s.id}</span>
-                <ReportButton target={{ kind: 'server', id: s.id, name: s.name }} loggedIn={!!user} />
+                {supportBadge ? <SupportNoReport /> : <ReportButton target={{ kind: 'server', id: s.id, name: s.name }} loggedIn={!!user} />}
               </div>
             </Reveal>
           </aside>

@@ -15,7 +15,7 @@ import { hasSupport } from '@/lib/badges';
 import { BadgeNames, BadgeRow } from '@/components/Badge';
 import { BotGrid } from '@/components/BotGrid';
 import { CopyField } from '@/components/CopyField';
-import { SupportBanner } from '@/components/SupportFlair';
+import { SupportBanner, SupportNoReport } from '@/components/SupportFlair';
 import { NsfwMark } from '@/components/NsfwMark';
 import { Reveal } from '@/components/Reveal';
 import { TagChip } from '@/components/TagChip';
@@ -58,6 +58,8 @@ export default async function ViewBot({ params }: Props) {
 
   const tags = b.tags.map((t) => t.tag.name);
   const badges = b.badges.map((x) => x.kind);
+  // The support listing says so in its own panel below, so the chip would only repeat it.
+  const supportBadge = hasSupport(badges);
   const similar = tags.length
     ? (
         await db.botListing.findMany({
@@ -116,8 +118,8 @@ export default async function ViewBot({ params }: Props) {
                       </>
                     )}
                   </h1>
-                  <BadgeNames kinds={badges} seed={b.id} className="mt-2.5" />
-                  {hasSupport(badges) && <SupportBanner seed={b.id} className="mt-3.5 max-w-xl" />}
+                  <BadgeNames kinds={supportBadge ? badges.filter((k) => k !== 'SUPPORT') : badges} seed={b.id} className="mt-2.5" />
+                  {supportBadge && <SupportBanner seed={b.id} className="mt-3.5 max-w-xl" />}
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
                     <span className="inline-flex items-center gap-1.5">
                       <Server size={15} />
@@ -227,7 +229,7 @@ export default async function ViewBot({ params }: Props) {
 
             <Reveal delay={0.14}>
               <div className="flex items-center justify-end px-1 text-xs text-ink-3">
-                <ReportButton target={{ kind: 'bot', id: b.id, name: b.name }} loggedIn={!!user} />
+                {supportBadge ? <SupportNoReport /> : <ReportButton target={{ kind: 'bot', id: b.id, name: b.name }} loggedIn={!!user} />}
               </div>
             </Reveal>
           </aside>
