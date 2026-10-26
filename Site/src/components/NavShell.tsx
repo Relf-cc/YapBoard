@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ChevronDown, LayoutGrid, LogOut, Menu, Plus, Shield, X } from 'lucide-react';
+import { Bot, ChevronDown, LayoutGrid, LogOut, Menu, Plus, Shield, X } from 'lucide-react';
 import clsx from 'clsx';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
@@ -14,6 +14,7 @@ type NavUser = { id: string; name: string; username: string; avatarUrl: string |
 
 const LINKS = [
   { href: '/servers', label: 'Servers' },
+  { href: '/bots', label: 'Bots' },
   { href: '/tags', label: 'Tags' },
   { href: '/bot', label: 'Bot' },
 ];
@@ -38,7 +39,8 @@ export function NavShell({ user, staff }: { user: NavUser; staff: boolean }) {
         <Logo />
         <nav className="hidden md:flex items-center gap-1">
           {LINKS.map((l) => {
-            const on = path.startsWith(l.href);
+            // '/bot' is a prefix of '/bots', so that one only lights up on its own page.
+            const on = l.href === '/bot' ? path === '/bot' : path.startsWith(l.href);
             return (
               <Link key={l.href} href={l.href} className={clsx('relative px-3 py-2 text-sm font-medium rounded-lg transition-colors', on ? 'text-ink' : 'text-ink-2 hover:text-ink')}>
                 {on && <motion.span layoutId="nav-active" className="absolute inset-0 rounded-lg bg-surface-2" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
@@ -90,9 +92,14 @@ export function NavShell({ user, staff }: { user: NavUser; staff: boolean }) {
                   </Link>
                 ))}
                 {user && (
-                  <Link href="/add" className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-accent hover:bg-surface-2">
-                    Add server
-                  </Link>
+                  <>
+                    <Link href="/add" className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-accent hover:bg-surface-2">
+                      Add server
+                    </Link>
+                    <Link href="/bots/add" className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-accent hover:bg-surface-2">
+                      List a bot
+                    </Link>
+                  </>
                 )}
               </div>
             </div>
@@ -142,6 +149,9 @@ function UserMenu({ user, staff }: { user: NonNullable<NavUser>; staff: boolean 
             </MenuLink>
             <MenuLink href="/add" icon={<Plus size={15} />}>
               Add a server
+            </MenuLink>
+            <MenuLink href="/bots/add" icon={<Bot size={15} />}>
+              List a bot
             </MenuLink>
             {staff && (
               <MenuLink href="/portal" icon={<Shield size={15} />}>

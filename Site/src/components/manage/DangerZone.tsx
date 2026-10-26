@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 
-export function DangerZone({ serverId, name }: { serverId: string; name: string }) {
+export function DangerZone({ serverId, name, kind = 'server' }: { serverId: string; name: string; kind?: 'server' | 'bot' }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState('');
@@ -15,7 +15,7 @@ export function DangerZone({ serverId, name }: { serverId: string; name: string 
   async function remove() {
     setBusy(true);
     setError('');
-    const res = await fetch(`/api/servers/${serverId}`, { method: 'DELETE' }).catch(() => null);
+    const res = await fetch(`/api/${kind === 'bot' ? 'bots' : 'servers'}/${serverId}`, { method: 'DELETE' }).catch(() => null);
     if (res?.ok) return router.push('/dashboard');
     const out = await res?.json().catch(() => ({}));
     setError(out?.error || 'Couldn’t delete the listing. Try again.');
@@ -27,7 +27,7 @@ export function DangerZone({ serverId, name }: { serverId: string; name: string 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-bold">Delete listing</h2>
-          <p className="mt-1 text-sm text-ink-3">Takes the page down and wipes its stats. Your Yapin’ server isn’t touched.</p>
+          <p className="mt-1 text-sm text-ink-3">Takes the page down and wipes its stats. Your Yapin’ {kind === 'bot' ? 'bot' : 'server'} isn’t touched.</p>
         </div>
         {!confirming && (
           <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)}>

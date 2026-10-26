@@ -9,7 +9,10 @@ import clsx from 'clsx';
 import { ABUSE_REASONS, REMOVAL_REASONS, type ReportKind } from '@/lib/reports';
 import { Modal, ModalDone } from '../Modal';
 
-export function ReportButton({ serverId, serverName, loggedIn }: { serverId: string; serverName: string; loggedIn: boolean }) {
+type Target = { kind: 'server' | 'bot'; id: string; name: string };
+
+/** The same dialog for both boards; `target` decides which listing the report is filed against. */
+export function ReportButton({ target, loggedIn }: { target: Target; loggedIn: boolean }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   if (!loggedIn) {
@@ -24,7 +27,7 @@ export function ReportButton({ serverId, serverName, loggedIn }: { serverId: str
       <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 hover:text-danger transition-colors">
         <Flag size={13} /> Report
       </button>
-      <AnimatePresence>{open && <ReportDialog serverId={serverId} serverName={serverName} onClose={() => setOpen(false)} />}</AnimatePresence>
+      <AnimatePresence>{open && <ReportDialog target={target} onClose={() => setOpen(false)} />}</AnimatePresence>
     </>
   );
 }
@@ -34,7 +37,7 @@ const KINDS: { kind: ReportKind; label: string }[] = [
   { kind: 'REMOVAL', label: 'Request removal' },
 ];
 
-function ReportDialog({ serverId, serverName, onClose }: { serverId: string; serverName: string; onClose: () => void }) {
+function ReportDialog({ target, onClose }: { target: Target; onClose: () => void }) {
   const [kind, setKind] = useState<ReportKind>('ABUSE');
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
@@ -46,7 +49,7 @@ function ReportDialog({ serverId, serverName, onClose }: { serverId: string; ser
     e.preventDefault();
     setState('sending');
     setError('');
-    const res = await fetch(`/api/servers/${serverId}/reports`, {
+    const res = await fetch(target.kind === 'bot' ? `/api/bots/${target.id}/reports` : `/api/servers/${target.id}/reports`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ kind, reason, details }),
@@ -71,7 +74,7 @@ function ReportDialog({ serverId, serverName, onClose }: { serverId: string; ser
   }
 
   return (
-    <Modal title={`Report ${serverName}`} sub="Only YapBoard staff see reports." onClose={onClose}>
+    <Modal title={`Report ${target.name}`} sub="Only YapBoard staff see reports." onClose={onClose}>
       <form onSubmit={submit} className="mt-5">
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-raised p-1">
           {KINDS.map((k) => (
@@ -119,7 +122,13 @@ function ReportDialog({ serverId, serverName, onClose }: { serverId: string; ser
             maxLength={1500}
             value={details}
             onChange={(e) => setDetails(e.target.value)}
-            placeholder={kind === 'ABUSE' ? 'What did you see? Links to messages help.' : 'Anything that helps us check, like who you are in the server.'}
+            placeholder={
+              kind === 'ABUSE'
+                ? 'What did you see? Links to messages help.'
+                : target.kind === 'bot'
+                  ? 'Anything that helps us check, like how you’re involved with the bot.'
+                  : 'Anything that helps us check, like who you are in the server.'
+            }
           />
         </label>
 

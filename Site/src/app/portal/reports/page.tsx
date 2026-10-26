@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { db } from '@/lib/db';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
-import { ABUSE_REASONS, REMOVAL_REASONS, reasonLabel } from '@/lib/reports';
+import { ABUSE_REASONS, REMOVAL_REASONS, reasonLabel, reportTarget } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PageHead } from '@/components/portal/PageHead';
@@ -33,7 +33,9 @@ export default async function Reports({ searchParams }: Props) {
     kind,
     status,
     reason,
-    ...(q ? { OR: [{ serverId: q }, { server: { name: { contains: q } } }, { details: { contains: q } }] } : {}),
+    ...(q
+      ? { OR: [{ serverId: q }, { botId: q }, { server: { name: { contains: q } } }, { bot: { name: { contains: q } } }, { details: { contains: q } }] }
+      : {}),
   };
   const [rows, total, counts] = await Promise.all([
     db.report.findMany({
@@ -44,6 +46,7 @@ export default async function Reports({ searchParams }: Props) {
       take: PER_PAGE,
       include: {
         server: { select: { id: true, name: true, iconUrl: true, status: true, _count: { select: { reports: { where: { status: 'OPEN' } } } } } },
+        bot: { select: { id: true, name: true, avatarUrl: true, status: true, _count: { select: { reports: { where: { status: 'OPEN' } } } } } },
         reporter: { select: { username: true } },
         handledBy: { select: { username: true } },
       },
@@ -84,7 +87,7 @@ export default async function Reports({ searchParams }: Props) {
             defaultValue={reason ?? ''}
             options={[{ value: '', label: 'Any reason' }, ...Object.entries(reasons).map(([value, label]) => ({ value, label }))]}
           />
-          <input name="q" defaultValue={q} placeholder="Server name, ID or text" className="field h-10 w-56 text-sm" />
+          <input name="q" defaultValue={q} placeholder="Name, listing ID or text" className="field h-10 w-56 text-sm" />
           <button className="btn btn-secondary">Filter</button>
         </form>
       </div>
@@ -93,7 +96,7 @@ export default async function Reports({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-ink-3 border-b border-line">
-              <th className="font-medium px-5 h-11">Server</th>
+              <th className="font-medium px-5 h-11">Listing</th>
               <th className="font-medium px-3">Reason</th>
               <th className="font-medium px-3">From</th>
               <th className="font-medium px-3">{status === 'OPEN' ? 'Waiting' : 'Handled'}</th>
@@ -101,14 +104,20 @@ export default async function Reports({ searchParams }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {rows.map((r) => (
+            {rows.map((r) => {
+              const t = reportTarget(r);
+              const openOnTarget = (r.server ?? r.bot)?._count.reports ?? 0;
+              return (
               <tr key={r.id} className="group hover:bg-surface-2 transition-colors">
                 <td className="px-5 py-3">
                   <Link href={`${base}/reports/${r.id}?kind=${kind}`} className="flex items-center gap-3 min-w-0">
-                    <Avatar src={r.server.iconUrl} name={r.server.name} id={r.server.id} size={32} />
+                    <Avatar src={t?.iconUrl ?? null} name={t?.name ?? '?'} id={t?.id ?? r.id} size={32} round={t?.round} />
                     <span className="min-w-0">
-                      <span className="block font-semibold truncate group-hover:text-accent transition-colors">{r.server.name}</span>
-                      {r.server._count.reports > 1 && <span className="text-xs text-warn">{r.server._count.reports} open reports</span>}
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold group-hover:text-accent transition-colors">{t?.name ?? 'Deleted listing'}</span>
+                        {t?.kind === 'bot' && <span className="shrink-0 rounded-full border border-line-strong px-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-3">bot</span>}
+                      </span>
+                      {openOnTarget > 1 && <span className="text-xs text-warn">{openOnTarget} open reports</span>}
                     </span>
                   </Link>
                 </td>
@@ -120,11 +129,10 @@ export default async function Reports({ searchParams }: Props) {
                 <td className="px-3 py-3 text-ink-3 tabular-nums whitespace-nowrap">
                   {status === 'OPEN' ? timeAgo(r.createdAt) : `${timeAgo(r.handledAt)} · @${r.handledBy?.username ?? '?'}`}
                 </td>
-                <td className="px-5 py-3 text-right">
-                  <StatusBadge status={r.server.status} />
-                </td>
+                <td className="px-5 py-3 text-right">{t && <StatusBadge status={t.status} />}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {rows.length === 0 && <p className="px-5 py-14 text-center text-sm text-ink-3">Nothing here.</p>}

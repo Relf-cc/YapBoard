@@ -5,17 +5,17 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
-import { clearBadges, toggleBadge } from '@/app/portal/actions';
+import { clearBadges, clearBotBadges, toggleBadge, toggleBotBadge } from '@/app/portal/actions';
 import { BADGES, BADGE_ORDER, sortBadges, type BadgeKind } from '@/lib/badges';
 import { BadgeMark, BadgeRow } from '../Badge';
 
 const PANEL_W = 268;
 
 /**
- * Staff badge picker: every badge in src/lib/badges.ts as a toggle, so a server can hold several.
- * Each click saves on its own and rolls back if the action fails.
+ * Staff badge picker: every badge in src/lib/badges.ts as a toggle, so a listing can hold several.
+ * Each click saves on its own and rolls back if the action fails. The same picker serves both boards.
  */
-export function BadgeControl({ serverId, badges }: { serverId: string; badges: readonly string[] }) {
+export function BadgeControl({ id, badges, kind = 'server' }: { id: string; badges: readonly string[]; kind?: 'server' | 'bot' }) {
   const [held, setHeld] = useState(() => sortBadges(badges));
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -63,9 +63,11 @@ export function BadgeControl({ serverId, badges }: { serverId: string; badges: r
     });
   };
 
-  const toggle = (kind: BadgeKind) => {
-    const on = !held.includes(kind);
-    save(on ? sortBadges([...held, kind]) : held.filter((k) => k !== kind), () => toggleBadge({ serverId, badge: kind, on }));
+  const toggle = (badge: BadgeKind) => {
+    const on = !held.includes(badge);
+    save(on ? sortBadges([...held, badge]) : held.filter((k) => k !== badge), () =>
+      kind === 'bot' ? toggleBotBadge({ botId: id, badge, on }) : toggleBadge({ serverId: id, badge, on }),
+    );
   };
 
   return (
@@ -83,7 +85,7 @@ export function BadgeControl({ serverId, badges }: { serverId: string; badges: r
           open && 'border-accent',
         )}
       >
-        {held.length ? <BadgeRow kinds={held} size={16} seed={serverId} max={3} tooltip={false} /> : <span className="text-xs text-ink-3">None</span>}
+        {held.length ? <BadgeRow kinds={held} size={16} seed={id} max={3} tooltip={false} /> : <span className="text-xs text-ink-3">None</span>}
         <ChevronDown size={13} className={clsx('shrink-0 text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
       </button>
 
@@ -115,7 +117,7 @@ export function BadgeControl({ serverId, badges }: { serverId: string; badges: r
                       onClick={() => toggle(k)}
                       className={clsx('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors', on ? 'bg-surface-2' : 'hover:bg-surface-2/60')}
                     >
-                      <BadgeMark kind={k} size={18} seed={serverId + k} className={on ? undefined : 'opacity-50'} />
+                      <BadgeMark kind={k} size={18} seed={id + k} className={on ? undefined : 'opacity-50'} />
                       <span className="min-w-0 flex-1">
                         <span className={clsx('block text-[13px] font-semibold', on ? 'text-ink' : 'text-ink-2')}>{BADGES[k].label}</span>
                         <span className="block truncate text-[11px] text-ink-3">{BADGES[k].long}</span>
@@ -128,7 +130,7 @@ export function BadgeControl({ serverId, badges }: { serverId: string; badges: r
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => save([], () => clearBadges(serverId))}
+                    onClick={() => save([], () => (kind === 'bot' ? clearBotBadges(id) : clearBadges(id)))}
                     className="mt-1 w-full rounded-lg border-t border-line px-2.5 py-2 text-[12px] font-semibold text-ink-3 transition-colors hover:text-danger"
                   >
                     Remove all

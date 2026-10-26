@@ -4,14 +4,16 @@ import { useState, useTransition } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
-import { moderateServer, reopenReport, resolveReport } from '@/app/portal/actions';
+import { moderateBot, moderateServer, reopenReport, resolveReport } from '@/app/portal/actions';
 
 type Props = {
   reportId: string;
   kind: string;
   status: string;
-  serverStatus: string;
-  serverId: string;
+  /** The listing this report is about: a server or a bot (src/lib/reports.ts). */
+  targetKind: 'server' | 'bot';
+  targetId: string;
+  targetStatus: string;
   ownerBanned: boolean;
   openRelated: number;
   resolution: string | null;
@@ -46,8 +48,12 @@ export function ReportActions(p: Props) {
           <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => run(() => reopenReport(p.reportId))}>
             <RotateCcw size={14} /> Reopen
           </button>
-          {(p.serverStatus === 'HIDDEN' || p.serverStatus === 'REMOVED') && (
-            <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => run(() => moderateServer({ serverId: p.serverId, action: 'restore' }))}>
+          {(p.targetStatus === 'HIDDEN' || p.targetStatus === 'REMOVED') && (
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={pending}
+              onClick={() => run(() => (p.targetKind === 'bot' ? moderateBot({ botId: p.targetId, action: 'restore' }) : moderateServer({ serverId: p.targetId, action: 'restore' })))}
+            >
               Restore listing
             </button>
           )}
@@ -112,7 +118,7 @@ export function ReportActions(p: Props) {
       {p.openRelated > 0 && (
         <label className="mt-3 flex items-center gap-2.5 text-sm text-ink-2 cursor-pointer">
           <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={closeRelated} onChange={(e) => setCloseRelated(e.target.checked)} />
-          Close the other {p.openRelated} open report{p.openRelated === 1 ? '' : 's'} on this server too
+          Close the other {p.openRelated} open report{p.openRelated === 1 ? '' : 's'} on this {p.targetKind} too
         </label>
       )}
 

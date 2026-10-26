@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { db } from '@/lib/db';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
-import { reasonLabel } from '@/lib/reports';
+import { reasonLabel, reportTarget } from '@/lib/reports';
 import { Avatar } from '@/components/Avatar';
 import { Reveal } from '@/components/Reveal';
 import { PageHead } from '@/components/portal/PageHead';
@@ -24,7 +24,7 @@ export default async function Overview() {
       where: { status: 'OPEN' },
       orderBy: { createdAt: 'asc' },
       take: 8,
-      include: { server: { select: { id: true, name: true, iconUrl: true } } },
+      include: { server: { select: { id: true, name: true, iconUrl: true, status: true } }, bot: { select: { id: true, name: true, avatarUrl: true, status: true } } },
     }),
     db.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 10, include: { actor: { select: { username: true } } } }),
   ]);
@@ -76,12 +76,14 @@ export default async function Overview() {
             <p className="px-5 py-12 text-center text-sm text-ink-3">Inbox zero. Nice.</p>
           ) : (
             <ul className="divide-y divide-line">
-              {queue.map((r) => (
+              {queue.map((r) => {
+                const t = reportTarget(r);
+                return (
                 <li key={r.id}>
                   <Link href={`${base}/reports/${r.id}?kind=${r.kind}`} className="flex items-center gap-3.5 px-5 py-3.5 hover:bg-surface-2 transition-colors">
-                    <Avatar src={r.server.iconUrl} name={r.server.name} id={r.server.id} size={34} />
+                    <Avatar src={t?.iconUrl ?? null} name={t?.name ?? '?'} id={t?.id ?? r.id} size={34} round={t?.round} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold truncate">{r.server.name}</div>
+                      <div className="text-sm font-semibold truncate">{t?.name ?? 'Deleted listing'}</div>
                       <div className="text-[13px] text-ink-3 truncate">{reasonLabel(r.kind, r.reason)}</div>
                     </div>
                     <span className={`text-[11px] font-semibold rounded-full px-2 h-5 inline-flex items-center border ${r.kind === 'ABUSE' ? 'text-accent border-accent/30 bg-accent-soft' : 'text-ink-2 border-line-strong'}`}>
@@ -90,7 +92,8 @@ export default async function Overview() {
                     <span className="w-16 text-right text-xs text-ink-3 tabular-nums">{timeAgo(r.createdAt)}</span>
                   </Link>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </section>

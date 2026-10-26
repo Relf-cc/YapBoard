@@ -215,7 +215,7 @@ export default async function ViewServer({ params }: Props) {
             <Reveal delay={0.12}>
               <div className="flex items-center justify-between px-1 text-xs text-ink-3">
                 <span className="font-mono">ID {s.id}</span>
-                <ReportButton serverId={s.id} serverName={s.name} loggedIn={!!user} />
+                <ReportButton target={{ kind: 'server', id: s.id, name: s.name }} loggedIn={!!user} />
               </div>
             </Reveal>
           </aside>

@@ -10,8 +10,11 @@ import { Tooltip } from '../Tooltip';
 
 const COOLDOWN = 2 * 60 * 60 * 1000;
 
-/** Countdown ring until the next bump. In dev (no bot) it doubles as a bump button. */
-export function BumpStatus({ serverId, bumpedAt, canWebBump, compact }: { serverId: string; bumpedAt: string | null; canWebBump: boolean; compact?: boolean }) {
+/**
+ * Countdown ring until the next bump. For servers the bump itself happens in Yapin' (`/bump`), so in dev
+ * (no bot) it doubles as a button; bots can't type at themselves, so theirs is always a button.
+ */
+export function BumpStatus({ serverId, kind = 'server', bumpedAt, canWebBump, compact }: { serverId: string; kind?: 'server' | 'bot'; bumpedAt: string | null; canWebBump: boolean; compact?: boolean }) {
   const router = useRouter();
   const [now, setNow] = useState(() => Date.now());
   const [last, setLast] = useState(bumpedAt);
@@ -29,7 +32,7 @@ export function BumpStatus({ serverId, bumpedAt, canWebBump, compact }: { server
 
   async function bump() {
     setBusy(true);
-    const res = await fetch(`/api/servers/${serverId}/bump`, { method: 'POST' });
+    const res = await fetch(`/api/${kind === 'bot' ? 'bots' : 'servers'}/${serverId}/bump`, { method: 'POST' });
     setBusy(false);
     if (res.ok) {
       setLast(new Date().toISOString());
@@ -66,10 +69,12 @@ export function BumpStatus({ serverId, bumpedAt, canWebBump, compact }: { server
   }
 
   return (
-    <Tooltip content={ready ? 'Type /bump in your server to move back to the top' : `Next bump at ${new Date(new Date(last!).getTime() + COOLDOWN).toLocaleTimeString(undefined, { timeStyle: 'short' })}`}>
+    <Tooltip content={ready ? (kind === 'bot' ? 'Ready to bump' : 'Type /bump in your server to move back to the top') : `Next bump at ${new Date(new Date(last!).getTime() + COOLDOWN).toLocaleTimeString(undefined, { timeStyle: 'short' })}`}>
       <div className={clsx('inline-flex items-center gap-2 text-[13px]', compact ? 'px-2' : '')}>
         {ring}
-        <span className={ready ? 'text-ok font-medium' : 'text-ink-3 tabular-nums'}>{ready ? (compact ? 'Ready: /bump' : 'Ready to bump. Type /bump in your server') : `Bump in ${formatDuration(left)}`}</span>
+        <span className={ready ? 'text-ok font-medium' : 'text-ink-3 tabular-nums'}>
+          {ready ? (kind === 'bot' ? 'Ready to bump' : compact ? 'Ready: /bump' : 'Ready to bump. Type /bump in your server') : `Bump in ${formatDuration(left)}`}
+        </span>
       </div>
     </Tooltip>
   );

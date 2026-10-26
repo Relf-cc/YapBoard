@@ -12,6 +12,8 @@ const schema = z.object({
   displayName: z.string().max(100).nullish(),
   avatarUrl: z.string().url().max(500).nullish(),
   memberCount: z.number().int().min(0).optional(),
+  /// Where /bump was typed. Global messages from staff go back to this channel (src/lib/broadcasts.ts).
+  channelId: z.string().min(1).max(64).optional(),
 });
 
 /** Called by the bot when someone types /bump in their server. */
@@ -19,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!isInternal(req)) return fail('Unauthorized', 401);
   const parsed = schema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Bad request', 422);
-  const { serverId, userId, username, displayName, avatarUrl, memberCount } = parsed.data;
+  const { serverId, userId, username, displayName, avatarUrl, memberCount, channelId } = parsed.data;
 
   // People can bump without ever logging in on the site, so make sure they exist.
   const user = await db.user.upsert({
@@ -32,7 +34,9 @@ export async function POST(req: NextRequest) {
 
   const server = await db.server.findUnique({ where: { id: serverId }, select: { name: true, iconUrl: true, accent: true } });
   const result = await bumpServer(serverId, userId, 'bot');
-  if (memberCount !== undefined && server) await db.server.update({ where: { id: serverId }, data: { memberCount } });
+  // The channel is worth keeping even when the bump itself was too soon: it's still where people talk to us.
+  const fresh = { ...(memberCount !== undefined && { memberCount }), ...(channelId && { bumpChannelId: channelId, bumpChannelAt: new Date() }) };
+  if (server && Object.keys(fresh).length) await db.server.update({ where: { id: serverId }, data: fresh });
   return json({
     ...result,
     name: server?.name ?? null,

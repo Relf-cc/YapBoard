@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { ArrowBigUp, ArrowUpRight, Flag, Gauge, ScrollText, Server, Trash, Users } from 'lucide-react';
+import { ArrowBigUp, ArrowUpRight, Bot, Flag, Gauge, Megaphone, Radio, ScrollText, Server, Trash, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { Logo } from '../Logo';
 import { Avatar } from '../Avatar';
@@ -24,8 +24,11 @@ export function PortalNav({ base, siteUrl, counts, user }: Props) {
     { href: '/reports?kind=ABUSE', match: '/reports', kindMatch: 'ABUSE', label: 'Abuse reports', icon: Flag, count: counts.abuse },
     { href: '/reports?kind=REMOVAL', match: '/reports', kindMatch: 'REMOVAL', label: 'Removal requests', icon: Trash, count: counts.removal },
     { href: '/servers', label: 'Servers', icon: Server },
+    { href: '/bots', label: 'Bots', icon: Bot },
     { href: '/users', label: 'Users', icon: Users },
     { href: '/voting', label: 'Voting', icon: ArrowBigUp },
+    { href: '/announcements', label: 'Announcements', icon: Megaphone },
+    { href: '/broadcasts', label: 'Broadcasts', icon: Radio },
     { href: '/audit', label: 'Audit log', icon: ScrollText },
   ];
   const kind = useSearchParams().get('kind');

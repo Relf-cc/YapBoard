@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { moderateServer, moderateUser, setRole } from '@/app/portal/actions';
+import { moderateBot, moderateServer, moderateUser, setBotServerCount, setRole } from '@/app/portal/actions';
 import { Dropdown } from '../Dropdown';
 
 const ROLES = [
@@ -27,6 +27,53 @@ export function ServerModButtons({ serverId, status }: { serverId: string; statu
   };
   return (
     <div className="inline-flex gap-1.5">
+      {status === 'HIDDEN' || status === 'REMOVED' ? (
+        <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => act('restore')}>
+          Restore
+        </button>
+      ) : (
+        <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => act('hide')}>
+          Hide
+        </button>
+      )}
+      {status !== 'REMOVED' && (
+        <button className="btn btn-danger btn-sm" disabled={pending} onClick={() => act('remove')}>
+          Remove
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** The same three actions for a bot listing, plus the server count, which nothing reports automatically. */
+export function BotModButtons({ botId, status, serverCount }: { botId: string; status: string; serverCount: number }) {
+  const [pending, start] = useTransition();
+  const act = (action: 'hide' | 'remove' | 'restore') => {
+    const note = action === 'restore' ? '' : ask(action === 'hide' ? 'Why hide it? (the lister sees this)' : 'Why remove it? (the lister sees this)');
+    if (note === null) return;
+    start(async () => {
+      const r = await moderateBot({ botId, action, note });
+      if (!r.ok) alert(r.error);
+    });
+  };
+  return (
+    <div className="inline-flex gap-1.5">
+      <button
+        className="btn btn-ghost btn-sm"
+        disabled={pending}
+        onClick={() => {
+          const n = ask(`How many servers is this bot in? (currently ${serverCount})`);
+          if (n === null) return;
+          const count = Math.round(Number(n));
+          if (!Number.isFinite(count) || count < 0) return alert('That isn’t a number');
+          start(async () => {
+            const r = await setBotServerCount({ botId, count });
+            if (!r.ok) alert(r.error);
+          });
+        }}
+      >
+        Servers
+      </button>
       {status === 'HIDDEN' || status === 'REMOVED' ? (
         <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => act('restore')}>
           Restore

@@ -89,7 +89,7 @@ export default async function setup(bot) {
     const [user, server] = await Promise.all([authorOf(bot, msg), bot.server(serverId).catch(() => null)]);
     let res;
     try {
-      res = await yapboard.bump({ serverId, user, memberCount: memberCountOf(server) });
+      res = await yapboard.bump({ serverId, user, memberCount: memberCountOf(server), channelId: msg.channel_id });
     } catch (e) {
       console.error('[yapboard] /bump:', e.message);
       return answer(msg, OFFLINE());

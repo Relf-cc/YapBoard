@@ -100,6 +100,23 @@ const roleCanManage = (role: Record<string, unknown>) => {
   return role.manage_server === true || perms.administrator === true || perms.admin === true;
 };
 
+export type YapinUser = { id: string; username: string; displayName: string | null; avatarUrl: string | null; bot: boolean };
+
+/** A Yapin' account by id. Used to fill in a bot listing's name and avatar from the id people paste. */
+export async function fetchUser(userId: string): Promise<YapinUser | null> {
+  const r = await botGet<{ user?: Record<string, unknown> }>(`/users/${encodeURIComponent(userId)}`);
+  if (!r.ok || !r.data.user) return null;
+  const u = r.data.user;
+  return {
+    id: String(u.id ?? userId),
+    username: String(u.username ?? 'unknown'),
+    displayName: u.display_name != null ? String(u.display_name) : null,
+    avatarUrl: fileUrl('avatars', u.avatar_url ?? u.avatar_path ?? u.avatar),
+    // Yapin' marks bot accounts; anything unexpected is treated as "not a bot" so people aren't wrongly blocked.
+    bot: u.bot === true || u.is_bot === true,
+  };
+}
+
 export type ManageCheck =
   | { ok: true; server: YapinServer }
   | { ok: false; reason: 'bot_missing' | 'not_member' | 'no_permission' | 'unavailable' };

@@ -22,13 +22,18 @@ model User {
   createdAt   DateTime  @default(now())
   lastLoginAt DateTime  @default(now())
 
-  servers      Server[]
-  reports      Report[]   @relation("reporter")
-  handled      Report[]   @relation("handler")
-  bumps        Bump[]
-  votes        Vote[]
-  auditEntries AuditLog[]
-  sessions     Session[]
+  servers           Server[]
+  reports           Report[]           @relation("reporter")
+  handled           Report[]           @relation("handler")
+  bumps             Bump[]
+  votes             Vote[]
+  auditEntries      AuditLog[]
+  sessions          Session[]
+  bots              BotListing[]
+  botBumps          BotBump[]
+  announcements     Announcement[]
+  announcementsSeen AnnouncementSeen[]
+  broadcasts        Broadcast[]
 }
 
 /// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
@@ -44,41 +49,48 @@ model Session {
 
 /// A listed server. `id` is the Yapin' server id.
 model Server {
-  id          String    @id
-  name        String
-  iconUrl     String?
-  bannerUrl   String?
+  id            String    @id
+  name          String
+  iconUrl       String?
+  bannerUrl     String?
   /// One line shown on cards (max 140)
-  summary     String
+  summary       String
   /// Full description shown on /view (max 2000)
-  description String
-  inviteUrl   String
-  language    String    @default("en")
-  nsfw        Boolean   @default(false)
+  description   String
+  inviteUrl     String
+  language      String    @default("en")
+  nsfw          Boolean   @default(false)
   /// Accent used on the server page (hex)
-  accent      String    @default("#ff6b4a")
+  accent        String    @default("#ff6b4a")
   /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
-  status      String    @default("PUBLIC")
-  statusNote  String?
-  memberCount Int       @default(0)
-  bumpCount   Int       @default(0)
-  bumpedAt    DateTime?
+  status        String    @default("PUBLIC")
+  statusNote    String?
+  memberCount   Int       @default(0)
+  bumpCount     Int       @default(0)
+  bumpedAt      DateTime?
   /// Sort key for "recently bumped": the last bump, moved forward a little by votes since then (src/lib/votes.ts)
-  rankedAt    DateTime?
+  rankedAt      DateTime?
   /// Staff turned voting off for this server
-  votingOff   Boolean   @default(false)
-  views       Int       @default(0)
-  joins       Int       @default(0)
-  ownerId     String
-  owner       User      @relation(fields: [ownerId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  votingOff     Boolean   @default(false)
+  /// Where /bump was last used, and when. Broadcasts go to this channel (src/lib/broadcasts.ts).
+  bumpChannelId String?
+  bumpChannelAt DateTime?
+  /// Nobody here wants YapBoard's announcements: broadcasts skip this server.
+  broadcastsOff Boolean   @default(false)
+  views         Int       @default(0)
+  joins         Int       @default(0)
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  tags    ServerTag[]
-  badges  ServerBadge[]
-  bumps   Bump[]
-  votes   Vote[]
-  reports Report[]
+  tags       ServerTag[]
+  badges     ServerBadge[]
+  bumps      Bump[]
+  votes      Vote[]
+  reports    Report[]
+  deliveries BroadcastDelivery[]
+  supportFor BotListing[]        @relation("botSupport")
 
   @@index([status, bumpedAt])
   @@index([status, rankedAt])
@@ -104,6 +116,7 @@ model Tag {
   /// normalised: lowercase, a-z 0-9 and -, max 24
   name    String      @unique
   servers ServerTag[]
+  bots    BotTag[]
 }
 
 model ServerTag {
@@ -157,27 +170,31 @@ model Setting {
 
 /// Abuse reports and removal requests, reviewed on portal.yapboard.dev
 model Report {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   /// ABUSE | REMOVAL
   kind        String
   /// spam, scam, nsfw, hate, illegal, impersonation, other  |  owner_request, not_owner, outdated, other
   reason      String
   details     String
   contact     String?
-  serverId    String
-  server      Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  /// Exactly one of serverId / botId is set (src/lib/reports.ts).
+  serverId    String?
+  server      Server?     @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  botId       String?
+  bot         BotListing? @relation(fields: [botId], references: [id], onDelete: Cascade)
   reporterId  String?
-  reporter    User?     @relation("reporter", fields: [reporterId], references: [id])
+  reporter    User?       @relation("reporter", fields: [reporterId], references: [id])
   /// OPEN | ACTIONED | DISMISSED
-  status      String    @default("OPEN")
+  status      String      @default("OPEN")
   resolution  String?
   handledById String?
-  handledBy   User?     @relation("handler", fields: [handledById], references: [id])
+  handledBy   User?       @relation("handler", fields: [handledById], references: [id])
   handledAt   DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime    @default(now())
 
   @@index([status, kind, createdAt])
   @@index([serverId])
+  @@index([botId])
 }
 
 model AuditLog {
@@ -192,4 +209,178 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/**
+ * ---------------- Announcements (src/lib/announcements.ts) ----------------
+ */
+
+/// A site-wide notice staff write in the portal: a bar across the top of every page, or a dialog shown once.
+model Announcement {
+  id             String    @id @default(cuid())
+  /// BANNER (a bar at the top) | MODAL (a dialog, shown once per person)
+  kind           String    @default("BANNER")
+  title          String
+  body           String
+  linkUrl        String?
+  linkLabel      String?
+  /// accent | info | warn | danger
+  tone           String    @default("accent")
+  /// everyone | users (logged in) | new (see newWithinHours)
+  audience       String    @default("everyone")
+  /// audience "new": accounts younger than this. Logged-out visitors always count as new.
+  newWithinHours Int       @default(72)
+  /// Banners only. A banner that isn't dismissible has no close button and comes back on every page.
+  dismissible    Boolean   @default(true)
+  /// Off: written but not shown. Staff turn it on when it's ready.
+  active         Boolean   @default(false)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  authorId       String
+  author         User      @relation(fields: [authorId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  seen AnnouncementSeen[]
+
+  @@index([active, kind])
+}
+
+/// One person has closed one announcement. Logged-out visitors keep the same thing in their browser instead.
+model AnnouncementSeen {
+  announcementId String
+  userId         String
+  seenAt         DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([userId])
+}
+
+/**
+ * ---------------- Bot broadcasts (src/lib/broadcasts.ts) ----------------
+ */
+
+/// A message staff send through the bot to every server that has used /bump.
+model Broadcast {
+  id         String    @id @default(cuid())
+  title      String
+  body       String
+  linkUrl    String?
+  linkLabel  String?
+  /// DRAFT | SENDING | SENT | CANCELLED
+  status     String    @default("DRAFT")
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  deliveries BroadcastDelivery[]
+
+  @@index([status, createdAt])
+}
+
+/// One server's copy of a broadcast. The bot claims PENDING rows, posts them and reports back.
+model BroadcastDelivery {
+  id          Int       @id @default(autoincrement())
+  broadcastId String
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  serverId    String
+  server      Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  /// The channel as it was when the broadcast was queued, so a later /bump elsewhere doesn't move it.
+  channelId   String
+  /// PENDING | CLAIMED | SENT | FAILED
+  status      String    @default("PENDING")
+  error       String?
+  /// When the bot took this row. A claim left too long is handed out again (src/lib/broadcasts.ts).
+  claimedAt   DateTime?
+  sentAt      DateTime?
+
+  @@unique([broadcastId, serverId])
+  @@index([status, claimedAt])
+}
+
+/**
+ * ---------------- Bot listings (src/lib/bots.ts) ----------------
+ */
+
+/// A listed bot. `id` is the bot's Yapin' user id, the same one people paste into Server settings → Bots.
+model BotListing {
+  id              String    @id
+  name            String
+  avatarUrl       String?
+  /// One line shown on cards (max 140)
+  summary         String
+  /// Full description shown on /bots/<id> (max 2000)
+  description     String
+  /// Optional "add me" link, for bots that have their own page
+  inviteUrl       String?
+  /// Message prefix, if it has one
+  prefix          String?
+  website         String?
+  /// What it's written with, free text (e.g. "yapper.js")
+  library         String?
+  language        String    @default("en")
+  nsfw            Boolean   @default(false)
+  accent          String    @default("#ff6b4a")
+  /// PUBLIC | UNLISTED | HIDDEN | REMOVED
+  status          String    @default("PUBLIC")
+  statusNote      String?
+  serverCount     Int       @default(0)
+  views           Int       @default(0)
+  /// Clicks on "Add to your server"
+  adds            Int       @default(0)
+  bumpCount       Int       @default(0)
+  bumpedAt        DateTime?
+  /// The bot's support server. Set from a Yapin' server its lister manages; linked when that server is listed here.
+  supportServerId String?
+  supportServer   Server?   @relation("botSupport", fields: [supportServerId], references: [id], onDelete: SetNull)
+  ownerId         String
+  owner           User      @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tags    BotTag[]
+  badges  BotBadge[]
+  bumps   BotBump[]
+  reports Report[]
+
+  @@index([status, bumpedAt])
+  @@index([status, serverCount])
+  @@index([ownerId])
+}
+
+/// Same badges as servers (src/lib/badges.ts), granted on a bot instead.
+model BotBadge {
+  botId       String
+  kind        String
+  grantedAt   DateTime   @default(now())
+  grantedById String?
+  bot         BotListing @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@id([botId, kind])
+  @@index([kind])
+}
+
+model BotTag {
+  botId String
+  tagId Int
+  bot   BotListing @relation(fields: [botId], references: [id], onDelete: Cascade)
+  tag   Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([botId, tagId])
+  @@index([tagId])
+}
+
+model BotBump {
+  id        Int        @id @default(autoincrement())
+  botId     String
+  userId    String
+  createdAt DateTime   @default(now())
+  bot       BotListing @relation(fields: [botId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
+
+  @@index([botId, createdAt])
 }

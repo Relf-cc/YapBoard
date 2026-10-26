@@ -136,7 +136,7 @@ export default async function PortalServers({ searchParams }: Props) {
                 </td>
                 <td className="px-3 py-3 text-ink-3 whitespace-nowrap">{timeAgo(s.createdAt)}</td>
                 <td className="px-3 py-3">
-                  <BadgeControl serverId={s.id} badges={s.badges.map((b) => b.kind)} />
+                  <BadgeControl id={s.id} badges={s.badges.map((b) => b.kind)} />
                 </td>
                 <td className="px-5 py-3 text-right">
                   <ServerModButtons serverId={s.id} status={s.status} />
