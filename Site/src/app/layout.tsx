@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: { default: 'YapBoard · Yapin’ server list', template: '%s · YapBoard' },
   description: 'Find Yapin’ servers to join, or list your own. Search by tag, game, language and size.',
+  applicationName: 'YapBoard',
+  authors: [{ name: 'Christian Relf' }],
+  creator: 'Christian Relf',
+  publisher: 'Christian Relf',
   openGraph: { siteName: 'YapBoard', type: 'website' },
 };
 

@@ -2,6 +2,8 @@
   "name": "yapboard-site",
   "version": "0.1.0",
   "private": true,
+  "author": "Christian Relf",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
