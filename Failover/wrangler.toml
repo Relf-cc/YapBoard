@@ -1,0 +1,11 @@
+name = "yapboard-failover"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# The route is deliberately NOT set here. Deploying the Worker and putting it in front of the live
+# domain are two separate decisions: this way `wrangler deploy` can never take the site over by
+# accident. The route is attached once origin.yapboard.dev has been verified by hand.
+#
+# [[routes]]
+# pattern = "yapboard.dev/*"
+# zone_name = "yapboard.dev"

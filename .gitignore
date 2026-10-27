@@ -1,3 +1,12 @@
 node_modules
 .env
 .env.local
+
+# Cloudflare API credentials (local only, never committed)
+.cloudflare.env
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
