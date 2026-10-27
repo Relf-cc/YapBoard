@@ -173,45 +173,38 @@ function TrustDialog({ file, clientName, onClose, onConfirm }: { file: DownloadF
   return (
     <Modal onClose={onClose}>
       <div className="flex items-start gap-3">
-        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-warn/12 text-warn">
-          <ShieldAlert size={20} />
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-warn/12 text-warn">
+          <ShieldAlert size={18} />
         </span>
         <div className="min-w-0">
           <h2 className="pr-6 text-lg font-bold leading-snug">Before you download</h2>
-          <p className="mt-1 text-sm text-ink-3">Only download software you trust.</p>
+          <p className="mt-0.5 text-sm text-ink-3">This file isn’t from YapBoard.</p>
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl border border-line bg-raised p-4">
+      <div className="mt-4 rounded-xl border border-line bg-raised p-3">
         <p className="truncate font-mono text-[13px] text-ink">{file.label}</p>
-        <p className="mt-1.5 text-xs text-ink-3">
+        <p className="mt-1 text-xs text-ink-3">
           From <b className="text-ink-2">{hostOf(file.url)}</b>
           {file.size ? ` · ${fileSize(file.size)}` : ''}
         </p>
       </div>
 
-      <ul className="mt-4 space-y-2.5 text-[13px] leading-relaxed text-ink-2">
+      <ul className="mt-4 space-y-2 text-[13px] leading-relaxed text-ink-2">
         <Point>
-          <b className="text-ink">{clientName}</b> is made by someone else, not by YapBoard or by Yapin’. We don’t build, host, review the code or scan these files for malware.
+          <b className="text-ink">{clientName}</b> is made by someone else. We don’t build, host or scan it.
         </Point>
-        <Point>A client runs on your computer with your Yapin’ account signed in. A dishonest one can read your messages and take your account token.</Point>
-        <Point>Modified clients can break Yapin’s terms, and using one is at your own risk — including the risk to your account.</Point>
-        <Point>
-          Check the source before you run it, and if something looks wrong,{' '}
-          <span className="text-ink">report the listing</span> so staff can take it down.
-        </Point>
+        <Point>It runs with your Yapin’ account signed in — a dishonest client can read your messages and take your token.</Point>
       </ul>
 
-      <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3.5 transition-colors hover:border-line-strong">
+      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 transition-colors hover:border-line-strong">
         <input
           type="checkbox"
           checked={understood}
           onChange={(e) => setUnderstood(e.target.checked)}
           className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
         />
-        <span className="text-[13px] leading-relaxed text-ink-2">
-          I understand this file isn’t from YapBoard, and I’m choosing to download it.
-        </span>
+        <span className="text-[13px] leading-relaxed text-ink-2">I understand, and I’m downloading it at my own risk.</span>
       </label>
 
       <div className="mt-5 flex gap-2">

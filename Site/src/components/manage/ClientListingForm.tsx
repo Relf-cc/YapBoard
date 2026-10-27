@@ -6,7 +6,8 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Images, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Check, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ImagePicker, ScreenshotPickerRow } from './ImagePicker';
 import clsx from 'clsx';
 import { sortBadges } from '@/lib/badges';
 import { MAX_MANUAL_FILES, MAX_SCREENSHOTS, RELEASE_SOURCES, THEMES } from '@/lib/client-fields';
@@ -123,7 +124,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
     const out = res ? await res.json().catch(() => ({})) : {};
     if (!res?.ok) {
       setSyncing('idle');
-      setSyncMessage(out.error || 'Couldn’t reach GitHub. Try again in a minute.');
+      setSyncMessage(out.error || "Couldn't reach GitHub. Try again in a minute.");
       return;
     }
     setSyncing('done');
@@ -155,9 +156,9 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
     <>
       <form onSubmit={submit} className="grid gap-10 lg:grid-cols-[1fr_360px]" noValidate>
         <div className="min-w-0 space-y-8">
-          <Section title="The client" hint="What it is, and what it changes about Yapin’.">
+          <Section title="The client" hint="What it is, and what it changes about Yapin'.">
             <Field label="Name" error={errors.name} count={[v.name.length, 60]} help={mode === 'edit' ? `Its address stays /clients/${initial.slug} even if you rename it.` : 'This becomes its address, e.g. /clients/your-client.'}>
-              <input className="field" value={v.name} maxLength={60} onChange={(e) => set('name', e.target.value)} placeholder="Yapin’ Plus" required />
+              <input className="field" value={v.name} maxLength={60} onChange={(e) => set('name', e.target.value)} placeholder="Yapin' Plus" required />
             </Field>
             <Field label="One-liner" error={errors.summary} count={[v.summary.length, 140]}>
               <input className="field" value={v.summary} maxLength={140} onChange={(e) => set('summary', e.target.value)} placeholder="Themes, plugins and a compact message layout." />
@@ -166,7 +167,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               label="Description"
               error={errors.description}
               count={[v.description.length, 4000]}
-              help="Blank lines make paragraphs. Start lines with - for a list. **bold** and https links work. Say what you changed and what you didn’t."
+              help="Blank lines make paragraphs. Start lines with - for a list. **bold** and https links work. Say what you changed and what you didn't."
             >
               <textarea
                 className="field"
@@ -174,7 +175,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
                 maxLength={4000}
                 value={v.description}
                 onChange={(e) => set('description', e.target.value)}
-                placeholder={'What does your client add or change?\n\n- Custom themes and CSS\n- A plugin loader\n- Compact mode and a smaller sidebar\n\nWhat it doesn’t do: no automation, no self-botting, no message scraping.'}
+                placeholder={"What does your client add or change?\n\n- Custom themes and CSS\n- A plugin loader\n- Compact mode and a smaller sidebar\n\nWhat it doesn't do: no automation, no self-botting, no message scraping."}
               />
             </Field>
           </Section>
@@ -222,7 +223,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
                 {syncMessage ? (
                   <p className={syncing === 'done' ? 'text-ok' : 'text-danger'}>{syncMessage}</p>
                 ) : v.releaseError ? (
-                  <p className="text-warn">Last check couldn’t read the release. Press Sync to try again.</p>
+                  <p className="text-warn">Last check couldn't read the release. Press Sync to try again.</p>
                 ) : (
                   <p className="text-ink-3">
                     <b className="text-ink-2">{v.managedCount ?? 0}</b> file{(v.managedCount ?? 0) === 1 ? '' : 's'} from the latest release
@@ -265,7 +266,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               <Field label="Website" error={errors.website} help="Optional. Docs, a landing page, anything.">
                 <input className="field" value={v.website} onChange={(e) => set('website', e.target.value)} placeholder="https://yourclient.example" inputMode="url" />
               </Field>
-              <Field label="Source code" error={errors.sourceUrl} help="Optional, and only needed if it isn’t the GitHub repo above.">
+              <Field label="Source code" error={errors.sourceUrl} help="Optional, and only needed if it isn't the GitHub repo above.">
                 <input className="field" value={v.sourceUrl} onChange={(e) => set('sourceUrl', e.target.value)} placeholder="https://gitlab.com/you/your-client" inputMode="url" />
               </Field>
             </div>
@@ -273,7 +274,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               <Field label="Built with" error={errors.framework} help="Optional, e.g. Electron or Tauri.">
                 <input className="field" value={v.framework} maxLength={40} onChange={(e) => set('framework', e.target.value)} placeholder="Electron" />
               </Field>
-              <Field label="Support server ID" error={errors.supportServerId} help="Optional. A Yapin’ server where people get help with it.">
+              <Field label="Support server ID" error={errors.supportServerId} help="Optional. A Yapin' server where people get help with it.">
                 <input className="field font-mono text-sm" value={v.supportServerId} onChange={(e) => set('supportServerId', e.target.value.trim())} placeholder="e.g. 2b81f05c…" />
               </Field>
             </div>
@@ -281,15 +282,15 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
 
           <Section title="How the page looks" hint="Your page, not a template. These only change the listing on YapBoard.">
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Icon URL" error={errors.iconUrl} help="Square, at least 128px. Leave it empty for initials.">
-                <input className="field" value={v.iconUrl} onChange={(e) => set('iconUrl', e.target.value)} placeholder="https://…/icon.png" inputMode="url" />
+              <Field label="Icon" error={errors.iconUrl} help="Square, at least 128 px. Leave it empty for initials.">
+                <ImagePicker kind="icon" value={v.iconUrl} onChange={(u) => set('iconUrl', u)} placeholder="https://…/icon.png" />
               </Field>
-              <Field label="Banner URL" error={errors.bannerUrl} help="Wide, about 1500×500. Sits behind the header.">
-                <input className="field" value={v.bannerUrl} onChange={(e) => set('bannerUrl', e.target.value)} placeholder="https://…/banner.png" inputMode="url" />
+              <Field label="Banner" error={errors.bannerUrl} help="Wide, about 1500×500. Sits behind the header.">
+                <ImagePicker kind="banner" value={v.bannerUrl} onChange={(u) => set('bannerUrl', u)} placeholder="https://…/banner.png" />
               </Field>
             </div>
 
-            <Field label="Header style" help="How the top of your page is drawn when there’s no banner — and over it when there is.">
+            <Field label="Header style" help="How the top of your page is drawn when there's no banner — and over it when there is.">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((t) => (
                   <button
@@ -373,11 +374,11 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
             <p className="mt-3 text-center text-xs leading-relaxed text-ink-3">
               {mode === 'create' ? (
                 <>
-                  You’ll be asked to accept the{' '}
+                  You'll be asked to accept the{' '}
                   <Link href="/clients/terms" target="_blank" className="text-accent hover:underline">
                     client terms
                   </Link>{' '}
-                  before it’s submitted.
+                  before it's submitted.
                 </>
               ) : (
                 'Changing the repository or where downloads come from sends the listing back for review.'
@@ -450,6 +451,7 @@ function FileEditor({ files, onChange, error, optional }: { files: ClientFileVal
 /* ---------------- screenshots ---------------- */
 
 function ScreenshotEditor({ urls, onChange, error }: { urls: string[]; onChange: (u: string[]) => void; error?: string[] }) {
+  const replace = (i: number, url: string) => onChange(urls.map((x, j) => (j === i ? url : x)));
   return (
     <div>
       <div className="flex items-baseline justify-between">
@@ -458,24 +460,17 @@ function ScreenshotEditor({ urls, onChange, error }: { urls: string[]; onChange:
           {urls.length}/{MAX_SCREENSHOTS}
         </span>
       </div>
-      <p className="mb-3 text-[13px] text-ink-3">Optional, and the single best thing you can add. Link images you host; YapBoard doesn’t upload or copy them.</p>
+      <p className="mb-3 text-[13px] text-ink-3">Optional, and the single best thing you can add. Upload an image or paste a link.</p>
       <div className="space-y-2">
         {urls.map((u, i) => (
-          <div key={i} className="flex gap-2">
-            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-3">
-              <Images size={15} />
-            </span>
-            <input
-              className="field h-10 font-mono text-[13px]"
-              value={u}
-              onChange={(e) => onChange(urls.map((x, j) => (j === i ? e.target.value : x)))}
-              placeholder="https://…/screenshot.png"
-              inputMode="url"
-            />
-            <button type="button" onClick={() => onChange(urls.filter((_, j) => j !== i))} className="btn btn-ghost btn-sm shrink-0 text-ink-3 hover:text-danger" aria-label="Remove this screenshot">
-              <Trash2 size={15} />
-            </button>
-          </div>
+          <ScreenshotPickerRow
+            key={i}
+            url={u}
+            index={i}
+            onRemove={() => onChange(urls.filter((_, j) => j !== i))}
+            onUpload={(url) => replace(i, url)}
+            onUrlChange={(url) => replace(i, url)}
+          />
         ))}
       </div>
       {urls.length < MAX_SCREENSHOTS && (

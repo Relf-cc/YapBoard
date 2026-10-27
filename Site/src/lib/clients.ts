@@ -9,6 +9,7 @@ import { fetchLatestRelease, parseRepo, type ReleaseFailure } from './github';
 import { LANGUAGES } from './languages';
 import { classifyAsset, isNoise, isPlatform, PLATFORM_ORDER, type Platform } from './platforms';
 import { MAX_MANUAL_FILES, MAX_SCREENSHOTS, isTheme, RESERVED_SLUGS, slugify } from './client-fields';
+import { isUploadPath } from './upload-fields';
 import { MAX_TAGS, normalizeTags } from './tags';
 import type { SessionUser } from './session';
 import { isStaff } from './session';
@@ -96,6 +97,20 @@ const httpsUrl = (message: string) =>
     .transform((v) => v || null)
     .refine((v) => v === null || /^https:\/\/\S+\.\S+/.test(v), message);
 
+/**
+ * A link that may also be a YapBoard upload path like /u/<id>.png, as stored after the picker POSTs
+ * to /api/uploads and the form writes the returned path into the field.
+ */
+const imageUrl = (message: string) =>
+  z
+    .string()
+    .trim()
+    .max(500)
+    .nullish()
+    .transform((v) => (v && !v.startsWith('/') && !/^https?:\/\//.test(v) ? `https://${v}` : v))
+    .transform((v) => v || null)
+    .refine((v) => v === null || isUploadPath(v) || /^https:\/\/\S+\.\S+/.test(v), message);
+
 /** One download the lister keeps themselves. Managed rows never come through the form (lib/clients.ts sync). */
 export const manualFileSchema = z.object({
   platform: z.string().refine(isPlatform, 'Pick a platform'),
@@ -120,8 +135,8 @@ export const clientListingSchema = z.object({
   name: z.string().trim().min(2, 'Give it a name').max(60, 'Keep the name under 60 characters'),
   summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),
   description: z.string().trim().min(50, 'Tell people what it changes (50+ characters)').max(4000, 'Max 4000 characters'),
-  iconUrl: httpsUrl('Use a full https link to an image, or leave it empty'),
-  bannerUrl: httpsUrl('Use a full https link to an image, or leave it empty'),
+  iconUrl: imageUrl('Use a full https link or upload an image, or leave it empty'),
+  bannerUrl: imageUrl('Use a full https link or upload an image, or leave it empty'),
   website: httpsUrl('Use a full https link, or leave it empty'),
   sourceUrl: httpsUrl('Use a full https link, or leave it empty'),
   framework: optional(40),
@@ -140,8 +155,8 @@ export const clientListingSchema = z.object({
   screenshots: z
     .array(z.string().trim().max(500))
     .max(20)
-    .transform((list) => list.map((s) => (s && !/^https?:\/\//.test(s) ? `https://${s}` : s)).filter(Boolean))
-    .refine((list) => list.every((s) => /^https:\/\/\S+\.\S+/.test(s)), 'Screenshots need full https links')
+    .transform((list) => list.map((s) => (s && !s.startsWith('/') && !/^https?:\/\//.test(s) ? `https://${s}` : s)).filter(Boolean))
+    .refine((list) => list.every((s) => isUploadPath(s) || /^https:\/\/\S+\.\S+/.test(s)), 'Screenshots need full https links or uploaded images')
     .refine((list) => list.length <= MAX_SCREENSHOTS, `Up to ${MAX_SCREENSHOTS} screenshots`),
   platforms: z
     .array(z.string())

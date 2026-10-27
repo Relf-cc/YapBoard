@@ -39,6 +39,7 @@ model User {
   announcementsSeen AnnouncementSeen[]
   broadcasts        Broadcast[]
   botDms            BotDm[]
+  uploads           Upload[]
 }
 
 /// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
@@ -567,4 +568,32 @@ model ClientBump {
   user      User          @relation(fields: [userId], references: [id])
 
   @@index([clientId, createdAt])
+}
+
+/// An image somebody uploaded on YapBoard, rather than linking from somewhere else.
+///
+/// The bytes live in the database so an upload travels with the volume and with any backup of it, the same
+/// way everything else here does — there is no second store to keep in sync. They're small on purpose (see
+/// MAX_UPLOAD_BYTES in src/lib/upload-fields.ts); if this ever grows past a few hundred megabytes, move the
+/// `data` column to object storage and keep the rest of the row as it is.
+///
+/// Served at /u/<id>.<ext> (src/app/u/[file]/route.ts), which is what a listing stores in place of a link.
+/// Rows nothing points at are swept a day after they're made (sweepUploads in src/lib/uploads.ts), so an
+/// image picked and then replaced in the form doesn't stay forever.
+model Upload {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /// image/png | image/jpeg | image/webp | image/gif, read from the file's own first bytes, never from the browser.
+  mime      String
+  /// png | jpg | webp | gif — the extension the URL ends in, so the path still looks like a file.
+  ext       String
+  bytes     Int
+  /// What it was picked for: icon | banner | screenshot. Sets the size limit, and tells staff what they're looking at.
+  kind      String
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([createdAt])
 }

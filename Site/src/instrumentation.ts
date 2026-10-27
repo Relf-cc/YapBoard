@@ -8,4 +8,6 @@ export async function register() {
   await backfillRanks().catch((e) => console.error('[votes] rank backfill failed', e));
   // A failure here shouldn't keep the site down; it's logged and the next start tries again.
   await resetUngrantedRoles().catch((e) => console.error('[roles] cleanup failed', e));
+  const { sweepUploads } = await import('./lib/uploads');
+  sweepUploads().then((n) => { if (n) console.log(`[uploads] swept ${n} orphaned upload${n === 1 ? '' : 's'}`); }).catch(() => {});
 }
