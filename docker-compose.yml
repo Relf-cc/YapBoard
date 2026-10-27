@@ -26,6 +26,8 @@ services:
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       YAPIN_CLIENT_ID: ${YAPIN_CLIENT_ID:-}
       YAPIN_CLIENT_SECRET: ${YAPIN_CLIENT_SECRET:-}
+      # Optional: only raises GitHub's rate limit when reading client releases.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       STAFF_IDS: ${STAFF_IDS:-}
     volumes:
       - site-data:/data

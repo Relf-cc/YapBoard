@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bot, ChevronDown, LayoutGrid, LogOut, Menu, Plus, Shield, X } from 'lucide-react';
+import { AppWindow, Bot, ChevronDown, LayoutGrid, LogOut, Menu, Plus, Shield, X } from 'lucide-react';
 import clsx from 'clsx';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
@@ -17,6 +17,7 @@ type NavUser = { id: string; name: string; username: string; avatarUrl: string |
 const LINKS = [
   { href: '/servers', label: 'Servers' },
   { href: '/bots', label: 'Bots' },
+  { href: '/clients', label: 'Clients' },
   { href: '/tags', label: 'Tags' },
   { href: '/bot', label: 'Bot' },
 ];
@@ -101,6 +102,9 @@ export function NavShell({ user, staff }: { user: NavUser; staff: boolean }) {
                     <Link href="/bots/add" className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-accent hover:bg-surface-2">
                       List a bot
                     </Link>
+                    <Link href="/clients/add" className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-accent hover:bg-surface-2">
+                      List a client
+                    </Link>
                   </>
                 )}
               </div>
@@ -154,6 +158,9 @@ function UserMenu({ user, staff }: { user: NonNullable<NavUser>; staff: boolean 
             </MenuLink>
             <MenuLink href="/bots/add" icon={<Bot size={15} />}>
               List a bot
+            </MenuLink>
+            <MenuLink href="/clients/add" icon={<AppWindow size={15} />}>
+              List a client
             </MenuLink>
             {staff && (
               <MenuLink href="/portal" icon={<Shield size={15} />}>

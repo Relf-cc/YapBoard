@@ -89,11 +89,21 @@ const BOTS = [
   ['Ticketly', 'Support tickets with transcripts, so nothing gets lost in DMs.', '-', ['support', 'utility', 'moderation'], 2210, 'yapper.js'],
 ];
 
+// [name, summary, platforms, framework, repo, version, tags]
+// Clients are somebody's own build of Yapin'. Seeded with MANUAL links so a dev database never reaches GitHub.
+const CLIENTS = [
+  ['Yapin’ Plus', 'Themes, plugins and a compact layout, without touching the official app’s manners.', ['windows', 'mac', 'linux'], 'Electron', 'yapboard-demo/yapin-plus', 'v2.4.1', ['themes', 'plugins', 'customisation']],
+  ['Lightyap', 'A 40MB client for old laptops. Same chat, a tenth of the memory.', ['windows', 'linux'], 'Tauri', 'yapboard-demo/lightyap', 'v0.9.3', ['lightweight', 'performance', 'utility']],
+  ['Yapterm', 'Yapin’ in your terminal. Keyboard only, mouse optional, vim keys included.', ['linux', 'mac'], 'Rust', 'yapboard-demo/yapterm', 'v1.1.0', ['terminal', 'keyboard', 'developers']],
+  ['Pocketyap', 'An unofficial Android build with notification controls the official app won’t give you.', ['android'], 'Kotlin', 'yapboard-demo/pocketyap', 'v3.0.0-beta.2', ['mobile', 'android', 'notifications']],
+];
+
 const ACCENTS = ['#ff6b4a', '#ffb86b', '#7ee2a8', '#5aa9e6', '#c7a4ff', '#ff9ecb', '#3fc1a8', '#8fb8ff'];
 const rand = (n) => Math.floor(Math.random() * n);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const id = (i) => `srv_${(1000003 * (i + 7)).toString(36)}${i}`;
 const botId = (i) => `bot_${(1000033 * (i + 11)).toString(36)}${i}`;
+const clientId = (i) => `cli_${(1000081 * (i + 13)).toString(36)}${i}`;
 
 async function main() {
   console.log('Seeding…');
@@ -101,6 +111,11 @@ async function main() {
   await db.report.deleteMany();
   await db.announcement.deleteMany();
   await db.broadcast.deleteMany();
+  await db.clientBump.deleteMany();
+  await db.clientBadge.deleteMany();
+  await db.clientTag.deleteMany();
+  await db.clientDownload.deleteMany();
+  await db.clientListing.deleteMany();
   await db.botBump.deleteMany();
   await db.botBadge.deleteMany();
   await db.botTag.deleteMany();
@@ -195,6 +210,83 @@ async function main() {
     }
   }
 
+  // Clients. Download links are made up and point nowhere real — the point is the shape of the page.
+  for (const [i, [name, summary, platforms, framework, repo, version, tags]] of CLIENTS.entries()) {
+    const owner = users[(i + 4) % users.length];
+    const createdAt = new Date(now - rand(90) * 864e5);
+    const thisClient = clientId(i);
+    const downloads = 400 + rand(24000);
+    const ext = { windows: 'Setup.exe', mac: 'universal.dmg', linux: 'amd64.deb', android: 'arm64.apk', ios: 'ipa', web: 'html', other: 'zip' };
+    await db.clientListing.create({
+      data: {
+        id: thisClient,
+        slug: slug(name),
+        name,
+        summary,
+        description: `${summary}
+
+${name} is a community build of Yapin'. It keeps the parts you already know and changes the ones that got in your way.
+
+- Open source, built with ${framework}
+- Every release is published on GitHub
+- No telemetry, no account automation, nothing hidden
+
+It isn't made by Yapin' or by YapBoard. Read the client terms before you install it.`,
+        framework,
+        website: i % 2 === 0 ? `https://${slug(name)}.example` : null,
+        sourceUrl: `https://github.com/${repo}`,
+        accent: ACCENTS[(i + 5) % ACCENTS.length],
+        theme: ['GLOW', 'GRID', 'WAVE', 'FLAT'][i % 4],
+        platforms: JSON.stringify(platforms),
+        screenshots: JSON.stringify([]),
+        // MANUAL, so seeding never calls GitHub. Point a listing at a real repo in the UI to try the sync.
+        releaseSource: 'MANUAL',
+        version,
+        releaseName: `${name} ${version}`,
+        changelog: `## What's new
+
+- Faster start-up on cold boot
+- Fixed the tray icon disappearing after a theme change
+- Plugin API: \`onMessage\` now receives edits too
+
+**Full Changelog**: https://github.com/${repo}/compare/v1.0.0...${version}`,
+        releaseUrl: `https://github.com/${repo}/releases/tag/${version}`,
+        releasedAt: new Date(now - rand(30) * 864e5),
+        downloads,
+        views: downloads * (1 + rand(3)),
+        bumpCount: 1 + rand(60),
+        bumpedAt: new Date(now - rand(40) * 3600_000),
+        createdAt,
+        termsAgreedAt: createdAt,
+        // One left pending so the client review queue isn't empty in dev.
+        status: i === CLIENTS.length - 1 ? 'PENDING' : 'PUBLIC',
+        supportServerId: i % 2 === 0 ? id(i) : null,
+        badges: { create: i === 0 ? [{ kind: 'FEATURED', grantedAt: createdAt }] : [] },
+        ownerId: owner.id,
+        files: {
+          create: platforms.map((plat, j) => ({
+            platform: plat,
+            kind: ext[plat].split('.').pop(),
+            arch: plat === 'android' ? 'arm64' : plat === 'mac' ? 'universal' : 'x64',
+            label: `${slug(name)}-${version.replace(/^v/, '')}-${ext[plat]}`,
+            url: `https://github.com/${repo}/releases/download/${version}/${slug(name)}-${ext[plat]}`,
+            size: (40 + rand(120)) * 1024 * 1024,
+            managed: false,
+            position: j,
+          })),
+        },
+        tags: {
+          create: await Promise.all(
+            tags.map(async (t) => ({ tag: { connect: { id: (await db.tag.upsert({ where: { name: t }, create: { name: t }, update: {} })).id } } })),
+          ),
+        },
+      },
+    });
+    for (let b = 0; b < 1 + rand(3); b++) {
+      await db.clientBump.create({ data: { clientId: thisClient, userId: users[rand(users.length)].id, createdAt: new Date(now - rand(40) * 3600_000) } });
+    }
+  }
+
   // A banner, written but not live: staff publish it from the portal when they're ready.
   await db.announcement.create({
     data: {
@@ -229,7 +321,7 @@ async function main() {
       data: { serverId: id(i), kind, reason, details, reporterId: users[(i + 3) % users.length].id, createdAt: new Date(now - rand(72) * 3600_000) },
     });
   }
-  console.log(`Seeded ${SERVERS.length} servers, ${BOTS.length} bots, ${users.length} users, ${reports.length} reports.`);
+  console.log(`Seeded ${SERVERS.length} servers, ${BOTS.length} bots, ${CLIENTS.length} clients, ${users.length} users, ${reports.length} reports.`);
 }
 
 main()

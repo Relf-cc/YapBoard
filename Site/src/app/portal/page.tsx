@@ -15,7 +15,7 @@ export default async function Overview() {
   await requireStaffPage();
   const base = await portalBase();
   const weekAgo = new Date(Date.now() - 7 * 864e5);
-  const [openAbuse, openRemoval, listed, hidden, handledWeek, newWeek, bots, liveNotices, queue, audit] = await Promise.all([
+  const [openAbuse, openRemoval, listed, hidden, handledWeek, newWeek, bots, clients, liveNotices, queue, audit] = await Promise.all([
     db.report.count({ where: { status: 'OPEN', kind: 'ABUSE' } }),
     db.report.count({ where: { status: 'OPEN', kind: 'REMOVAL' } }),
     db.server.count({ where: { status: 'PUBLIC' } }),
@@ -23,12 +23,17 @@ export default async function Overview() {
     db.report.count({ where: { handledAt: { gte: weekAgo } } }),
     db.server.count({ where: { createdAt: { gte: weekAgo } } }),
     db.botListing.count({ where: { status: 'PUBLIC' } }),
+    db.clientListing.count({ where: { status: 'PUBLIC' } }),
     db.announcement.count({ where: { active: true } }),
     db.report.findMany({
       where: { status: 'OPEN' },
       orderBy: { createdAt: 'asc' },
       take: 8,
-      include: { server: { select: { id: true, name: true, iconUrl: true, status: true } }, bot: { select: { id: true, name: true, avatarUrl: true, status: true } } },
+      include: {
+        server: { select: { id: true, name: true, iconUrl: true, status: true } },
+        bot: { select: { id: true, name: true, avatarUrl: true, status: true } },
+        client: { select: { id: true, slug: true, name: true, iconUrl: true, status: true } },
+      },
     }),
     db.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 10, include: { actor: { select: { username: true } } } }),
   ]);
@@ -41,6 +46,7 @@ export default async function Overview() {
     ['New this week', newWeek, `${base}/servers?sort=new`],
     ['Hidden or removed', hidden, `${base}/servers?status=HIDDEN`],
     ['Listed bots', bots, `${base}/bots`],
+    ['Listed clients', clients, `${base}/clients`],
     ['Live announcements', liveNotices, `${base}/announcements`],
   ];
 
@@ -48,7 +54,8 @@ export default async function Overview() {
     <div className="max-w-6xl">
       <PageHead title="Overview" sub="What needs looking at, oldest first." />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+      {/* Nine tiles: three rows of three, then five and four once there's room. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         {tiles.map(([label, n, href], i) => {
           const body = (
             <>

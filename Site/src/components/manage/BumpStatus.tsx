@@ -12,11 +12,26 @@ import { Tooltip } from '../Tooltip';
 
 const COOLDOWN = 2 * 60 * 60 * 1000;
 
+/** Each board's API prefix: /api/<this>/<id>/bump. */
+const BUMP_PATHS = { server: 'servers', bot: 'bots', client: 'clients' } as const;
+
 /**
  * Countdown ring until the next bump. For servers the bump itself happens in Yapin' (`/bump`), so in dev
- * (no bot) it doubles as a button; bots can't type at themselves, so theirs is always a button.
+ * (no bot) it doubles as a button; bots and clients have nothing to type at, so theirs is always a button.
  */
-export function BumpStatus({ serverId, kind = 'server', bumpedAt, canWebBump, compact }: { serverId: string; kind?: 'server' | 'bot'; bumpedAt: string | null; canWebBump: boolean; compact?: boolean }) {
+export function BumpStatus({
+  serverId,
+  kind = 'server',
+  bumpedAt,
+  canWebBump,
+  compact,
+}: {
+  serverId: string;
+  kind?: keyof typeof BUMP_PATHS;
+  bumpedAt: string | null;
+  canWebBump: boolean;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [now, setNow] = useState(() => Date.now());
   const [last, setLast] = useState(bumpedAt);
@@ -34,7 +49,7 @@ export function BumpStatus({ serverId, kind = 'server', bumpedAt, canWebBump, co
 
   async function bump() {
     setBusy(true);
-    const res = await fetch(`/api/${kind === 'bot' ? 'bots' : 'servers'}/${serverId}/bump`, { method: 'POST' });
+    const res = await fetch(`/api/${BUMP_PATHS[kind]}/${serverId}/bump`, { method: 'POST' });
     setBusy(false);
     if (res.ok) {
       setLast(new Date().toISOString());

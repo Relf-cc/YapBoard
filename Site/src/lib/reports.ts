@@ -21,16 +21,16 @@ export const REMOVAL_REASONS = {
 export type ReportKind = 'ABUSE' | 'REMOVAL';
 
 /**
- * A report points at exactly one listing: a server or a bot. Both boards share the queue, so everything
- * that reads a report goes through this instead of reaching for `report.server`.
+ * A report points at exactly one listing: a server, a bot or a client. All three boards share the queue, so
+ * everything that reads a report goes through this instead of reaching for `report.server`.
  */
 export type ReportTarget = {
-  kind: 'server' | 'bot';
+  kind: 'server' | 'bot' | 'client';
   id: string;
   name: string;
   iconUrl: string | null;
   status: string;
-  /** Whether the picture is a circle (bots are accounts) or a rounded square (servers). */
+  /** Whether the picture is a circle (bots are accounts) or a rounded square (servers and clients). */
   round: boolean;
   /** Where the listing lives on the public site. */
   path: string;
@@ -38,8 +38,9 @@ export type ReportTarget = {
 
 type MaybeServer = { id: string; name: string; iconUrl: string | null; status: string } | null | undefined;
 type MaybeBot = { id: string; name: string; avatarUrl: string | null; status: string } | null | undefined;
+type MaybeClient = { id: string; slug: string; name: string; iconUrl: string | null; status: string } | null | undefined;
 
-export function reportTarget(report: { server?: MaybeServer; bot?: MaybeBot }): ReportTarget | null {
+export function reportTarget(report: { server?: MaybeServer; bot?: MaybeBot; client?: MaybeClient }): ReportTarget | null {
   if (report.server) {
     const s = report.server;
     return { kind: 'server', id: s.id, name: s.name, iconUrl: s.iconUrl, status: s.status, round: false, path: `/view/${s.id}` };
@@ -48,7 +49,11 @@ export function reportTarget(report: { server?: MaybeServer; bot?: MaybeBot }): 
     const b = report.bot;
     return { kind: 'bot', id: b.id, name: b.name, iconUrl: b.avatarUrl, status: b.status, round: true, path: `/bots/${b.id}` };
   }
-  // Both sides cascade on delete, so this only happens in the moment between a delete and a page refresh.
+  if (report.client) {
+    const c = report.client;
+    return { kind: 'client', id: c.id, name: c.name, iconUrl: c.iconUrl, status: c.status, round: false, path: `/clients/${c.slug}` };
+  }
+  // Every side cascades on delete, so this only happens in the moment between a delete and a page refresh.
   return null;
 }
 

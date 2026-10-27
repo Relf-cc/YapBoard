@@ -104,6 +104,21 @@ export default function Guidelines() {
           ],
         },
         {
+          id: 'clients',
+          h: 'Listing a client',
+          p: [
+            <>
+              A client is somebody’s own build of Yapin’, shipped as its own program, and it has rules of its own on top
+              of these: staff review every client listing before it goes up, and the lister accepts the{' '}
+              <A href="/clients/terms">client terms</A> and Yapin’s terms before submitting.
+            </>,
+            <>
+              Downloading one is your decision — we don’t build, host or scan them. The{' '}
+              <A href="/clients/terms#safety">safety notes</A> say what to check first.
+            </>,
+          ],
+        },
+        {
           id: 'bumping',
           h: 'Bumping',
           p: [

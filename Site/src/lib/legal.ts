@@ -12,6 +12,8 @@ export const LEGAL = {
   /** Must be a real, monitored inbox. Rights requests, copyright notices and appeals all point here. */
   email: 'support@yapboard.dev',
   law: 'England and Wales',
+  /** Yapin's own terms. Client listers accept these alongside ours before submitting (src/lib/clients.ts). */
+  yapinTerms: 'https://www.yapin.gg/terms',
   minAge: 13,
   /** Profiles with no listings that haven't logged in or bumped for this long get deleted. */
   inactiveMonths: 24,

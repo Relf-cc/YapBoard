@@ -7,10 +7,11 @@ A server list for [Yapin'](https://www.yapin.gg), like Disboard.
 - `Site/`: Next.js app: yapboard.dev (public site), portal.yapboard.dev (staff portal) and api.yapboard.dev (API)
 - `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/info`, `/addbot`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
 
-Two boards: servers at `/servers`, and the bots people run at `/bots`. Both share tags, badges, reports and the
-staff portal. Staff can also put a notice on the site and send one message out through the bot — see below.
+Three boards: servers at `/servers`, the bots people run at `/bots`, and the clients people build at
+`/clients`. All three share tags, badges, reports and the staff portal. Staff can also put a notice on the site
+and send one message out through the bot — see below.
 
-## Three things staff can do from the portal
+## Four things staff can do from the portal
 
 **Announcements** (`/portal/announcements`, `Site/src/lib/announcements.ts`). A bar across the top of the site, or
 a dialog shown once. Each one picks who sees it — everyone, logged-in people, or accounts younger than a set
@@ -41,6 +42,30 @@ queues a row, the bot drains it and reports back, the same way broadcasts work.
 Changing a listing's support server re-runs the ownership check and sends it back for review, since that server is
 the whole claim the bot is yours. Bots bump on the same 2 hour cooldown, from the site rather than a command, and
 take the same badges, tags and reports as servers.
+
+**Client listings** (`/portal/clients`, `Site/src/lib/clients.ts`). A client is somebody's own build of Yapin',
+shipped as its own executable. There is nothing on Yapin' to check one against — a server has an invite, a bot has
+a support server, a client is a file on a stranger's release page — so two things stand in for that check.
+
+Before a listing can be submitted, the lister has to accept the YapBoard client terms (`/clients/terms`) and
+Yapin's terms, in a dialog that links both; the API refuses the request without it and the moment they agreed is
+stored on the row. Then staff review it, from the same queue bots use. The portal row lays out the whole chain a
+reviewer is actually judging — repo, release, and every download URL with the host it really goes to, flagged when
+the files leave the repo — and the bot DMs the lister the decision either way, through the same queue bot listings
+use (`Site/src/lib/bot-dms.ts`). Changing where the downloads come from sends a live listing back to the queue,
+since staff approved a page pointing at one place.
+
+Downloads normally come from a GitHub repo: `releases/latest` is read (`Site/src/lib/github.ts`), its assets are
+sorted into platforms by filename — `.exe` and `.msi` to Windows, `.deb`, `.rpm` and `.AppImage` to Linux, `.dmg`
+to macOS, `.apk` to Android, with checksums and signatures left out — and the release notes become the changelog
+(`Site/src/lib/platforms.ts`). Releases re-read themselves half an hour after the last read, on the next page
+view, once per client rather than once per visitor; a lister with a client hosted elsewhere keeps the links
+themselves instead. Listers get the page itself to play with too: icon, banner, one of four header styles, accent
+colour, up to six screenshots, and their own extra download links alongside the release's.
+
+YapBoard never serves, mirrors or scans a client's files. `/get/<client>/<file>` counts the click and redirects,
+and before that redirect a Trust & Safety dialog names the file, says which host it's really coming from, and says
+plainly that a client runs with your account signed in. It's shown once per client per browsing session.
 
 ## Run the site locally
 
@@ -121,6 +146,8 @@ docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_I
 - `NEXT_PUBLIC_SITE_URL=https://yapboard.dev`, `PORTAL_URL=https://portal.yapboard.dev`, `COOKIE_DOMAIN=.yapboard.dev`
 - Login with Yapin' redirect URI: `https://yapboard.dev/api/auth/callback`
 - `STAFF_IDS` = your Yapin' user ID(s); grant others staff from the portal's Users page
+- `GITHUB_TOKEN` is optional: it only raises GitHub's rate limit for reading client releases (60 requests an hour
+  per IP becomes 5,000). Read-only, no scopes. Without it, client releases still sync, just less often under load
 - `SESSION_SECRET` and `INTERNAL_API_SECRET`: real random values. The `change-me` examples are refused
 - Run `prisma db push` (or a migration) on deploy: logins are stored in a `Session` table (the Docker image does
   this on start)

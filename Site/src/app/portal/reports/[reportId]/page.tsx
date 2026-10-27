@@ -17,7 +17,7 @@ import { ReportActions } from '@/components/portal/ReportActions';
 
 export const metadata: Metadata = { title: 'Report' };
 
-const owner = { select: { id: true, username: true, displayName: true, avatarUrl: true, bannedAt: true, createdAt: true, _count: { select: { servers: true, bots: true } } } };
+const owner = { select: { id: true, username: true, displayName: true, avatarUrl: true, bannedAt: true, createdAt: true, _count: { select: { servers: true, bots: true, clients: true } } } };
 
 export default async function ReportDetail({ params }: { params: Promise<{ reportId: string }> }) {
   const { reportId } = await params;
@@ -30,22 +30,23 @@ export default async function ReportDetail({ params }: { params: Promise<{ repor
       handledBy: { select: { username: true } },
       server: { include: { owner, tags: { include: { tag: true } }, badges: { select: { kind: true } } } },
       bot: { include: { owner, tags: { include: { tag: true } }, badges: { select: { kind: true } } } },
+      client: { include: { owner, tags: { include: { tag: true } }, badges: { select: { kind: true } } } },
     },
   });
   if (!r) notFound();
   const target = reportTarget(r);
-  const listing = r.server ?? r.bot;
+  const listing = r.server ?? r.bot ?? r.client;
   if (!target || !listing) notFound();
 
   const related = await db.report.findMany({
-    where: { ...(target.kind === 'bot' ? { botId: target.id } : { serverId: target.id }), id: { not: r.id } },
+    where: { ...(target.kind === 'bot' ? { botId: target.id } : target.kind === 'client' ? { clientId: target.id } : { serverId: target.id }), id: { not: r.id } },
     orderBy: { createdAt: 'desc' },
     take: 10,
     include: { reporter: { select: { username: true } } },
   });
 
   const lister = listing.owner;
-  const listings = lister._count.servers + lister._count.bots;
+  const listings = lister._count.servers + lister._count.bots + lister._count.clients;
 
   return (
     <div className="max-w-6xl">

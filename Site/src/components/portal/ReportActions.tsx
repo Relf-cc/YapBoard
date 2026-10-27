@@ -6,14 +6,14 @@ import { useState, useTransition } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
-import { moderateBot, moderateServer, reopenReport, resolveReport } from '@/app/portal/actions';
+import { moderateBot, moderateClient, moderateServer, reopenReport, resolveReport } from '@/app/portal/actions';
 
 type Props = {
   reportId: string;
   kind: string;
   status: string;
   /** The listing this report is about: a server or a bot (src/lib/reports.ts). */
-  targetKind: 'server' | 'bot';
+  targetKind: 'server' | 'bot' | 'client';
   targetId: string;
   targetStatus: string;
   ownerBanned: boolean;
@@ -54,7 +54,7 @@ export function ReportActions(p: Props) {
             <button
               className="btn btn-secondary btn-sm"
               disabled={pending}
-              onClick={() => run(() => (p.targetKind === 'bot' ? moderateBot({ botId: p.targetId, action: 'restore' }) : moderateServer({ serverId: p.targetId, action: 'restore' })))}
+              onClick={() => run(() => (p.targetKind === 'bot' ? moderateBot({ botId: p.targetId, action: 'restore' }) : p.targetKind === 'client' ? moderateClient({ clientId: p.targetId, action: 'restore' }) : moderateServer({ serverId: p.targetId, action: 'restore' })))}
             >
               Restore listing
             </button>

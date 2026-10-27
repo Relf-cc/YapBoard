@@ -10,6 +10,8 @@ export const env = {
   clientSecret: process.env.YAPIN_CLIENT_SECRET || '',
   botToken: process.env.YAPPER_BOT_TOKEN || '',
   internalSecret: process.env.INTERNAL_API_SECRET || '',
+  /** Optional. Only raises GitHub's rate limit for reading client releases (src/lib/github.ts); nothing is written. */
+  githubToken: process.env.GITHUB_TOKEN || '',
   staffIds: (process.env.STAFF_IDS || '').split(',').map((s) => s.trim()).filter(Boolean),
   isProd: process.env.NODE_ENV === 'production',
 };

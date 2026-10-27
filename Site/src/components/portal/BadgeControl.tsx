@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
-import { clearBadges, clearBotBadges, toggleBadge, toggleBotBadge } from '@/app/portal/actions';
+import { clearBadges, clearBotBadges, clearClientBadges, toggleBadge, toggleBotBadge, toggleClientBadge } from '@/app/portal/actions';
 import { BADGES, BADGE_ORDER, sortBadges, type BadgeKind } from '@/lib/badges';
 import { BadgeMark, BadgeRow } from '../Badge';
 
@@ -17,7 +17,7 @@ const PANEL_W = 268;
  * Staff badge picker: every badge in src/lib/badges.ts as a toggle, so a listing can hold several.
  * Each click saves on its own and rolls back if the action fails. The same picker serves both boards.
  */
-export function BadgeControl({ id, badges, kind = 'server' }: { id: string; badges: readonly string[]; kind?: 'server' | 'bot' }) {
+export function BadgeControl({ id, badges, kind = 'server' }: { id: string; badges: readonly string[]; kind?: 'server' | 'bot' | 'client' }) {
   const [held, setHeld] = useState(() => sortBadges(badges));
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -68,7 +68,7 @@ export function BadgeControl({ id, badges, kind = 'server' }: { id: string; badg
   const toggle = (badge: BadgeKind) => {
     const on = !held.includes(badge);
     save(on ? sortBadges([...held, badge]) : held.filter((k) => k !== badge), () =>
-      kind === 'bot' ? toggleBotBadge({ botId: id, badge, on }) : toggleBadge({ serverId: id, badge, on }),
+      kind === 'bot' ? toggleBotBadge({ botId: id, badge, on }) : kind === 'client' ? toggleClientBadge({ clientId: id, badge, on }) : toggleBadge({ serverId: id, badge, on }),
     );
   };
 
@@ -132,7 +132,7 @@ export function BadgeControl({ id, badges, kind = 'server' }: { id: string; badg
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => save([], () => (kind === 'bot' ? clearBotBadges(id) : clearBadges(id)))}
+                    onClick={() => save([], () => (kind === 'bot' ? clearBotBadges(id) : kind === 'client' ? clearClientBadges(id) : clearBadges(id)))}
                     className="mt-1 w-full rounded-lg border-t border-line px-2.5 py-2 text-[12px] font-semibold text-ink-3 transition-colors hover:text-danger"
                   >
                     Remove all

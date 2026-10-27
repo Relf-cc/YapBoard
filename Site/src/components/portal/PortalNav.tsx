@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { ArrowBigUp, ArrowUpRight, Bot, Flag, Gauge, Megaphone, Radio, ScrollText, Server, Trash, Users } from 'lucide-react';
+import { AppWindow, ArrowBigUp, ArrowUpRight, Bot, Flag, Gauge, Megaphone, Radio, ScrollText, Server, Trash, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { Logo } from '../Logo';
 import { Avatar } from '../Avatar';
@@ -13,7 +13,7 @@ import { Avatar } from '../Avatar';
 type Props = {
   base: string;
   siteUrl: string;
-  counts: { abuse: number; removal: number; pendingBots: number };
+  counts: { abuse: number; removal: number; pendingBots: number; pendingClients: number };
   user: { id: string; name: string; role: string; avatarUrl: string | null };
 };
 
@@ -27,6 +27,7 @@ export function PortalNav({ base, siteUrl, counts, user }: Props) {
     { href: '/reports?kind=REMOVAL', match: '/reports', kindMatch: 'REMOVAL', label: 'Removal requests', icon: Trash, count: counts.removal },
     { href: '/servers', label: 'Servers', icon: Server },
     { href: '/bots', label: 'Bots', icon: Bot, count: counts.pendingBots },
+    { href: '/clients', label: 'Clients', icon: AppWindow, count: counts.pendingClients },
     { href: '/users', label: 'Users', icon: Users },
     { href: '/voting', label: 'Voting', icon: ArrowBigUp },
     { href: '/announcements', label: 'Announcements', icon: Megaphone },

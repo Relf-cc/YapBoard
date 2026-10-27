@@ -11,9 +11,9 @@ import clsx from 'clsx';
 import { ABUSE_REASONS, REMOVAL_REASONS, type ReportKind } from '@/lib/reports';
 import { Modal, ModalDone } from '../Modal';
 
-type Target = { kind: 'server' | 'bot'; id: string; name: string };
+type Target = { kind: 'server' | 'bot' | 'client'; id: string; name: string };
 
-/** The same dialog for both boards; `target` decides which listing the report is filed against. */
+/** The same dialog on all three boards; `target` decides which listing the report is filed against. */
 export function ReportButton({ target, loggedIn }: { target: Target; loggedIn: boolean }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
@@ -34,6 +34,9 @@ export function ReportButton({ target, loggedIn }: { target: Target; loggedIn: b
   );
 }
 
+/** Each board's API prefix, so the dialog doesn't grow a ternary chain per board. */
+const REPORT_PATHS = { server: 'servers', bot: 'bots', client: 'clients' } as const;
+
 const KINDS: { kind: ReportKind; label: string }[] = [
   { kind: 'ABUSE', label: 'Report abuse' },
   { kind: 'REMOVAL', label: 'Request removal' },
@@ -51,7 +54,7 @@ function ReportDialog({ target, onClose }: { target: Target; onClose: () => void
     e.preventDefault();
     setState('sending');
     setError('');
-    const res = await fetch(target.kind === 'bot' ? `/api/bots/${target.id}/reports` : `/api/servers/${target.id}/reports`, {
+    const res = await fetch(`/api/${REPORT_PATHS[target.kind]}/${target.id}/reports`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ kind, reason, details }),
@@ -129,7 +132,9 @@ function ReportDialog({ target, onClose }: { target: Target; onClose: () => void
                 ? 'What did you see? Links to messages help.'
                 : target.kind === 'bot'
                   ? 'Anything that helps us check, like how you’re involved with the bot.'
-                  : 'Anything that helps us check, like who you are in the server.'
+                  : target.kind === 'client'
+                    ? 'Anything that helps us check — where the download really goes, or what the build does.'
+                    : 'Anything that helps us check, like who you are in the server.'
             }
           />
         </label>

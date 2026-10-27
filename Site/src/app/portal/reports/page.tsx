@@ -36,7 +36,17 @@ export default async function Reports({ searchParams }: Props) {
     status,
     reason,
     ...(q
-      ? { OR: [{ serverId: q }, { botId: q }, { server: { name: { contains: q } } }, { bot: { name: { contains: q } } }, { details: { contains: q } }] }
+      ? {
+          OR: [
+            { serverId: q },
+            { botId: q },
+            { clientId: q },
+            { server: { name: { contains: q } } },
+            { bot: { name: { contains: q } } },
+            { client: { name: { contains: q } } },
+            { details: { contains: q } },
+          ],
+        }
       : {}),
   };
   const [rows, total, counts] = await Promise.all([
@@ -49,6 +59,7 @@ export default async function Reports({ searchParams }: Props) {
       include: {
         server: { select: { id: true, name: true, iconUrl: true, status: true, _count: { select: { reports: { where: { status: 'OPEN' } } } } } },
         bot: { select: { id: true, name: true, avatarUrl: true, status: true, _count: { select: { reports: { where: { status: 'OPEN' } } } } } },
+        client: { select: { id: true, slug: true, name: true, iconUrl: true, status: true, _count: { select: { reports: { where: { status: 'OPEN' } } } } } },
         reporter: { select: { username: true } },
         handledBy: { select: { username: true } },
       },

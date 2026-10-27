@@ -7,11 +7,13 @@ import { z } from 'zod';
 import { announcementSchema, type AnnouncementInput } from '@/lib/announcements';
 import { queueBotDm } from '@/lib/bot-dms';
 import { approvedStatus } from '@/lib/bots';
+import { approvedClientStatus, syncClientRelease } from '@/lib/clients';
 import { BADGES, isBadge } from '@/lib/badges';
 import { broadcastSchema, queueBroadcast, type BroadcastInput } from '@/lib/broadcasts';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getUser, isAdmin, isStaff } from '@/lib/session';
+import { RELEASE_ERRORS } from '@/lib/github';
 import { getVotingConfig, refreshAllRanks, refreshRank, refreshRanksForUser, saveVotingConfig, votingSchema, type VotingConfig } from '@/lib/votes';
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
@@ -62,14 +64,18 @@ export async function resolveReport(input: z.input<typeof resolveSchema>): Promi
 
   const report = await db.report.findUnique({
     where: { id: reportId },
-    include: { server: { select: { id: true, ownerId: true } }, bot: { select: { id: true, ownerId: true } } },
+    include: {
+      server: { select: { id: true, ownerId: true } },
+      bot: { select: { id: true, ownerId: true } },
+      client: { select: { id: true, ownerId: true } },
+    },
   });
   if (!report) return { ok: false, error: 'Report not found' };
   if (report.status !== 'OPEN') return { ok: false, error: 'Already handled by someone else' };
-  // One report, one listing — a server or a bot (src/lib/reports.ts).
-  const target = report.server ?? report.bot;
+  // One report, one listing — a server, a bot or a client (src/lib/reports.ts).
+  const target = report.server ?? report.bot ?? report.client;
   if (!target) return { ok: false, error: 'That listing is gone' };
-  const onBot = !report.server;
+  const board: 'server' | 'bot' | 'client' = report.server ? 'server' : report.bot ? 'bot' : 'client';
   if (outcome === 'action' && banOwner) {
     const why = await canBan(me, target.ownerId);
     if (why) return { ok: false, error: why };
@@ -77,20 +83,23 @@ export async function resolveReport(input: z.input<typeof resolveSchema>): Promi
 
   await db.$transaction(async (tx) => {
     const status = outcome === 'dismiss' ? 'DISMISSED' : 'ACTIONED';
-    const where = closeRelated ? { ...(onBot ? { botId: target.id } : { serverId: target.id }), status: 'OPEN' } : { id: reportId };
+    const sameTarget = board === 'bot' ? { botId: target.id } : board === 'client' ? { clientId: target.id } : { serverId: target.id };
+    const where = closeRelated ? { ...sameTarget, status: 'OPEN' } : { id: reportId };
     await tx.report.updateMany({ where, data: { status, resolution: n, handledById: me.id, handledAt: new Date() } });
 
     if (outcome === 'action' && serverAction !== 'none') {
       const data = { status: serverAction === 'hide' ? 'HIDDEN' : 'REMOVED', statusNote: n };
-      if (onBot) await tx.botListing.update({ where: { id: target.id }, data });
+      if (board === 'bot') await tx.botListing.update({ where: { id: target.id }, data });
+      else if (board === 'client') await tx.clientListing.update({ where: { id: target.id }, data });
       else await tx.server.update({ where: { id: target.id }, data });
-      await tx.auditLog.create({ data: { actorId: me.id, action: `${onBot ? 'bot' : 'server'}.${serverAction}`, targetType: onBot ? 'bot' : 'server', targetId: target.id, note: n } });
+      await tx.auditLog.create({ data: { actorId: me.id, action: `${board}.${serverAction}`, targetType: board, targetId: target.id, note: n } });
     }
     if (outcome === 'action' && banOwner) {
-      // A ban takes down everything they've listed, on both boards.
+      // A ban takes down everything they've listed, on all three boards.
       await tx.user.update({ where: { id: target.ownerId }, data: { bannedAt: new Date(), banReason: n } });
       await tx.server.updateMany({ where: { ownerId: target.ownerId, status: { in: ['PUBLIC', 'UNLISTED'] } }, data: { status: 'HIDDEN', statusNote: 'Owner banned' } });
       await tx.botListing.updateMany({ where: { ownerId: target.ownerId, status: { in: ['PUBLIC', 'UNLISTED'] } }, data: { status: 'HIDDEN', statusNote: 'Owner banned' } });
+      await tx.clientListing.updateMany({ where: { ownerId: target.ownerId, status: { in: ['PUBLIC', 'UNLISTED'] } }, data: { status: 'HIDDEN', statusNote: 'Owner banned' } });
       await tx.auditLog.create({ data: { actorId: me.id, action: 'user.ban', targetType: 'user', targetId: target.ownerId, note: n } });
     }
     await tx.auditLog.create({ data: { actorId: me.id, action: `report.${outcome}`, targetType: 'report', targetId: reportId, note: n } });
@@ -175,6 +184,7 @@ export async function moderateUser(input: z.input<typeof userSchema>): Promise<R
         ? [
             db.server.updateMany({ where: { ownerId: userId, status: { in: ['PUBLIC', 'UNLISTED'] } }, data: { status: 'HIDDEN', statusNote: 'Owner banned' } }),
             db.botListing.updateMany({ where: { ownerId: userId, status: { in: ['PUBLIC', 'UNLISTED'] } }, data: { status: 'HIDDEN', statusNote: 'Owner banned' } }),
+            db.clientListing.updateMany({ where: { ownerId: userId, status: { in: ['PUBLIC', 'UNLISTED'] } }, data: { status: 'HIDDEN', statusNote: 'Owner banned' } }),
           ]
         : []),
     ]);
@@ -398,6 +408,124 @@ export async function setBotServerCount(input: { botId: string; count: number })
   await log(me.id, 'bot.server_count', 'bot', p.data.botId, String(p.data.count));
   revalidatePath('/', 'layout');
   return done('Server count updated');
+}
+
+/* ---------------- client listings (lib/clients.ts) ---------------- */
+
+const clientSchema = z.object({ clientId: z.string().min(1), action: z.enum(['hide', 'remove', 'restore']), note });
+
+export async function moderateClient(input: z.input<typeof clientSchema>): Promise<Result> {
+  const me = await staff();
+  const p = clientSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { clientId, action, note: n } = p.data;
+  const status = action === 'hide' ? 'HIDDEN' : action === 'remove' ? 'REMOVED' : 'PUBLIC';
+  const r = await db.clientListing.updateMany({ where: { id: clientId }, data: { status, statusNote: action === 'restore' ? null : n } });
+  if (!r.count) return { ok: false, error: 'Client not found' };
+  await log(me.id, `client.${action}`, 'client', clientId, n);
+  revalidatePath('/', 'layout');
+  return done(action === 'restore' ? 'Client restored' : action === 'hide' ? 'Client hidden' : 'Client removed');
+}
+
+const clientReviewSchema = z.object({ clientId: z.string().min(1), action: z.enum(['approve', 'deny']), note });
+
+/**
+ * The client review queue (/portal/clients?status=PENDING). Same shape as the bot queue, and the same promise
+ * to the lister: a denial asks for changes, and saving an edit puts it back in the queue.
+ *
+ * It matters more here than anywhere else on the site. A client listing points people at an executable, so
+ * approving one is a staff member saying they looked at where that file comes from. Everything needed to do
+ * that — the repo, the release, every download URL — is on the row in front of them.
+ */
+export async function reviewClient(input: z.input<typeof clientReviewSchema>): Promise<Result> {
+  const me = await staff();
+  const p = clientReviewSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { clientId, action, note: n } = p.data;
+  if (action === 'deny' && !n) return { ok: false, error: 'Say why, so the lister can fix it' };
+
+  const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { status: true, requestedUnlisted: true, name: true, slug: true, ownerId: true } });
+  if (!client) return { ok: false, error: 'Client not found' };
+  // Two staff opening the queue at once shouldn't be able to decide the same listing twice.
+  if (client.status !== 'PENDING') return { ok: false, error: `${client.name} isn’t waiting for review any more` };
+
+  const status = action === 'approve' ? approvedClientStatus(client.requestedUnlisted) : 'DENIED';
+  const r = await db.clientListing.updateMany({
+    where: { id: clientId, status: 'PENDING' },
+    data: { status, statusNote: action === 'deny' ? n : null, reviewedAt: new Date(), reviewedById: me.id },
+  });
+  if (!r.count) return { ok: false, error: 'Someone else just reviewed it' };
+  await log(me.id, `client.${action}`, 'client', clientId, n);
+
+  // Tell the lister, through the bot, the same way bot listing decisions go out (src/lib/bot-dms.ts).
+  await queueBotDm(
+    action === 'approve'
+      ? {
+          userId: client.ownerId,
+          kind: 'client.approved',
+          title: `${client.name} is on YapBoard`,
+          body:
+            status === 'UNLISTED'
+              ? 'Staff approved your client listing. You asked for it to stay unlisted, so it won’t show on the client board — anyone with the link can still see it, and you can make it public whenever you like.'
+              : 'Staff approved your client listing, so it’s live on the client board now. Bump it from its manage page every couple of hours to stay near the top, and publish a release whenever you like — the download buttons and changelog keep themselves up to date.',
+          linkUrl: `${env.siteUrl}/clients/${client.slug}`,
+          linkLabel: 'View listing',
+        }
+      : {
+          userId: client.ownerId,
+          kind: 'client.denied',
+          title: `${client.name} needs changes`,
+          body: `Staff looked at your client listing and asked for changes:
+
+> ${n}
+
+Fix that on the manage page and save — saving sends it straight back for review.`,
+          linkUrl: `${env.siteUrl}/clients/${client.slug}/manage`,
+          linkLabel: 'Manage listing',
+        },
+  );
+  revalidatePath('/', 'layout');
+  return done(action === 'approve' ? (status === 'UNLISTED' ? 'Approved, and left unlisted as asked' : 'Approved and live') : 'Denied, and the lister can fix it');
+}
+
+const clientBadgeSchema = z.object({ clientId: z.string().min(1), badge: z.string().refine(isBadge, 'Unknown badge'), on: z.boolean() });
+
+/** Add or take away one badge on a client. The same badges the other two boards get (src/lib/badges.ts). */
+export async function toggleClientBadge(input: z.input<typeof clientBadgeSchema>): Promise<Result> {
+  const me = await staff();
+  const p = clientBadgeSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { clientId, badge, on } = p.data;
+  if (!(await db.clientListing.findUnique({ where: { id: clientId }, select: { id: true } }))) return { ok: false, error: 'Client not found' };
+  if (on) {
+    await db.clientBadge.upsert({ where: { clientId_kind: { clientId, kind: badge } }, create: { clientId, kind: badge, grantedById: me.id }, update: {} });
+  } else {
+    await db.clientBadge.deleteMany({ where: { clientId, kind: badge } });
+  }
+  await log(me.id, on ? 'client.badge_add' : 'client.badge_remove', 'client', clientId, BADGES[badge].label);
+  revalidatePath('/', 'layout');
+  return done(on ? `${BADGES[badge].label} added` : `${BADGES[badge].label} removed`);
+}
+
+/** Takes every badge off a client at once. */
+export async function clearClientBadges(clientId: string): Promise<Result> {
+  const me = await staff();
+  if (typeof clientId !== 'string' || !clientId) return { ok: false, error: 'Bad input' };
+  const r = await db.clientBadge.deleteMany({ where: { clientId } });
+  if (!r.count) return { ok: false, error: 'It has no badges' };
+  await log(me.id, 'client.badges_clear', 'client', clientId, `${r.count} removed`);
+  revalidatePath('/', 'layout');
+  return done(r.count === 1 ? 'Badge removed' : `${r.count} badges removed`);
+}
+
+/** Re-read the repo's latest release now, so a reviewer sees what's actually being handed out today. */
+export async function syncClient(clientId: string): Promise<Result> {
+  await staff();
+  if (typeof clientId !== 'string' || !clientId) return { ok: false, error: 'Bad input' };
+  const r = await syncClientRelease(clientId);
+  if (!r.ok) return { ok: false, error: RELEASE_ERRORS[r.reason] ?? 'Couldn’t read that release.' };
+  revalidatePath('/', 'layout');
+  return done(`${r.version ?? 'Latest release'} · ${r.files} file${r.files === 1 ? '' : 's'}`);
 }
 
 /* ---------------- announcements (lib/announcements.ts) ---------------- */

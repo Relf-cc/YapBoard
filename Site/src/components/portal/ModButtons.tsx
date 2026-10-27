@@ -3,7 +3,7 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { useTransition } from 'react';
-import { moderateBot, moderateServer, moderateUser, reviewBot, setBotServerCount, setRole } from '@/app/portal/actions';
+import { moderateBot, moderateClient, moderateServer, moderateUser, reviewBot, reviewClient, setBotServerCount, setRole, syncClient } from '@/app/portal/actions';
 import { Dropdown } from '../Dropdown';
 
 const ROLES = [
@@ -99,6 +99,79 @@ export function BotModButtons({ botId, status, serverCount }: { botId: string; s
         }}
       >
         Servers
+      </button>
+      {status === 'HIDDEN' || status === 'REMOVED' ? (
+        <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => act('restore')}>
+          Restore
+        </button>
+      ) : (
+        <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => act('hide')}>
+          Hide
+        </button>
+      )}
+      {status !== 'REMOVED' && (
+        <button className="btn btn-danger btn-sm" disabled={pending} onClick={() => act('remove')}>
+          Remove
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A client listing's actions. The same three as the other boards, plus Sync — a reviewer's first question is
+ * "what does this actually hand out today?", and the answer is a release read a moment ago, not one read when
+ * the listing was submitted.
+ */
+export function ClientModButtons({ clientId, status }: { clientId: string; status: string }) {
+  const [pending, start] = useTransition();
+  const act = (action: 'hide' | 'remove' | 'restore') => {
+    const note = action === 'restore' ? '' : ask(action === 'hide' ? 'Why hide it? (the lister sees this)' : 'Why remove it? (the lister sees this)');
+    if (note === null) return;
+    start(async () => {
+      const r = await moderateClient({ clientId, action, note });
+      if (!r.ok) alert(r.error);
+    });
+  };
+  const review = (action: 'approve' | 'deny') => {
+    const note = action === 'approve' ? '' : ask('What needs fixing? (the lister sees this, and can edit and resubmit)');
+    if (note === null) return;
+    if (action === 'deny' && !note) return alert('Say why, so the lister can fix it');
+    start(async () => {
+      const r = await reviewClient({ clientId, action, note });
+      if (!r.ok) alert(r.error);
+    });
+  };
+
+  if (status === 'PENDING') {
+    return (
+      <div className="inline-flex gap-1.5">
+        <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => start(async () => void (await syncClient(clientId)))}>
+          Sync
+        </button>
+        <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => review('approve')}>
+          Approve
+        </button>
+        <button className="btn btn-danger btn-sm" disabled={pending} onClick={() => review('deny')}>
+          Deny
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex gap-1.5">
+      <button
+        className="btn btn-ghost btn-sm"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const r = await syncClient(clientId);
+            if (!r.ok) alert(r.error);
+          })
+        }
+      >
+        Sync
       </button>
       {status === 'HIDDEN' || status === 'REMOVED' ? (
         <button className="btn btn-secondary btn-sm" disabled={pending} onClick={() => act('restore')}>

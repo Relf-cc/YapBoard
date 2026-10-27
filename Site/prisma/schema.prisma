@@ -33,6 +33,8 @@ model User {
   sessions          Session[]
   bots              BotListing[]
   botBumps          BotBump[]
+  clients           ClientListing[]
+  clientBumps       ClientBump[]
   announcements     Announcement[]
   announcementsSeen AnnouncementSeen[]
   broadcasts        Broadcast[]
@@ -120,6 +122,7 @@ model Tag {
   name    String      @unique
   servers ServerTag[]
   bots    BotTag[]
+  clients ClientTag[]
 }
 
 model ServerTag {
@@ -180,11 +183,13 @@ model Report {
   reason      String
   details     String
   contact     String?
-  /// Exactly one of serverId / botId is set (src/lib/reports.ts).
+  /// Exactly one of serverId / botId / clientId is set (src/lib/reports.ts).
   serverId    String?
   server      Server?     @relation(fields: [serverId], references: [id], onDelete: Cascade)
   botId       String?
   bot         BotListing? @relation(fields: [botId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      ClientListing? @relation(fields: [clientId], references: [id], onDelete: Cascade)
   reporterId  String?
   reporter    User?       @relation("reporter", fields: [reporterId], references: [id])
   /// OPEN | ACTIONED | DISMISSED
@@ -198,6 +203,7 @@ model Report {
   @@index([status, kind, createdAt])
   @@index([serverId])
   @@index([botId])
+  @@index([clientId])
 }
 
 model AuditLog {
@@ -312,7 +318,7 @@ model BotDm {
   id        Int       @id @default(autoincrement())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// bot.approved | bot.denied
+  /// bot.approved | bot.denied | client.approved | client.denied
   kind      String
   title     String
   body      String
@@ -418,4 +424,147 @@ model BotBump {
   user      User       @relation(fields: [userId], references: [id])
 
   @@index([botId, createdAt])
+}
+
+/**
+ * ---------------- Client listings (src/lib/clients.ts) ----------------
+ */
+
+/// A listed client: somebody's own build of Yapin', shipped as its own executable rather than a bot or a server.
+/// Nothing about it lives on Yapin', so unlike a server or a bot there is no id to key it on — it gets a cuid and
+/// a slug for its URL. Everything else (review queue, badges, tags, bumps, reports) works the way bots do.
+model ClientListing {
+  id          String  @id @default(cuid())
+  /// The URL: /clients/<slug>. Made from the name on create, and kept when the name changes so links survive.
+  slug        String  @unique
+  name        String
+  iconUrl     String?
+  bannerUrl   String?
+  /// One line shown on cards (max 140)
+  summary     String
+  /// Full description shown on /clients/<slug> (max 4000)
+  description String
+  /// Up to 6 https screenshots, as a JSON array of strings (SQLite has no array type).
+  screenshots String?
+  /// Which platforms the lister says it targets, as a JSON array of PLATFORM keys. Cards read this.
+  platforms   String?
+  website     String?
+  /// Where the code is, when it isn't the GitHub repo below (a mirror, a GitLab page).
+  sourceUrl   String?
+  /// What it's built on, free text (e.g. "Electron", "Tauri")
+  framework   String?
+  language    String  @default("en")
+  nsfw        Boolean @default(false)
+  accent      String  @default("#ff6b4a")
+  /// Hero backdrop on the listing page: GLOW | GRID | WAVE | FLAT (src/lib/clients.ts THEMES)
+  theme       String  @default("GLOW")
+
+  /// GITHUB (downloads come from releases/latest) | MANUAL (the lister keeps the links themselves)
+  releaseSource String @default("GITHUB")
+  /// "owner/repo" when releaseSource is GITHUB. Releases are read from it; nothing is ever written back.
+  repo          String?
+  /// The tag of the release currently shown, e.g. "v1.4.2".
+  version       String?
+  /// The release's own title, when it has one that isn't just the tag.
+  releaseName   String?
+  /// The release notes, shown as the changelog. Markdown-ish, rendered as plain text with links.
+  changelog     String?
+  releaseUrl    String?
+  releasedAt    DateTime?
+  /// When the release was last read from GitHub, and what went wrong if it couldn't be.
+  releaseSyncedAt DateTime?
+  releaseError    String?
+
+  /// PENDING | PUBLIC | UNLISTED | DENIED | HIDDEN | REMOVED. New listings wait for staff, like bots.
+  status            String    @default("PENDING")
+  statusNote        String?
+  requestedUnlisted Boolean   @default(false)
+  reviewedAt        DateTime?
+  reviewedById      String?
+  /// When the lister accepted the YapBoard client terms and Yapin's terms in the dialog before submitting.
+  termsAgreedAt     DateTime?
+
+  views     Int       @default(0)
+  /// Clicks on a download button, across every file.
+  downloads Int       @default(0)
+  bumpCount Int       @default(0)
+  bumpedAt  DateTime?
+
+  /// The client's support or community server, as a Yapin' server id the lister runs.
+  supportServerId String?
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tags    ClientTag[]
+  badges  ClientBadge[]
+  bumps   ClientBump[]
+  files   ClientDownload[]
+  reports Report[]
+
+  @@index([status, bumpedAt])
+  @@index([status, downloads])
+  /// The review queue: oldest PENDING first.
+  @@index([status, createdAt])
+  @@index([ownerId])
+}
+
+/// One file people can download for a client. Either read from a GitHub release or typed in by the lister.
+model ClientDownload {
+  id       Int           @id @default(autoincrement())
+  clientId String
+  client   ClientListing @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// windows | mac | linux | android | ios | web | other (src/lib/platforms.ts)
+  platform String
+  /// The file's extension as a label: exe, dmg, deb, AppImage… Blank for a plain link.
+  kind     String        @default("")
+  /// x64 | arm64 | x86 | universal | '' when the name doesn't say
+  arch     String        @default("")
+  /// What the button says, e.g. "YapinPlus-1.4.2-x64.exe"
+  label    String
+  url      String
+  /// Bytes, when the release says. Null for links the lister typed in.
+  size     Int?
+  /// True: this row came from the GitHub release and is replaced on every sync. False: the lister owns it.
+  managed  Boolean       @default(true)
+  /// Manual rows sort by this, then by label.
+  position Int           @default(0)
+  /// Clicks on this file's button.
+  clicks   Int           @default(0)
+
+  @@index([clientId, platform])
+}
+
+/// Same badges as servers and bots (src/lib/badges.ts), granted on a client.
+model ClientBadge {
+  clientId    String
+  kind        String
+  grantedAt   DateTime      @default(now())
+  grantedById String?
+  client      ClientListing @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, kind])
+  @@index([kind])
+}
+
+model ClientTag {
+  clientId String
+  tagId    Int
+  client   ClientListing @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tag      Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, tagId])
+  @@index([tagId])
+}
+
+model ClientBump {
+  id        Int           @id @default(autoincrement())
+  clientId  String
+  userId    String
+  createdAt DateTime      @default(now())
+  client    ClientListing @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@index([clientId, createdAt])
 }
