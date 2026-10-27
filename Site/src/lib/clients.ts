@@ -190,14 +190,32 @@ export async function setClientTags(tx: Prisma.TransactionClient, clientId: stri
   }
 }
 
-/** Replace the links the lister keeps. Rows synced from GitHub are left alone — those belong to the release. */
+/**
+ * Replace the links the lister keeps. Rows synced from GitHub are left alone — those belong to the release.
+ *
+ * Matched to what's already there by URL rather than wiped and rebuilt, so renaming a button or reordering the
+ * list doesn't reset its click count. The same rule the release sync follows.
+ */
 export async function setManualFiles(tx: Prisma.TransactionClient, clientId: string, files: ManualFile[]) {
-  await tx.clientDownload.deleteMany({ where: { clientId, managed: false } });
+  const existing = await tx.clientDownload.findMany({ where: { clientId, managed: false }, select: { id: true, url: true } });
+  const byUrl = new Map(existing.map((e) => [e.url, e.id]));
+  const kept = new Set<number>();
+
   for (const [i, f] of files.entries()) {
-    await tx.clientDownload.create({
-      data: { clientId, platform: f.platform, kind: f.kind || '', arch: '', label: f.label, url: f.url, managed: false, position: i },
-    });
+    const data = { platform: f.platform, kind: f.kind || '', arch: '', label: f.label, url: f.url, managed: false, position: i };
+    const id = byUrl.get(f.url);
+    if (id !== undefined && !kept.has(id)) {
+      await tx.clientDownload.update({ where: { id }, data });
+      kept.add(id);
+    } else {
+      // A URL listed twice gets a second row rather than silently overwriting the first.
+      const row = await tx.clientDownload.create({ data: { ...data, clientId } });
+      kept.add(row.id);
+    }
   }
+
+  const gone = existing.filter((e) => !kept.has(e.id)).map((e) => e.id);
+  if (gone.length) await tx.clientDownload.deleteMany({ where: { id: { in: gone } } });
 }
 
 /* ---------------- releases ---------------- */

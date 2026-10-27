@@ -55,7 +55,8 @@ const BY_EXTENSION: [string, Platform][] = [
 /** Archives and loose files: the extension says nothing, so the rest of the name has to. */
 const BY_WORD: [RegExp, Platform][] = [
   [/\b(win(dows)?(32|64)?|w(in)?64|w(in)?32)\b/, 'windows'],
-  [/\b(mac(os)?|osx|darwin|apple|silicon)\b/, 'mac'],
+  // "mas" is the Mac App Store build, which Electron-based projects publish alongside the plain darwin one.
+  [/\b(mac(os)?|osx|darwin|apple|silicon|mas)\b/, 'mac'],
   [/\b(linux|ubuntu|debian|fedora|arch)\b/, 'linux'],
   [/\b(android)\b/, 'android'],
   [/\b(ios|iphone|ipad)\b/, 'ios'],
@@ -102,12 +103,30 @@ export function classifyAsset(name: string): Classified {
 }
 
 /**
- * Release files nobody wants to click: checksums, signatures, update manifests and source archives GitHub adds
- * to every release. They're left out of the download list rather than deleted, so the release page still has them.
+ * Release files nobody wants to click.
+ *
+ * Two kinds. Checksums, signatures and update manifests, which every release tool adds; and the debug side of a
+ * build — symbol bundles, PDBs, dSYMs, source maps and type definitions — which a project shipping proper
+ * installers also publishes, and which would otherwise outnumber them three to one on the page. The test is the
+ * name alone, so it stays a general rule rather than a list of particular projects.
+ *
+ * Nothing is deleted: the release page still has all of it, and it's a link away from every client's page.
  */
-const NOISE = /(\.(sha\d*|sha\d*sums?|md5|sig|asc|pem|blockmap|sbom|json|yml|yaml|txt|nupkg)$)|^(latest|release|checksums|sha256sums)/i;
+const NOISE_EXTENSION = /\.(sha\d*|sha\d*sums?|md5|sig|asc|pem|blockmap|sbom|json|yml|yaml|txt|nupkg|map|d\.ts)$/i;
+const NOISE_NAME = /^(latest|release|checksums|sha256sums)/i;
+/**
+ * Debug and build artefacts, by the words projects conventionally mark them with. Only counted at the end of
+ * the name, where a build tool puts them ("app-win32-x64-symbols.zip"), so a product that happens to be called
+ * something like "Symbols Pack Installer" isn't thrown away.
+ */
+const NOISE_ARTEFACT = /[-_.](dsym|dsyms|pdb|symbols|debug|debuginfo|sourcemap|sources|toolchain-profile)([-_.]snapshot)?$/i;
 
-export const isNoise = (name: string) => NOISE.test(name.toLowerCase().trim());
+export const isNoise = (name: string) => {
+  const n = name.toLowerCase().trim();
+  // Strip the extension before looking for artefact words, so "…-symbols.zip" is caught but "symbols.exe" isn't.
+  const stem = n.replace(/(\.tar)?\.[a-z0-9]{1,13}$/, '');
+  return NOISE_EXTENSION.test(n) || NOISE_NAME.test(n) || NOISE_ARTEFACT.test(stem);
+};
 
 /** "148.2 MB". Release sizes are in bytes and always whole files, so no need for bits or decimals under a MB. */
 export function fileSize(bytes: number | null | undefined): string {
