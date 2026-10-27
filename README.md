@@ -26,7 +26,8 @@ write a draft; only admins can send. Sending writes one row per server and the b
 bot kicked) are recorded per server and shown as progress in the portal.
 
 **Bot listings** (`/portal/bots`, `Site/src/lib/bots.ts`). People list the bots they run at `/bots/add`, or run
-`/addbot @TheBot` in its support server to get there with the IDs filled in. The lister has to own or admin that
+`/addbot <bot id>` in its support server to get there with the IDs filled in (an @mention can’t work: on Yapin’ a
+mention in a command picks which bot the command is sent to). The lister has to own or admin that
 support server, and the bot has to be in it — both checked with Yapin' — which is as close to proving the bot is
 theirs as Yapin's API allows; that link is also what puts a "support server" card on the bot's page.
 

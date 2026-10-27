@@ -15,6 +15,10 @@ export const metadata: Metadata = {
 /** The things people get stuck on, in the order they hit them. Each one quotes the message the site actually shows. */
 const PROBLEMS: [string, string][] = [
   [
+    'I @’d my bot and nothing happened',
+    'On Yapin’, mentioning a bot in a command picks which bot the command goes to, so /addbot @YourBot was sent to your bot instead of to YapBoard. Use the bot’s ID: /addbot 2b81f05c…',
+  ],
+  [
     '“That bot isn’t in your support server”',
     'Add the bot to the server first. A support server has to be somewhere the bot actually is — that’s part of how we know it’s yours.',
   ],
@@ -86,15 +90,20 @@ export default function BotHelp() {
 
         <Step n={2} icon={<MessageSquare size={18} />} title="Run /addbot in that server" delay={0.12}>
           <p>
-            Type <code className="font-mono text-ink-2">/addbot @YourBot</code> and mention your bot. YapBoard replies with a link to the form that already has both
-            IDs filled in, so there’s nothing to copy by hand.
+            Type <code className="font-mono text-ink-2">/addbot</code> followed by your bot’s ID — the same one you paste into{' '}
+            <b className="text-ink-2">Server settings → Bots</b>. YapBoard replies with a link to the form that already has both IDs filled in, so there’s nothing
+            left to copy by hand.
+          </p>
+          <p className="mt-3 rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-warn">
+            <b>Don’t @ the bot.</b> On Yapin’, mentioning a bot in a command is how you pick which bot the command goes to — so{' '}
+            <code className="font-mono">/addbot @YourBot</code> gets sent to your bot, not to YapBoard, and never reaches us.
           </p>
           <p className="mt-3 text-ink-3">
             Rather do it yourself? Go straight to{' '}
             <Link href="/bots/add" className="text-accent font-semibold hover:underline">
               /bots/add
             </Link>{' '}
-            and paste the IDs. Running <code className="font-mono text-ink-2">/info</code> in the server shows you its ID.
+            and paste both IDs. Running <code className="font-mono text-ink-2">/info</code> in the server shows you its ID.
           </p>
         </Step>
 

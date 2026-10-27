@@ -5,42 +5,83 @@ import { answer, card, fileUrl, serverIdOf, siteLink } from '../lib/ui.js';
 
 /** Yapin' IDs are letters, numbers, - and _ — the same set the site's add pages accept. */
 const ID = '[A-Za-z0-9_-]{1,64}';
-/** The composer sends a mention as <@id>; some clients add the ! form. */
+/** Mentions reach us as <@id> in the content; some clients add the ! form. */
 const MENTION = new RegExp(`<@!?(${ID})>`);
 const BARE = new RegExp(`^${ID}$`);
 
+/**
+ * Why this takes an ID and not a mention.
+ *
+ * On Yapin' a mention in a command picks which bot the command is for: "/addbot @YourBot" is routed to YourBot,
+ * which has no such command, and we are handed the message with `command_for` set to it and no `command` at all.
+ * Mentioning YapBoard instead routes it to us, but the mention is eaten by the picker, so `args` arrives empty.
+ * Either way the mention never reaches us as an argument, so the bot is named by its ID.
+ */
 const usage = () =>
   card({
     title: 'Which bot?',
     description: [
-      'Mention the bot you want to list, in its support server:',
+      'Paste the bot’s ID, in the server that supports it:',
       '',
-      '**`/addbot @YourBot`**',
+      '**`/addbot 2b81f05c…`**',
       '',
-      'That fills in the bot’s ID and this server’s ID for you, so the form opens ready to finish. If the mention',
-      'doesn’t work in your client, paste the ID instead: `/addbot 2b81f05c…`',
+      'That’s the same ID you paste into **Server settings → Bots → Have a bot ID?** to add the bot to a server.',
+      '',
+      '**Don’t @ the bot.** On Yapin’ a mention picks which bot a command is for, so `/addbot @YourBot` gets sent ' +
+        'to your bot instead of to me, and I never see it.',
     ].join('\n'),
     tone: 'muted',
   });
 
-/** Shown with the usage card: the walkthrough covers the bits a card can't. */
+/** They @'d YapBoard: the command reached us, but Yapin' ate the mention, so there's nothing to list. */
+const mentionedMe = () =>
+  card({
+    title: 'Paste the ID instead',
+    description: [
+      'Mentioning me picked me as the bot to send the command to — it doesn’t tell me which bot you want to list, ' +
+        'and Yapin’ strips the mention before I see it.',
+      '',
+      'Send the bot’s ID instead: **`/addbot 2b81f05c…`**',
+      '',
+      'It’s the ID you paste into **Server settings → Bots → Have a bot ID?**',
+    ].join('\n'),
+    tone: 'muted',
+  });
+
+/** They @'d their own bot, so Yapin' sent the command there and we only see the plain message. */
+const wentElsewhere = () =>
+  card({
+    title: 'That went to your bot, not to me',
+    description: [
+      'On Yapin’ a mention picks which bot a command is for, so `/addbot @YourBot` was sent to your bot, which ' +
+        'doesn’t have the command.',
+      '',
+      'Name it by ID instead: **`/addbot 2b81f05c…`**',
+      '',
+      'It’s the ID you paste into **Server settings → Bots → Have a bot ID?**',
+    ].join('\n'),
+    tone: 'muted',
+  });
+
+/** Shown with the usage cards: the walkthrough covers the bits a card can't. */
 const HELP_LINK = ['How listing works', siteLink('/bots/help')];
 
-/** /addbot: turns a mention into a part-filled bot listing. */
+/** /addbot: turns a bot's ID into a part-filled listing, with the server it was run in as the support server. */
 export default function setup(bot) {
-  bot.command('addbot', 'List a bot you run: /addbot @YourBot', async (msg) => {
+  bot.command('addbot', 'List a bot you run: /addbot <bot id>', async (msg) => {
     const serverId = await serverIdOf(bot, msg);
     if (!serverId) {
       return answer(msg, card({ description: 'Run `/addbot` in the bot’s support server, not in DMs — the server is half of what gets filled in.', tone: 'muted' }));
     }
 
-    const mention = MENTION.exec(msg.args || '');
     const first = (msg.argv[0] || '').trim();
-    const botId = mention ? mention[1] : BARE.test(first) ? first : null;
-    if (!botId) return answer(msg, usage(), HELP_LINK);
+    // `args` is the usual source; the content is checked too, since the picker mention only ever shows up there.
+    const mention = MENTION.exec(msg.args || '') || MENTION.exec(msg.content || '');
+    const botId = BARE.test(first) ? first : mention ? mention[1] : null;
+    if (!botId) return answer(msg, mention ? mentionedMe() : usage(), HELP_LINK);
 
     if (bot.me?.id && String(botId) === String(bot.me.id)) {
-      return answer(msg, card({ title: 'That’s me', description: 'Mention the bot you want to list, not YapBoard.', tone: 'muted' }), ['Browse bots', siteLink('/bots')]);
+      return answer(msg, mentionedMe(), HELP_LINK);
     }
 
     /**
@@ -61,7 +102,7 @@ export default function setup(bot) {
 
     const target = await bot.user(botId).catch(() => null);
     if (!target) {
-      return answer(msg, card({ title: 'No such account', description: `Yapin’ doesn’t know anyone with the ID \`${botId}\`. Mention the bot instead: \`/addbot @YourBot\`.`, tone: 'error' }));
+      return answer(msg, card({ title: 'No such account', description: `Yapin’ doesn’t know anyone with the ID \`${botId}\`. Copy the bot’s own ID, not the server’s.`, tone: 'error' }), HELP_LINK);
     }
 
     const name = target.display_name || target.username || 'your bot';
@@ -94,5 +135,15 @@ export default function setup(bot) {
         .field('Support server', `\`${serverId}\``, true),
       ['Finish the listing', url],
     );
+  });
+
+  /**
+   * "/addbot @TheirBot" is routed to their bot, so our command never runs — but the message still reaches us.
+   * Without this it looks like YapBoard simply ignored them.
+   */
+  bot.on('message', (msg) => {
+    if (msg.command) return;
+    if (!/^\s*[/!]addbot\b/i.test(msg.content || '')) return;
+    answer(msg, wentElsewhere(), HELP_LINK);
   });
 }
