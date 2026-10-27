@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { Metadata } from 'next';
 import { ProseLink as A, ProsePage } from '@/components/Prose';
 import { LEGAL } from '@/lib/legal';
@@ -166,7 +168,7 @@ export default function Terms() {
           h: 'What belongs to us',
           p: [
             'The YapBoard name, logo and brand belong to us. You may not use them in a way that suggests we endorse you or that you are YapBoard.',
-            'YapBoard’s source code is published under the Apache License 2.0, and that licence governs your use of the code. These terms govern your use of the YapBoard service we run. The Apache licence doesn’t grant any right to the YapBoard name or logo.',
+            'YapBoard’s source code, design and assets are proprietary and all rights are reserved. You may read the code where we publish it, but you may not copy, fork, host, modify or redistribute it, or run your own copy of YapBoard, without our written permission. Seeing the code doesn’t give you a licence to it, and it grants no right to the YapBoard name or logo.',
             'Yapin’ and related names and marks belong to their owners. Server names, icons and descriptions belong to whoever listed them.',
             'If you send us ideas or feedback, we can use them freely, without paying you or owing you anything.',
           ],

@@ -1,4 +1,6 @@
 'use client';
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { useEffect, useId, useRef } from 'react';
 import { motion } from 'motion/react';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { config } from './config.js';

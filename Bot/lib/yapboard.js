@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import { config } from './config.js';
 
 /** Calls the site's /api/internal/* routes with the shared secret. Throws on network errors and non-2xx. */

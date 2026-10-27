@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { CSSProperties } from 'react';
 import { hueFor, initials } from '@/lib/format';
 import clsx from 'clsx';

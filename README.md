@@ -2,6 +2,8 @@
 
 A server list for [Yapin'](https://www.yapin.gg), like Disboard.
 
+> **Proprietary — all rights reserved.** Readable source, not open source. No copying, forking or self-hosting without written permission. See [Copyright and licence](#copyright-and-licence).
+
 - `Site/`: Next.js app: yapboard.dev (public site), portal.yapboard.dev (staff portal) and api.yapboard.dev (API)
 - `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
 
@@ -116,3 +118,17 @@ docker compose logs -f bot   # first run: copy the bot ID into NEXT_PUBLIC_BOT_I
 - Runs as one instance: rate limits are in memory. SQLite is fine at that size. To switch to Postgres, change the
   provider in `prisma/schema.prisma` and add `mode: 'insensitive'` to the `contains` searches (`src/lib/search.ts`,
   portal pages). Postgres matches case, SQLite doesn't, so search would quietly get worse otherwise
+
+## Copyright and licence
+
+Copyright © 2026 Christian Relf. All rights reserved.
+
+YapBoard is **proprietary software, not open source**. The source is published here to be read, not reused.
+You may read it and quote short excerpts with attribution. You may **not** copy, fork, mirror, host, deploy,
+modify, rebrand or redistribute it, or run your own instance of YapBoard, without written permission — see
+[LICENSE](LICENSE) for the full terms. The YapBoard name, logo and visual design are reserved and are not
+licensed under any circumstances.
+
+Third-party dependencies stay under their own licences, held by their own authors.
+
+Licence enquiries: support@yapboard.dev

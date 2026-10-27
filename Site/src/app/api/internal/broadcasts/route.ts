@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { NextRequest } from 'next/server';
 import { claimBatch, recordResults, resultSchema } from '@/lib/broadcasts';
 import { fail, isInternal, json, readJson } from '@/lib/http';

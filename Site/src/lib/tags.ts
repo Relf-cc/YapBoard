@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 export const MAX_TAGS = 5;
 export const MAX_TAG_LEN = 24;
 

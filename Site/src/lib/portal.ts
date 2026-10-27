@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import 'server-only';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';

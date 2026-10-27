@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { CSSProperties, ReactNode } from 'react';
 import { ServerCard } from './ServerCard';
 import { ProCard } from './browse/ProCard';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { Metadata } from 'next';
 import { ProseLink as A, ProsePage } from '@/components/Prose';
 import { LEGAL } from '@/lib/legal';

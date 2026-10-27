@@ -1,4 +1,6 @@
 'use server';
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';

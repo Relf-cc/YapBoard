@@ -1,4 +1,6 @@
 'use client';
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { useTransition } from 'react';
 import { moderateBot, moderateServer, moderateUser, setBotServerCount, setRole } from '@/app/portal/actions';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import Link from 'next/link';
 import { ChevronsUp } from 'lucide-react';
 import { Avatar } from '../Avatar';

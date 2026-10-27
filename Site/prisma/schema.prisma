@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 // SQLite keeps dev zero-setup. For production switch the provider to "postgresql";
 // the schema only uses types both support (status fields are plain strings for that reason).
 generator client {

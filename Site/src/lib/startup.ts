@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 // No 'server-only' here (or env.ts, which has it): this runs from instrumentation.ts at server start.
 import { db } from './db';
 

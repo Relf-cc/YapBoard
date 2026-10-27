@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import { PrismaClient } from '@prisma/client';
 
 const g = globalThis as unknown as { prisma?: PrismaClient };

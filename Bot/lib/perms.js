@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /**
  * Is this person the server's owner or an admin (a role with Manage Server, or an admin flag in `perms`)?
  * Same rule as the site's checkManager (Site/src/lib/yapin.ts). Only an explicit `true` counts, and anything that

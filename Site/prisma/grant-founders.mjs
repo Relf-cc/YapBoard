@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /**
  * One-off: gives the FOUNDER badge to the first 25 servers that were listed.
  *

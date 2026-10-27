@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /**
  * Facts the Terms, Privacy and Guidelines pages all quote, so they can't drift apart.
  * Placeholder values: fill these in and have someone qualified review the pages before launch.

@@ -1,4 +1,6 @@
 'use client';
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition } from 'react';

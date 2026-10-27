@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { NextConfig } from 'next';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -48,6 +50,8 @@ const nextConfig: NextConfig = {
   // Self-contained server in .next/standalone for the Docker image (see Dockerfile).
   output: 'standalone',
   poweredByHeader: false,
+  // No client source maps in production: they would ship readable copies of all of src/.
+  productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'files.yapper.website' },

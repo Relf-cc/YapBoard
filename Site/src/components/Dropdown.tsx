@@ -1,4 +1,6 @@
 'use client';
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import Link from 'next/link';
 import { Logo } from './Logo';
 import { BugReportButton } from './BugReport';
@@ -36,7 +38,10 @@ export function Footer() {
           </div>
         ))}
       </div>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-10 text-xs text-ink-3">YapBoard is a community project and isn’t run by Yapin’.</div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-10 text-xs text-ink-3 space-y-1">
+        <p>© {new Date().getFullYear()} Christian Relf. All rights reserved. YapBoard and its source code, design and assets are proprietary.</p>
+        <p>YapBoard is an independent project and isn’t run by Yapin’.</p>
+      </div>
       <div aria-hidden className="overflow-hidden select-none pointer-events-none">
         <p className="text-center font-display font-extrabold leading-[0.8] tracking-[-0.05em] whitespace-nowrap text-[21vw] translate-y-[12%] bg-gradient-to-b from-ink/[0.09] to-ink/[0.015] bg-clip-text text-transparent">
           YapBoard

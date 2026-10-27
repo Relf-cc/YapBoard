@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /**
  * Staff-granted badges. Every badge is the same scalloped, glistening seal (src/components/Badge.tsx) and
  * differs only by colour and icon, so adding one is a single entry here — nothing else needs to change.

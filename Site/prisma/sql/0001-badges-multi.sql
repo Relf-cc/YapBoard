@@ -1,3 +1,5 @@
+-- Copyright (c) 2026 Christian Relf. All rights reserved.
+-- Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 -- Moves the old one-badge-per-server `Server.badge` column into the ServerBadge table.
 --
 -- Run this against the live database BEFORE deploying the image that has the new schema. The container

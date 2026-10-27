@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import { announcementsFor } from '@/lib/announcements';
 import { getUser } from '@/lib/session';
 import { Announcements } from '@/components/Announcements';

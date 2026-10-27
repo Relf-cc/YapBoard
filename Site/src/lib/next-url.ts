@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /** Only same-site paths (or the portal) are allowed after login, so ?next= can't be an open redirect. */
 export function safeNext(next: string | null | undefined, portalUrl?: string): string {
   if (!next) return '/';

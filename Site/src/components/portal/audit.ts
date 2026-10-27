@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 const LABELS: Record<string, string> = {
   'report.dismiss': 'dismissed report',
   'report.action': 'actioned report',

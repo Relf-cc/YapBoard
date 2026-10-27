@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 export function PageHead({ title, sub, children }: { title: string; sub?: string; children?: React.ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 // Demo data for local dev: `npm run db:seed` (or `npm run db:reset` to start clean).
 import { PrismaClient } from '@prisma/client';
 

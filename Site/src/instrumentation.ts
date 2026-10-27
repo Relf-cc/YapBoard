@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /** Runs once when the server starts, before it takes requests. */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;

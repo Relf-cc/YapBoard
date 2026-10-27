@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import { NextResponse, type NextRequest } from 'next/server';
 
 const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(base + '/');

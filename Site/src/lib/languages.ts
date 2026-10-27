@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 export const LANGUAGES: Record<string, string> = {
   en: 'English', es: 'Español', fr: 'Français', de: 'Deutsch', pt: 'Português', it: 'Italiano',
   nl: 'Nederlands', pl: 'Polski', tr: 'Türkçe', ru: 'Русский', uk: 'Українська', ar: 'العربية',

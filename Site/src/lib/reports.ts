@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /** Shared by the report dialog, the API and the staff portal. */
 export const ABUSE_REASONS = {
   spam: 'Spam or fake listing',

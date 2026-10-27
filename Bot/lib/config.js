@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import { fileURLToPath } from 'node:url';
 
 // Bot/.env if there is one; real environment variables win (Yapin's bot hosting passes the token that way).

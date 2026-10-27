@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 export function compact(n: number): string {
   if (n < 1000) return String(n);
   if (n < 10_000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import * as yapboard from '../lib/yapboard.js';
 import { card, links, siteLink } from '../lib/ui.js';
 

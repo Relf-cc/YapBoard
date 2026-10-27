@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Christian Relf. All rights reserved.
+// Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Bot, ShieldCheck } from 'lucide-react';
