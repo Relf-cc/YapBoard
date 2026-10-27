@@ -42,7 +42,10 @@ export default async function PortalLayout({ children }: { children: React.React
         counts={{ abuse, removal }}
         user={{ id: user.id, name: user.displayName || user.username, role: user.role, avatarUrl: user.avatarUrl }}
       />
-      <main className="min-w-0 px-4 sm:px-8 py-8">{children}</main>
+      <main className="min-w-0 px-4 sm:px-8 py-8">
+        {children}
+        <p className="mt-12 text-xs text-ink-3">© {new Date().getFullYear()} Christian Relf. All rights reserved. YapBoard is proprietary and confidential — internal staff tooling, not for sharing outside the team.</p>
+      </main>
     </div>
   );
 }

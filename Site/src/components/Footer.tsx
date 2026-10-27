@@ -39,7 +39,14 @@ export function Footer() {
         ))}
       </div>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-10 text-xs text-ink-3 space-y-1">
-        <p>© {new Date().getFullYear()} Christian Relf. All rights reserved. YapBoard and its source code, design and assets are proprietary.</p>
+        <p>
+          © {new Date().getFullYear()} Christian Relf. All rights reserved. YapBoard™, its name, logo, design and software are
+          proprietary and may not be copied, reproduced or used to run a similar service. See our{' '}
+          <Link href="/terms#ours" className="underline decoration-line hover:text-ink transition-colors">
+            terms
+          </Link>
+          .
+        </p>
         <p>YapBoard is an independent project and isn’t run by Yapin’.</p>
       </div>
       <div aria-hidden className="overflow-hidden select-none pointer-events-none">
