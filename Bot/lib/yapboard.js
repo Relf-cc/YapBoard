@@ -45,6 +45,15 @@ export const listing = (serverId) => call('GET', `/servers/${id(serverId)}`);
 export const syncServer = (serverId, data) => call('PATCH', `/servers/${id(serverId)}`, data);
 
 /**
+ * The next batch of review-decision DMs to send, or { work: false }.
+ * { work: true, dms: [{ id, userId, title, body, linkUrl, linkLabel }] }
+ */
+export const nextBotDms = () => call('GET', '/bot-dms');
+
+/** What happened to a batch of DMs: [{ id, ok, error }]. Anything left out is handed back out later. */
+export const reportBotDms = (results) => call('POST', '/bot-dms', { results });
+
+/**
  * The next batch of a global message to post, or { work: false }.
  * { work: true, broadcastId, title, body, linkUrl, linkLabel, deliveries: [{ id, serverId, channelId }] }
  */

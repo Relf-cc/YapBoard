@@ -5,6 +5,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { announcementSchema, type AnnouncementInput } from '@/lib/announcements';
+import { queueBotDm } from '@/lib/bot-dms';
 import { approvedStatus } from '@/lib/bots';
 import { BADGES, isBadge } from '@/lib/badges';
 import { broadcastSchema, queueBroadcast, type BroadcastInput } from '@/lib/broadcasts';
@@ -313,7 +314,7 @@ export async function reviewBot(input: z.input<typeof reviewSchema>): Promise<Re
   const { botId, action, note: n } = p.data;
   if (action === 'deny' && !n) return { ok: false, error: 'Say why, so the lister can fix it' };
 
-  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { status: true, requestedUnlisted: true, name: true } });
+  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { status: true, requestedUnlisted: true, name: true, ownerId: true } });
   if (!bot) return { ok: false, error: 'Bot not found' };
   // Two staff opening the queue at once shouldn't be able to decide the same listing twice.
   if (bot.status !== 'PENDING') return { ok: false, error: `${bot.name} isn’t waiting for review any more` };
@@ -325,6 +326,34 @@ export async function reviewBot(input: z.input<typeof reviewSchema>): Promise<Re
   });
   if (!r.count) return { ok: false, error: 'Someone else just reviewed it' };
   await log(me.id, `bot.${action}`, 'bot', botId, n);
+
+  // Tell the lister. The bot delivers it (src/lib/bot-dms.ts) so the message is styled like everything else it sends.
+  await queueBotDm(
+    action === 'approve'
+      ? {
+          userId: bot.ownerId,
+          kind: 'bot.approved',
+          title: `${bot.name} is on YapBoard`,
+          body:
+            status === 'UNLISTED'
+              ? 'Staff approved your listing. You asked for it to stay unlisted, so it won’t show on the bot board — anyone with the link can still see it, and you can make it public whenever you like.'
+              : 'Staff approved your listing, so it’s live on the bot board now. Bump it from its page every couple of hours to stay near the top.',
+          linkUrl: `${env.siteUrl}/bots/${botId}`,
+          linkLabel: 'View listing',
+        }
+      : {
+          userId: bot.ownerId,
+          kind: 'bot.denied',
+          title: `${bot.name} needs changes`,
+          body: `Staff looked at your listing and asked for changes:
+
+> ${n}
+
+Fix that on the manage page and save — saving sends it straight back for review.`,
+          linkUrl: `${env.siteUrl}/bots/${botId}/manage`,
+          linkLabel: 'Manage listing',
+        },
+  );
   revalidatePath('/', 'layout');
   return done(action === 'approve' ? (status === 'UNLISTED' ? 'Approved, and left unlisted as asked' : 'Approved and live') : 'Denied, and the lister can fix it');
 }

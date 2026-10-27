@@ -36,6 +36,7 @@ model User {
   announcements     Announcement[]
   announcementsSeen AnnouncementSeen[]
   broadcasts        Broadcast[]
+  botDms            BotDm[]
 }
 
 /// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
@@ -301,6 +302,30 @@ model BroadcastDelivery {
   sentAt      DateTime?
 
   @@unique([broadcastId, serverId])
+  @@index([status, claimedAt])
+}
+
+/// One DM the bot owes someone, currently a bot listing review decision (src/lib/bot-dms.ts).
+/// The site queues a row; the bot claims PENDING rows, sends them and reports back, like broadcasts.
+/// The dashboard stays the real record — a DM is a nudge, so one that can't be delivered is logged, not retried forever.
+model BotDm {
+  id        Int       @id @default(autoincrement())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// bot.approved | bot.denied
+  kind      String
+  title     String
+  body      String
+  linkUrl   String?
+  linkLabel String?
+  /// PENDING | CLAIMED | SENT | FAILED
+  status    String    @default("PENDING")
+  error     String?
+  /// When the bot took this row. A claim left too long is handed out again (src/lib/bot-dms.ts).
+  claimedAt DateTime?
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
   @@index([status, claimedAt])
 }
 

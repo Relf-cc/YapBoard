@@ -25,10 +25,21 @@ write a draft; only admins can send. Sending writes one row per server and the b
 `/api/internal/broadcasts`, so nothing is lost if the bot is restarting or offline. Failures (deleted channel,
 bot kicked) are recorded per server and shown as progress in the portal.
 
-**Bot listings** (`/portal/bots`, `Site/src/lib/bots.ts`). People list the bots they run at `/bots/add`. The lister
-has to own or admin the bot's support server, which is checked with Yapin' the same way server listings are — that
-link is also what puts a "support server" card on the bot's page. Bots bump on the same 2 hour cooldown, from the
-site rather than a command, and take the same badges, tags and reports as servers.
+**Bot listings** (`/portal/bots`, `Site/src/lib/bots.ts`). People list the bots they run at `/bots/add`, or run
+`/addbot @TheBot` in its support server to get there with the IDs filled in. The lister has to own or admin that
+support server, and the bot has to be in it — both checked with Yapin' — which is as close to proving the bot is
+theirs as Yapin's API allows; that link is also what puts a "support server" card on the bot's page.
+
+Unlike servers, a bot listing doesn't go straight up. It waits as `PENDING` until staff approve or deny it from
+`/portal/bots?status=PENDING`, where the Bots nav item carries the queue size. Approving sends it where the lister
+asked (public, or unlisted if they ticked it). Denying stores the reason, which the lister sees on their manage
+page; editing and saving a denied listing puts it back in the queue, so a denial asks for changes rather than
+ending things. Either way the bot DMs them the outcome (`Site/src/lib/bot-dms.ts`, `Bot/cogs/dms.js`): the site
+queues a row, the bot drains it and reports back, the same way broadcasts work.
+
+Changing a listing's support server re-runs the ownership check and sends it back for review, since that server is
+the whole claim the bot is yours. Bots bump on the same 2 hour cooldown, from the site rather than a command, and
+take the same badges, tags and reports as servers.
 
 ## Run the site locally
 
