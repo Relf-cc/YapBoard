@@ -6,7 +6,7 @@ import { botListingSchema, setBotTags } from '@/lib/bots';
 import { db } from '@/lib/db';
 import { botEnabled, env } from '@/lib/env';
 import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
-import { checkManager, fetchUser, MANAGE_ERRORS } from '@/lib/yapin';
+import { checkManager, fetchUser, isMember, MANAGE_ERRORS } from '@/lib/yapin';
 
 const id = z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/, 'That doesn’t look like an ID');
 
@@ -35,6 +35,16 @@ export async function POST(req: NextRequest) {
     if (!check.ok) return fail(MANAGE_ERRORS[check.reason], 403, { reason: check.reason, fields: { supportServerId: [MANAGE_ERRORS[check.reason]] } });
     const profile = await fetchUser(botId);
     if (!profile) return fail('No Yapin’ account has that ID. Copy the bot’s own ID, not the server’s.', 404, { fields: { botId: ['We couldn’t find that bot on Yapin’'] } });
+    /**
+     * Yapin' won't say whether an account is a bot (see YapinUser), so the closest we can get is: the account
+     * has to be in the server you run. That stops someone listing an arbitrary ID, or a stranger's bot, against
+     * a server of their own. It isn't proof the bot is theirs — anyone can add a public bot to their server.
+     */
+    if ((await isMember(supportServerId, botId)) === false) {
+      return fail('That bot isn’t in your support server. Add it there first, then list it.', 422, {
+        fields: { botId: ['Add the bot to your support server first'] },
+      });
+    }
     name = profile.displayName || profile.username;
     avatarUrl = profile.avatarUrl;
   } else if (env.isProd) {

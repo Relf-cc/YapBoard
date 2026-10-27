@@ -20,3 +20,15 @@ export async function isOwnerOrAdmin(bot, serverId, userId) {
     return false;
   }
 }
+
+/**
+ * Is this account in the server? `null` means Yapin' wouldn't say — an outage, not an answer — which callers
+ * treat as "don't block". Mirrors the site's isMember (Site/src/lib/yapin.ts).
+ */
+export async function isInServer(bot, serverId, userId) {
+  try {
+    return !!(await bot.member(serverId, userId));
+  } catch (e) {
+    return e?.status === 404 ? false : null;
+  }
+}

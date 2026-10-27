@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
-import { isOwnerOrAdmin } from '../lib/perms.js';
+import { isInServer, isOwnerOrAdmin } from '../lib/perms.js';
 import { answer, card, fileUrl, serverIdOf, siteLink } from '../lib/ui.js';
 
 /** Yapin' IDs are letters, numbers, - and _ — the same set the site's add pages accept. */
@@ -62,6 +62,22 @@ export default function setup(bot) {
     }
 
     const name = target.display_name || target.username || 'your bot';
+
+    /**
+     * Yapin' won't say whether an account is a bot, so "it's in the server you run" is the closest check there
+     * is, and the site makes the same one when the form is submitted. Refusing here saves a wasted trip.
+     */
+    if ((await isInServer(bot, serverId, botId)) === false) {
+      return answer(
+        msg,
+        card({
+          title: `${name} isn’t in this server`,
+          description: 'A bot’s support server has to be one the bot is actually in. Add it here first, then run `/addbot` again.',
+          tone: 'error',
+        }),
+      );
+    }
+
     const url = `${siteLink('/bots/add')}?bot=${encodeURIComponent(botId)}&server=${encodeURIComponent(serverId)}`;
 
     return answer(

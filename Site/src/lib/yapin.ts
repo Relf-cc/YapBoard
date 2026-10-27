@@ -102,7 +102,13 @@ const roleCanManage = (role: Record<string, unknown>) => {
   return role.manage_server === true || perms.administrator === true || perms.admin === true;
 };
 
-export type YapinUser = { id: string; username: string; displayName: string | null; avatarUrl: string | null; bot: boolean };
+/**
+ * Yapin' has no "is a bot" marker: GET /users/{id} returns id, username, display_name, avatar_path, badges,
+ * banner_path, created_at, bio and pronouns, and nothing else (openapi.json, schema User). So a listing can't
+ * be refused for naming a human account — don't add a `bot` field here and check it, it would always be false
+ * and would refuse every listing. What we can check is that the account is in the support server: isMember.
+ */
+export type YapinUser = { id: string; username: string; displayName: string | null; avatarUrl: string | null };
 
 /** A Yapin' account by id. Used to fill in a bot listing's name and avatar from the id people paste. */
 export async function fetchUser(userId: string): Promise<YapinUser | null> {
@@ -114,8 +120,6 @@ export async function fetchUser(userId: string): Promise<YapinUser | null> {
     username: String(u.username ?? 'unknown'),
     displayName: u.display_name != null ? String(u.display_name) : null,
     avatarUrl: fileUrl('avatars', u.avatar_url ?? u.avatar_path ?? u.avatar),
-    // Yapin' marks bot accounts; anything unexpected is treated as "not a bot" so people aren't wrongly blocked.
-    bot: u.bot === true || u.is_bot === true,
   };
 }
 
@@ -142,6 +146,21 @@ export async function checkManager(serverId: string, userId: string): Promise<Ma
     return { ok: false, reason: 'no_permission' };
   } catch {
     return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/**
+ * Is `userId` in `serverId`? `null` means Yapin' wouldn't say, which callers treat as "don't block": this backs up
+ * the ownership check rather than being it, so a blip here shouldn't refuse a listing.
+ */
+export async function isMember(serverId: string, userId: string): Promise<boolean | null> {
+  try {
+    const m = await botGet<{ member?: unknown }>(`/servers/${encodeURIComponent(serverId)}/members/${encodeURIComponent(userId)}`);
+    if (m.status === 404) return false;
+    if (!m.ok) return null;
+    return !!m.data.member;
+  } catch {
+    return null;
   }
 }
 

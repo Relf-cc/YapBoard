@@ -108,7 +108,7 @@ export function BotListingForm({ mode, initial, devMode }: { mode: 'create' | 'e
                 </Field>
               )}
             </div>
-            <Field label="Support server ID" error={errors.supportServerId} help="A server you own or admin where people get help with the bot. This is how we check the bot is yours.">
+            <Field label="Support server ID" error={errors.supportServerId} help="A server you own or admin, with the bot in it, where people get help with it. This is how we check the bot is yours.">
               <input className="field font-mono text-sm" value={v.supportServerId} onChange={(e) => set('supportServerId', e.target.value.trim())} placeholder="e.g. 2b81f05c…" required />
             </Field>
           </Section>
