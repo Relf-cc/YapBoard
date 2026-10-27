@@ -70,6 +70,7 @@ export function BotListingForm({ mode, initial, devMode }: { mode: 'create' | 'e
       return;
     }
     if (mode === 'create') {
+      // The listing is queued, not live: the manage page explains where it stands.
       router.push(`/bots/${out.id}/manage?created=1`);
       return;
     }

@@ -99,6 +99,8 @@ export default async function ViewBot({ params }: Props) {
         {b.status !== 'PUBLIC' && (
           <div className="mt-6 flex items-center gap-2.5 rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm text-warn">
             <EyeOff size={16} />
+            {b.status === 'PENDING' && 'Waiting for a YapBoard staff review. Only you and staff can see this page until it’s approved.'}
+            {b.status === 'DENIED' && `Staff asked for changes${b.statusNote ? `: ${b.statusNote}` : '.'} Edit the listing and save to send it back for review.`}
             {b.status === 'UNLISTED' && 'This bot is unlisted. Only people with the link can see it.'}
             {b.status === 'HIDDEN' && `Hidden by YapBoard staff${b.statusNote ? `: ${b.statusNote}` : '.'} Only you and staff can see this page.`}
             {b.status === 'REMOVED' && `Removed by YapBoard staff${b.statusNote ? `: ${b.statusNote}` : '.'}`}

@@ -3,7 +3,7 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 
 import { useTransition } from 'react';
-import { moderateBot, moderateServer, moderateUser, setBotServerCount, setRole } from '@/app/portal/actions';
+import { moderateBot, moderateServer, moderateUser, reviewBot, setBotServerCount, setRole } from '@/app/portal/actions';
 import { Dropdown } from '../Dropdown';
 
 const ROLES = [
@@ -58,6 +58,30 @@ export function BotModButtons({ botId, status, serverCount }: { botId: string; s
       if (!r.ok) alert(r.error);
     });
   };
+  /** A queued listing gets decided, not moderated: approve sends it where the lister asked, deny asks for changes. */
+  const review = (action: 'approve' | 'deny') => {
+    const note = action === 'approve' ? '' : ask('What needs fixing? (the lister sees this, and can edit and resubmit)');
+    if (note === null) return;
+    if (action === 'deny' && !note) return alert('Say why, so the lister can fix it');
+    start(async () => {
+      const r = await reviewBot({ botId, action, note });
+      if (!r.ok) alert(r.error);
+    });
+  };
+
+  if (status === 'PENDING') {
+    return (
+      <div className="inline-flex gap-1.5">
+        <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => review('approve')}>
+          Approve
+        </button>
+        <button className="btn btn-danger btn-sm" disabled={pending} onClick={() => review('deny')}>
+          Deny
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="inline-flex gap-1.5">
       <button

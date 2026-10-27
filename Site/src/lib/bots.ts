@@ -53,6 +53,18 @@ export const toBotCard = (b: BotCardRow): BotCard => ({
 
 export const isBotViewable = (status: string) => status === 'PUBLIC' || status === 'UNLISTED';
 
+/** Waiting on staff. Not viewable, not bumpable, not in search — only the lister and staff see it. */
+export const isBotPending = (status: string) => status === 'PENDING';
+
+/** Staff said no. The lister can edit and save, which puts it back in the queue (api/bots/[botId] PATCH). */
+export const isBotDenied = (status: string) => status === 'DENIED';
+
+/** Where an approved listing goes: back to whatever the lister asked for. */
+export const approvedStatus = (requestedUnlisted: boolean) => (requestedUnlisted ? 'UNLISTED' : 'PUBLIC');
+
+/** Statuses a lister can still edit their way out of. HIDDEN and REMOVED are staff decisions that stay put. */
+export const isOwnerEditable = (status: string) => status === 'PUBLIC' || status === 'UNLISTED' || status === 'PENDING' || status === 'DENIED';
+
 export function canManageBot(user: SessionUser | null, bot: { ownerId: string }) {
   return !!user && !user.bannedAt && (user.id === bot.ownerId || isStaff(user));
 }

@@ -84,7 +84,7 @@ export default function setup(bot) {
       msg,
       card({
         title: `List ${name} on YapBoard`,
-        description: 'Both IDs are filled in already. Open the form, add a summary and a few tags, and it’s live.\n\nCheck the name above is the right bot before you finish.',
+        description: 'Both IDs are filled in already. Open the form, add a summary and a few tags, and send it in — a staff member checks it before it goes on the board.\n\nCheck the name above is the right bot before you finish.',
         icon: fileUrl('avatars', target.avatar_url ?? target.avatar_path ?? target.avatar),
       })
         .field('Bot', `\`${botId}\``, true)

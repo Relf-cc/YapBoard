@@ -3,6 +3,8 @@
 import clsx from 'clsx';
 
 const STYLES: Record<string, [string, string]> = {
+  PENDING: ['In review', 'text-accent bg-accent-soft border-accent/30'],
+  DENIED: ['Changes needed', 'text-danger bg-danger/10 border-danger/30'],
   PUBLIC: ['Public', 'text-ok bg-ok/10 border-ok/30'],
   UNLISTED: ['Unlisted', 'text-ink-2 bg-surface-2 border-line-strong'],
   HIDDEN: ['Hidden by staff', 'text-warn bg-warn/10 border-warn/30'],

@@ -57,8 +57,15 @@ export async function POST(req: NextRequest) {
   const existing = await db.botListing.findUnique({ where: { id: botId }, select: { ownerId: true, status: true } });
   if (existing?.status === 'REMOVED') return fail('This bot was removed by YapBoard staff and can’t be listed again.', 403);
   if (existing) {
+    const mine = existing.ownerId === g.user.id;
     return fail(
-      existing.ownerId === g.user.id ? 'You’ve already listed this bot.' : 'Someone else already listed this bot. If you run it, send a removal request from its page.',
+      mine && existing.status === 'DENIED'
+        ? 'This listing was denied. Open it, fix what staff asked for and save — that sends it back for review.'
+        : mine && existing.status === 'PENDING'
+          ? 'This bot is already waiting for review.'
+          : mine
+            ? 'You’ve already listed this bot.'
+            : 'Someone else already listed this bot. If you run it, send a removal request from its page.',
       409,
       { botId },
     );
@@ -76,12 +83,14 @@ export async function POST(req: NextRequest) {
         avatarUrl,
         ...data,
         supportServerId: listedSupport?.id ?? null,
-        status: unlisted ? 'UNLISTED' : 'PUBLIC',
+        // Nothing goes on the board until staff approve it; approving reads requestedUnlisted (lib/bots.ts).
+        status: 'PENDING',
+        requestedUnlisted: unlisted,
         ownerId: g.user.id,
         bumpedAt: now,
       },
     });
     await setBotTags(tx, botId, tags);
   });
-  return json({ id: botId }, 201);
+  return json({ id: botId, status: 'PENDING' }, 201);
 }

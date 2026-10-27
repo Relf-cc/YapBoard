@@ -20,7 +20,7 @@ import { PageHead } from '@/components/portal/PageHead';
 
 export const metadata: Metadata = { title: 'Bots' };
 
-const STATUSES = ['ALL', 'PUBLIC', 'UNLISTED', 'HIDDEN', 'REMOVED'] as const;
+const STATUSES = ['ALL', 'PENDING', 'PUBLIC', 'UNLISTED', 'DENIED', 'HIDDEN', 'REMOVED'] as const;
 const PER_PAGE = 40;
 const BADGE_FILTERS = [
   { value: '', label: 'Any badge' },

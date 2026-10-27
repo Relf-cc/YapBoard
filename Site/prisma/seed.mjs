@@ -177,6 +177,8 @@ async function main() {
         bumpCount: 2 + rand(120),
         bumpedAt: new Date(now - rand(40) * 3600_000),
         createdAt,
+        // Listings wait for staff by default; the last one is left pending so the review queue isn't empty in dev.
+        status: i === BOTS.length - 1 ? 'PENDING' : 'PUBLIC',
         // The official bot's support server is the developers one, which is seeded first.
         supportServerId: i === 0 ? id(0) : i % 2 === 1 ? id(i) : null,
         badges: { create: i === 0 ? [{ kind: 'OFFICIAL', grantedAt: createdAt }] : i === 1 ? [{ kind: 'FEATURED', grantedAt: createdAt }] : [] },

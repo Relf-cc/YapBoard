@@ -13,7 +13,7 @@ import { Avatar } from '../Avatar';
 type Props = {
   base: string;
   siteUrl: string;
-  counts: { abuse: number; removal: number };
+  counts: { abuse: number; removal: number; pendingBots: number };
   user: { id: string; name: string; role: string; avatarUrl: string | null };
 };
 
@@ -26,7 +26,7 @@ export function PortalNav({ base, siteUrl, counts, user }: Props) {
     { href: '/reports?kind=ABUSE', match: '/reports', kindMatch: 'ABUSE', label: 'Abuse reports', icon: Flag, count: counts.abuse },
     { href: '/reports?kind=REMOVAL', match: '/reports', kindMatch: 'REMOVAL', label: 'Removal requests', icon: Trash, count: counts.removal },
     { href: '/servers', label: 'Servers', icon: Server },
-    { href: '/bots', label: 'Bots', icon: Bot },
+    { href: '/bots', label: 'Bots', icon: Bot, count: counts.pendingBots },
     { href: '/users', label: 'Users', icon: Users },
     { href: '/voting', label: 'Voting', icon: ArrowBigUp },
     { href: '/announcements', label: 'Announcements', icon: Megaphone },

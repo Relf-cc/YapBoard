@@ -29,9 +29,10 @@ export default async function PortalLayout({ children }: { children: React.React
   }
 
   const base = await portalBase();
-  const [abuse, removal] = await Promise.all([
+  const [abuse, removal, pendingBots] = await Promise.all([
     db.report.count({ where: { status: 'OPEN', kind: 'ABUSE' } }),
     db.report.count({ where: { status: 'OPEN', kind: 'REMOVAL' } }),
+    db.botListing.count({ where: { status: 'PENDING' } }),
   ]);
 
   return (
@@ -39,7 +40,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <PortalNav
         base={base}
         siteUrl={env.siteUrl}
-        counts={{ abuse, removal }}
+        counts={{ abuse, removal, pendingBots }}
         user={{ id: user.id, name: user.displayName || user.username, role: user.role, avatarUrl: user.avatarUrl }}
       />
       <main className="min-w-0 px-4 sm:px-8 py-8">

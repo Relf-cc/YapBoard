@@ -5,6 +5,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { announcementSchema, type AnnouncementInput } from '@/lib/announcements';
+import { approvedStatus } from '@/lib/bots';
 import { BADGES, isBadge } from '@/lib/badges';
 import { broadcastSchema, queueBroadcast, type BroadcastInput } from '@/lib/broadcasts';
 import { db } from '@/lib/db';
@@ -296,6 +297,36 @@ export async function moderateBot(input: z.input<typeof botSchema>): Promise<Res
   await log(me.id, `bot.${action}`, 'bot', botId, n);
   revalidatePath('/', 'layout');
   return done(action === 'restore' ? 'Bot restored' : action === 'hide' ? 'Bot hidden' : 'Bot removed');
+}
+
+const reviewSchema = z.object({ botId: z.string().min(1), action: z.enum(['approve', 'deny']), note });
+
+/**
+ * The bot review queue (/portal/bots?status=PENDING). Approving sends the listing wherever the lister asked
+ * for — public, or unlisted if they ticked it. Denying keeps it editable: saving an edit puts it back in the
+ * queue (api/bots/[botId] PATCH), so a denial is a request for changes, not a tombstone.
+ */
+export async function reviewBot(input: z.input<typeof reviewSchema>): Promise<Result> {
+  const me = await staff();
+  const p = reviewSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { botId, action, note: n } = p.data;
+  if (action === 'deny' && !n) return { ok: false, error: 'Say why, so the lister can fix it' };
+
+  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { status: true, requestedUnlisted: true, name: true } });
+  if (!bot) return { ok: false, error: 'Bot not found' };
+  // Two staff opening the queue at once shouldn't be able to decide the same listing twice.
+  if (bot.status !== 'PENDING') return { ok: false, error: `${bot.name} isn’t waiting for review any more` };
+
+  const status = action === 'approve' ? approvedStatus(bot.requestedUnlisted) : 'DENIED';
+  const r = await db.botListing.updateMany({
+    where: { id: botId, status: 'PENDING' },
+    data: { status, statusNote: action === 'deny' ? n : null, reviewedAt: new Date(), reviewedById: me.id },
+  });
+  if (!r.count) return { ok: false, error: 'Someone else just reviewed it' };
+  await log(me.id, `bot.${action}`, 'bot', botId, n);
+  revalidatePath('/', 'layout');
+  return done(action === 'approve' ? (status === 'UNLISTED' ? 'Approved, and left unlisted as asked' : 'Approved and live') : 'Denied, and the lister can fix it');
 }
 
 const botBadgeSchema = z.object({ botId: z.string().min(1), badge: z.string().refine(isBadge, 'Unknown badge'), on: z.boolean() });

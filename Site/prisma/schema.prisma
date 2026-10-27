@@ -327,9 +327,15 @@ model BotListing {
   language        String    @default("en")
   nsfw            Boolean   @default(false)
   accent          String    @default("#ff6b4a")
-  /// PUBLIC | UNLISTED | HIDDEN | REMOVED
-  status          String    @default("PUBLIC")
+  /// PENDING | PUBLIC | UNLISTED | DENIED | HIDDEN | REMOVED. New listings wait for staff (lib/bots.ts).
+  status          String    @default("PENDING")
+  /// Why staff denied, hid or removed it. Shown to the lister on their manage page.
   statusNote      String?
+  /// Did the lister ask for unlisted? Remembered so approving sends it where they wanted.
+  requestedUnlisted Boolean @default(false)
+  /// Set when staff approved it, so the queue can show how long a decision took.
+  reviewedAt      DateTime?
+  reviewedById    String?
   serverCount     Int       @default(0)
   views           Int       @default(0)
   /// Clicks on "Add to your server"
@@ -351,6 +357,8 @@ model BotListing {
 
   @@index([status, bumpedAt])
   @@index([status, serverCount])
+  /// The review queue: oldest PENDING first.
+  @@index([status, createdAt])
   @@index([ownerId])
 }
 
