@@ -111,7 +111,7 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
           <Field label="One-liner" error={errors.summary} count={[v.summary.length, 140]}>
             <input className="field" value={v.summary} maxLength={140} onChange={(e) => set('summary', e.target.value)} placeholder="Chill late-night gaming crew. Mostly Valorant, sometimes chaos." />
           </Field>
-          <Field label="Description" error={errors.description} count={[v.description.length, 2000]} help="Blank lines make paragraphs. Start lines with - for a list. **bold** and https links work.">
+          <Field label="Description" error={errors.description} count={[v.description.length, 2000]} help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers, and \`\`\`code blocks\`\`\`.">
             <textarea
               className="field"
               rows={9}

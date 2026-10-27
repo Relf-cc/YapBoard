@@ -167,7 +167,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               label="Description"
               error={errors.description}
               count={[v.description.length, 4000]}
-              help="Blank lines make paragraphs. Start lines with - for a list. **bold** and https links work. Say what you changed and what you didn't."
+              help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers. Say what you changed and what you didn't."
             >
               <textarea
                 className="field"
