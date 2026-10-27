@@ -6,7 +6,7 @@ import { BugReportButton } from './BugReport';
 
 const COLS: { title: string; links: [string, string][] }[] = [
   { title: 'Browse', links: [['/servers', 'All servers'], ['/bots', 'All bots'], ['/tags', 'Tags'], ['/servers?sort=new', 'New servers'], ['/servers?sort=members', 'Biggest servers']] },
-  { title: 'List yours', links: [['/add', 'Add a server'], ['/bots/add', 'List a bot'], ['/dashboard', 'Your listings'], ['/bot', 'The bot'], ['/pro', 'YapBoard Pro']] },
+  { title: 'List yours', links: [['/add', 'Add a server'], ['/bots/add', 'List a bot'], ['/bots/help', 'Bot listing help'], ['/dashboard', 'Your listings'], ['/bot', 'The bot'], ['/pro', 'YapBoard Pro']] },
   { title: 'YapBoard', links: [['/guidelines', 'Listing guidelines'], ['/terms', 'Terms'], ['/privacy', 'Privacy'], ['https://www.yapin.gg', 'Yapin’ ↗']] },
 ];
 

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Bot, ShieldCheck } from 'lucide-react';
 import { botEnabled, env } from '@/lib/env';
@@ -55,6 +56,13 @@ export default async function AddBot({ searchParams }: { searchParams: Promise<{
         <p className="eyebrow">List your bot</p>
         <h1 className="mt-3 text-[34px] sm:text-[44px] font-extrabold leading-tight">Get your bot in front of servers</h1>
         <p className="mt-3 max-w-2xl text-ink-2 leading-relaxed">Free, takes about two minutes. A staff member checks it before it goes on the board — usually quickly. You can change anything later.</p>
+        <p className="mt-2 text-sm text-ink-3">
+          First time?{' '}
+          <Link href="/bots/help" className="text-accent font-semibold hover:underline">
+            Read the walkthrough
+          </Link>
+          .
+        </p>
       </Reveal>
 
       {offline && <div className="card mt-8 p-6 text-sm text-ink-2">Listing bots is switched off right now. Try again later.</div>}

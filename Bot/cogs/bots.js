@@ -23,6 +23,9 @@ const usage = () =>
     tone: 'muted',
   });
 
+/** Shown with the usage card: the walkthrough covers the bits a card can't. */
+const HELP_LINK = ['How listing works', siteLink('/bots/help')];
+
 /** /addbot: turns a mention into a part-filled bot listing. */
 export default function setup(bot) {
   bot.command('addbot', 'List a bot you run: /addbot @YourBot', async (msg) => {
@@ -34,7 +37,7 @@ export default function setup(bot) {
     const mention = MENTION.exec(msg.args || '');
     const first = (msg.argv[0] || '').trim();
     const botId = mention ? mention[1] : BARE.test(first) ? first : null;
-    if (!botId) return answer(msg, usage());
+    if (!botId) return answer(msg, usage(), HELP_LINK);
 
     if (bot.me?.id && String(botId) === String(bot.me.id)) {
       return answer(msg, card({ title: 'That’s me', description: 'Mention the bot you want to list, not YapBoard.', tone: 'muted' }), ['Browse bots', siteLink('/bots')]);
