@@ -17,15 +17,18 @@ const BARE = new RegExp(`^${ID}$`);
  * Mentioning YapBoard instead routes it to us, but the mention is eaten by the picker, so `args` arrives empty.
  * Either way the mention never reaches us as an argument, so the bot is named by its ID.
  */
+/** Where a bot's own id comes from, in the words the site's /add page already uses. */
+const WHERE = 'Your bot’s ID is the one you paste into **Server settings → Bots → Have a bot ID?** when you add it to a server.';
+
 const usage = () =>
   card({
     title: 'Which bot?',
     description: [
-      'Paste the bot’s ID, in the server that supports it:',
+      'Run this in the server that supports your bot, with **your bot’s** ID:',
       '',
       '**`/addbot 2b81f05c…`**',
       '',
-      'That’s the same ID you paste into **Server settings → Bots → Have a bot ID?** to add the bot to a server.',
+      WHERE,
       '',
       '**Don’t @ the bot.** On Yapin’ a mention picks which bot a command is for, so `/addbot @YourBot` gets sent ' +
         'to your bot instead of to me, and I never see it.',
@@ -36,14 +39,31 @@ const usage = () =>
 /** They @'d YapBoard: the command reached us, but Yapin' ate the mention, so there's nothing to list. */
 const mentionedMe = () =>
   card({
-    title: 'Paste the ID instead',
+    title: 'Send your bot’s ID instead',
     description: [
       'Mentioning me picked me as the bot to send the command to — it doesn’t tell me which bot you want to list, ' +
         'and Yapin’ strips the mention before I see it.',
       '',
-      'Send the bot’s ID instead: **`/addbot 2b81f05c…`**',
+      'Send the ID of **the bot you want to list**: **`/addbot 2b81f05c…`**',
       '',
-      'It’s the ID you paste into **Server settings → Bots → Have a bot ID?**',
+      WHERE,
+    ].join('\n'),
+    tone: 'muted',
+  });
+
+/**
+ * They pasted my id. Easy to do straight after the card above, so this says plainly whose id it is rather than
+ * repeating the mention explanation, which wouldn't make sense when no mention was used.
+ */
+const selfId = () =>
+  card({
+    title: 'That’s my ID, not your bot’s',
+    description: [
+      'That one belongs to me, the YapBoard bot — I’m already here, and there’s nothing to list.',
+      '',
+      'I need the ID of **the bot you want to list**: **`/addbot 2b81f05c…`**',
+      '',
+      WHERE,
     ].join('\n'),
     tone: 'muted',
   });
@@ -77,11 +97,13 @@ export default function setup(bot) {
     const first = (msg.argv[0] || '').trim();
     // `args` is the usual source; the content is checked too, since the picker mention only ever shows up there.
     const mention = MENTION.exec(msg.args || '') || MENTION.exec(msg.content || '');
-    const botId = BARE.test(first) ? first : mention ? mention[1] : null;
+    const pasted = BARE.test(first);
+    const botId = pasted ? first : mention ? mention[1] : null;
     if (!botId) return answer(msg, mention ? mentionedMe() : usage(), HELP_LINK);
 
+    // Naming me is a dead end either way, but how they named me decides which explanation helps.
     if (bot.me?.id && String(botId) === String(bot.me.id)) {
-      return answer(msg, mentionedMe(), HELP_LINK);
+      return answer(msg, pasted ? selfId() : mentionedMe(), HELP_LINK);
     }
 
     /**

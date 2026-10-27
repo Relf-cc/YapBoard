@@ -19,6 +19,10 @@ const PROBLEMS: [string, string][] = [
     'On Yapin’, mentioning a bot in a command picks which bot the command goes to, so /addbot @YourBot was sent to your bot instead of to YapBoard. Use the bot’s ID: /addbot 2b81f05c…',
   ],
   [
+    '“That’s my ID, not your bot’s”',
+    'You pasted YapBoard’s own ID. You want your bot’s: the one you paste into Server settings → Bots → Have a bot ID? when adding your bot to a server.',
+  ],
+  [
     '“That bot isn’t in your support server”',
     'Add the bot to the server first. A support server has to be somewhere the bot actually is — that’s part of how we know it’s yours.',
   ],
