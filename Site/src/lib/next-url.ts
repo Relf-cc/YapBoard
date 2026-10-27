@@ -16,6 +16,18 @@ export function safeNext(next: string | null | undefined, portalUrl?: string): s
   return next;
 }
 
+/**
+ * '/bots/add' + { bot, server } -> '/bots/add?bot=…&server=…', dropping anything empty.
+ * Used to carry a form's prefill through the login redirect, so a link from the bot doesn't
+ * land the person on an empty form.
+ */
+export function withQuery(path: string, params: Record<string, string | undefined>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
+  const query = q.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 /** What /login?error= can say. Anything else in the URL is ignored. */
 export const LOGIN_ERRORS = {
   expired: 'Your login took too long. Try again.',

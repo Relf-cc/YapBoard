@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { Bot, ShieldCheck } from 'lucide-react';
 import { botEnabled, env } from '@/lib/env';
 import { getUser } from '@/lib/session';
+import { withQuery } from '@/lib/next-url';
 import { BotListingForm, type BotListingValues } from '@/components/manage/BotListingForm';
 import { Reveal } from '@/components/Reveal';
 import { GlyphScatter } from '@/components/Glyphs';
@@ -13,16 +14,18 @@ export const metadata: Metadata = { title: 'List your bot' };
 
 export default async function AddBot({ searchParams }: { searchParams: Promise<{ bot?: string; server?: string }> }) {
   const user = await getUser();
-  if (!user) redirect('/login?next=/bots/add');
   const { bot, server } = await searchParams;
+  const clean = (v: string | undefined) => (v ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+  const [botId, supportServerId] = [clean(bot), clean(server)];
+  // The prefill rides along through login: /addbot's link is useless if logging in drops it.
+  if (!user) redirect(`/login?next=${encodeURIComponent(withQuery('/bots/add', { bot: botId, server: supportServerId }))}`);
   // Ownership goes through the bot's support server. Without the token: dev skips the check, production can't list.
   const offline = !botEnabled() && env.isProd;
   const devMode = !botEnabled() && !env.isProd;
-  const clean = (v: string | undefined) => (v ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
 
   const initial: BotListingValues = {
-    botId: clean(bot),
-    supportServerId: clean(server),
+    botId,
+    supportServerId,
     name: '',
     avatarUrl: null,
     serverCount: 0,

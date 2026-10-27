@@ -5,7 +5,7 @@ A server list for [Yapin'](https://www.yapin.gg), like Disboard.
 > **Proprietary — all rights reserved.** Readable source, not open source. No copying, forking or self-hosting without written permission. See [Copyright and licence](#copyright-and-licence).
 
 - `Site/`: Next.js app: yapboard.dev (public site), portal.yapboard.dev (staff portal) and api.yapboard.dev (API)
-- `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
+- `Bot/`: the YapBoard bot (`/bump`, `/yapboard`, `/info`, `/addbot`, `/invite`, `/help`) built on Yapin's `yapper.js` SDK (`YapinAssets/`)
 
 Two boards: servers at `/servers`, and the bots people run at `/bots`. Both share tags, badges, reports and the
 staff portal. Staff can also put a notice on the site and send one message out through the bot — see below.

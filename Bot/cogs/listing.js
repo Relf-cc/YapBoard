@@ -4,13 +4,12 @@ import * as yapboard from '../lib/yapboard.js';
 import { createReminders } from '../lib/reminders.js';
 import { Button, Row } from '../lib/yapper.js';
 import { isOwnerOrAdmin } from '../lib/perms.js';
-import { answer, authorOf, card, cooldownBar, memberCountOf, number, privately, serverIdOf, siteLink, tagLine, until } from '../lib/ui.js';
+import { answer, authorOf, card, cooldownBar, memberCountOf, number, privately, serverIdOf, siteLink, STATUS, tagLine, until, viewable } from '../lib/ui.js';
 
 /** How long the /yapboard button stays if nobody opens it. */
 const PROMPT_TTL = 5 * 60_000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const STATUS = { PUBLIC: 'Public', UNLISTED: 'Unlisted', HIDDEN: 'Hidden by staff', REMOVED: 'Removed' };
 // Keys match BADGES in Site/src/lib/badges.ts; the listing shows the first one the site sent.
 const BADGE = {
   OFFICIAL: 'Official Yapin’ server',
@@ -172,14 +171,14 @@ export default async function setup(bot) {
     if (!l.listed) return privately(i, notListed(), ['List this server', l.addUrl]);
 
     const live = l.status === 'PUBLIC';
-    const viewable = live || l.status === 'UNLISTED';
+    const canView = viewable(l.status);
     const ready = !l.nextBumpAt || new Date(l.nextBumpAt).getTime() <= Date.now();
     const e = card({
       title: l.name,
       description: [l.summary, tagLine(l.tags)].filter(Boolean).join('\n\n'),
       tone: live ? l.accent : 'muted',
       icon: l.iconUrl,
-      url: viewable ? l.url : null,
+      url: canView ? l.url : null,
       author: { name: (l.badges || []).map((b) => BADGE[b]).find(Boolean) || 'YapBoard listing' },
     })
       .field('Members', number(l.memberCount), true)
@@ -188,7 +187,7 @@ export default async function setup(bot) {
       .field('Views', number(l.views), true)
       .field('Joins', number(l.joins), true)
       .field('Status', STATUS[l.status] || l.status, true);
-    return privately(i, e, ['View listing', viewable ? l.url : null], ['Manage', l.manageUrl]);
+    return privately(i, e, ['View listing', canView ? l.url : null], ['Manage', l.manageUrl]);
   });
 }
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
-// YapBoard bot: /bump, /yapboard, /invite, /help. Run with `npm start` (Node 20.12+; 22+ uses the faster gateway).
+// YapBoard bot: /bump, /yapboard, /info, /addbot, /invite, /help. Run with `npm start` (Node 20.12+; 22+ uses the faster gateway).
 import { Bot } from './lib/yapper.js';
 import { checkConfig, config } from './lib/config.js';
 import { setBrand } from './lib/ui.js';

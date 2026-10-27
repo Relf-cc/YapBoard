@@ -94,6 +94,12 @@ export function cooldownBar(nextAt, width = 12) {
 
 export const number = (n) => Number(n || 0).toLocaleString('en-US');
 
+/** Listing states the site can report. Keys match Status in Site/prisma/schema.prisma. */
+export const STATUS = { PUBLIC: 'Public', UNLISTED: 'Unlisted', HIDDEN: 'Hidden by staff', REMOVED: 'Removed' };
+
+/** Hidden and removed listings have no page to send anyone to. */
+export const viewable = (status) => status === 'PUBLIC' || status === 'UNLISTED';
+
 export const siteLink = (path = '') => `${config.siteUrl}${path}`;
 
 /** `tag` `tag` `tag`, at most 8 so the line doesn't wrap into a wall. */

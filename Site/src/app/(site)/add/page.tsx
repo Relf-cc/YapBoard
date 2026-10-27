@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { Bot, Terminal } from 'lucide-react';
 import { botEnabled, env } from '@/lib/env';
 import { getUser } from '@/lib/session';
+import { withQuery } from '@/lib/next-url';
 import { ListingForm, type ListingValues } from '@/components/manage/ListingForm';
 import { CopyField } from '@/components/CopyField';
 import { Reveal } from '@/components/Reveal';
@@ -14,15 +15,17 @@ export const metadata: Metadata = { title: 'Add your server' };
 
 export default async function AddServer({ searchParams }: { searchParams: Promise<{ server?: string }> }) {
   const user = await getUser();
-  if (!user) redirect('/login?next=/add');
   const { server } = await searchParams;
+  const serverId = (server ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+  // Same as /bots/add: keep /yapboard's prefilled server through the login round trip.
+  if (!user) redirect(`/login?next=${encodeURIComponent(withQuery('/add', { server: serverId }))}`);
   // Owners and admins are checked through the bot. Without its token: dev skips the check, production can't add.
   const offline = !botEnabled() && env.isProd;
   const devMode = !botEnabled() && !env.isProd;
   const botId = process.env.NEXT_PUBLIC_BOT_ID || '';
 
   const initial: ListingValues = {
-    serverId: (server ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64),
+    serverId,
     name: '',
     iconUrl: null,
     memberCount: 0,
