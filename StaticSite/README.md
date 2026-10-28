@@ -1,4 +1,4 @@
-# StaticSite — maintenance page
+# StaticSite - maintenance page
 
 A single static page to put up while YapBoard is down. No build step, no dependencies.
 
@@ -10,7 +10,7 @@ _headers      no-store caching + noindex
 
 There is deliberately no `_redirects` file. Pages serves `404.html` for anything that does not match an
 asset, so the two copies between them already cover every URL. A catch-all `/* /index.html 200` rule looks
-tempting but Pages rejects it — it strips `.html` and `/index` from request paths, so the rule re-matches its
+tempting but Pages rejects it - it strips `.html` and `/index` from request paths, so the rule re-matches its
 own target and the upload fails with *"Infinite loop detected in this rule"*.
 
 ## Deploy to Cloudflare Pages
@@ -35,7 +35,7 @@ Three lines near the bottom of `index.html`, under the `===== wording =====` com
 eyebrow, the `<h1>`, and the paragraph under it. The second button in `.actions` points at
 `https://yapin.gg/invite/yapboardapp`.
 
-**Copy any change across to `404.html`** — the two files are meant to be byte-identical:
+**Copy any change across to `404.html`** - the two files are meant to be byte-identical:
 
 ```sh
 cp StaticSite/index.html StaticSite/404.html

@@ -6,8 +6,8 @@ import { fail, isInternal, json, readJson } from '@/lib/http';
 
 /**
  * The bot's end of global messages (src/lib/broadcasts.ts).
- *   GET  — claim the next batch, or { work: false } when there's nothing to send.
- *   POST — report what happened to a batch.
+ *   GET  - claim the next batch, or { work: false } when there's nothing to send.
+ *   POST - report what happened to a batch.
  */
 export async function GET(req: NextRequest) {
   if (!isInternal(req)) return fail('Unauthorized', 401);

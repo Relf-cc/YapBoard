@@ -3,7 +3,7 @@
 import { isInServer, isOwnerOrAdmin } from '../lib/perms.js';
 import { answer, card, fileUrl, serverIdOf, siteLink } from '../lib/ui.js';
 
-/** Yapin' IDs are letters, numbers, - and _ — the same set the site's add pages accept. */
+/** Yapin' IDs are letters, numbers, - and _ - the same set the site's add pages accept. */
 const ID = '[A-Za-z0-9_-]{1,64}';
 /** Mentions reach us as <@id> in the content; some clients add the ! form. */
 const MENTION = new RegExp(`<@!?(${ID})>`);
@@ -41,7 +41,7 @@ const mentionedMe = () =>
   card({
     title: 'Send your bot’s ID instead',
     description: [
-      'Mentioning me picked me as the bot to send the command to — it doesn’t tell me which bot you want to list, ' +
+      'Mentioning me picked me as the bot to send the command to - it doesn’t tell me which bot you want to list, ' +
         'and Yapin’ strips the mention before I see it.',
       '',
       'Send the ID of **the bot you want to list**: **`/addbot 2b81f05c…`**',
@@ -59,7 +59,7 @@ const selfId = () =>
   card({
     title: 'That’s my ID, not your bot’s',
     description: [
-      'That one belongs to me, the YapBoard bot — I’m already here, and there’s nothing to list.',
+      'That one belongs to me, the YapBoard bot - I’m already here, and there’s nothing to list.',
       '',
       'I need the ID of **the bot you want to list**: **`/addbot 2b81f05c…`**',
       '',
@@ -91,7 +91,7 @@ export default function setup(bot) {
   bot.command('addbot', 'List a bot you run: /addbot <bot id>', async (msg) => {
     const serverId = await serverIdOf(bot, msg);
     if (!serverId) {
-      return answer(msg, card({ description: 'Run `/addbot` in the bot’s support server, not in DMs — the server is half of what gets filled in.', tone: 'muted' }));
+      return answer(msg, card({ description: 'Run `/addbot` in the bot’s support server, not in DMs - the server is half of what gets filled in.', tone: 'muted' }));
     }
 
     const first = (msg.argv[0] || '').trim();
@@ -109,7 +109,7 @@ export default function setup(bot) {
     /**
      * Listing a bot here claims this server as its support server, and that claim is the whole proof the bot is
      * yours (Site/src/app/api/bots/route.ts). So only someone who runs the server may start it. The site checks
-     * the same thing again when the form is submitted — this is the friendly half, not the security half.
+     * the same thing again when the form is submitted - this is the friendly half, not the security half.
      */
     if (!(await isOwnerOrAdmin(bot, serverId, msg.author_id))) {
       return answer(
@@ -150,7 +150,7 @@ export default function setup(bot) {
       msg,
       card({
         title: `List ${name} on YapBoard`,
-        description: 'Both IDs are filled in already. Open the form, add a summary and a few tags, and send it in — a staff member checks it before it goes on the board.\n\nCheck the name above is the right bot before you finish.',
+        description: 'Both IDs are filled in already. Open the form, add a summary and a few tags, and send it in - a staff member checks it before it goes on the board.\n\nCheck the name above is the right bot before you finish.',
         icon: fileUrl('avatars', target.avatar_url ?? target.avatar_path ?? target.avatar),
       })
         .field('Bot', `\`${botId}\``, true)
@@ -160,7 +160,7 @@ export default function setup(bot) {
   });
 
   /**
-   * "/addbot @TheirBot" is routed to their bot, so our command never runs — but the message still reaches us.
+   * "/addbot @TheirBot" is routed to their bot, so our command never runs - but the message still reaches us.
    * Without this it looks like YapBoard simply ignored them.
    */
   bot.on('message', (msg) => {

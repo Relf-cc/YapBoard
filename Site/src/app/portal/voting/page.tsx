@@ -160,7 +160,7 @@ function Counts({ r }: { r: Row }) {
         {r.counted.toLocaleString()}
         {r.total > r.counted && <span className="text-xs text-ink-3"> / {r.total} ({r.total - r.counted} not counted)</span>}
       </td>
-      <td className={clsx('px-3 py-3 tabular-nums', r.total >= 5 && r.networks <= r.total / 4 ? 'font-semibold text-warn' : 'text-ink-2')}>{r.total ? r.networks : '—'}</td>
+      <td className={clsx('px-3 py-3 tabular-nums', r.total >= 5 && r.networks <= r.total / 4 ? 'font-semibold text-warn' : 'text-ink-2')}>{r.total ? r.networks : '-'}</td>
     </>
   );
 }

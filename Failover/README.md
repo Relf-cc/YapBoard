@@ -1,7 +1,7 @@
 # Failover Worker
 
 Keeps `yapboard.dev` answering with the maintenance page when the home server is unreachable, instead of
-Cloudflare's own "Error 1033 — Argo Tunnel error" page.
+Cloudflare's own "Error 1033 - Argo Tunnel error" page.
 
 ## How the request flows
 
@@ -19,7 +19,7 @@ visitor → yapboard.dev ──▶ [ yapboard-failover Worker ]
 
 `origin.yapboard.dev` is a second public hostname on the **same** tunnel, pointing at the same
 `http://caddy:80`. It exists so the Worker has a way to reach the origin that does not pass back through
-itself — fetching `yapboard.dev` from inside the Worker would loop.
+itself - fetching `yapboard.dev` from inside the Worker would loop.
 
 ## The Host header, and why it matters here
 
@@ -63,7 +63,7 @@ npx wrangler deploy --config Failover/wrangler.toml
 npx wrangler deploy
 ```
 
-This uploads the Worker but does **not** put it in front of the domain — the route is attached separately
+This uploads the Worker but does **not** put it in front of the domain - the route is attached separately
 and deliberately (see `wrangler.toml`).
 
 ## Rolling back

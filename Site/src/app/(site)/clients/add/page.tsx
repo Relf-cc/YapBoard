@@ -64,22 +64,22 @@ export default async function AddClient() {
           <Link href="/clients/terms" className="font-semibold text-accent hover:underline">
             client terms
           </Link>{' '}
-          first — you’ll be asked to accept them when you submit.
+          first - you’ll be asked to accept them when you submit.
         </p>
       </Reveal>
 
       <Reveal delay={0.05}>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <Step icon={<GitBranch size={18} />} n={1} title="Point at your releases">
-            Paste the GitHub repo. We read <b className="text-ink-2">releases/latest</b> and sort its files by platform —
-            .exe to Windows, .deb and .AppImage to Linux, .dmg to macOS — and show the release notes as your changelog.
+            Paste the GitHub repo. We read <b className="text-ink-2">releases/latest</b> and sort its files by platform -
+            .exe to Windows, .deb and .AppImage to Linux, .dmg to macOS - and show the release notes as your changelog.
           </Step>
           <Step icon={<Sparkles size={18} />} n={2} title="Make the page yours">
             Icon, banner, header style, accent colour and up to six screenshots. Not a template with your name in it.
           </Step>
           <Step icon={<ShieldCheck size={18} />} n={3} title="Staff take a look">
             We check the downloads go where you say they do. The YapBoard bot DMs you the decision either way, and a
-            denial just asks for changes — fix it, save, and it goes back in the queue.
+            denial just asks for changes - fix it, save, and it goes back in the queue.
           </Step>
         </div>
       </Reveal>

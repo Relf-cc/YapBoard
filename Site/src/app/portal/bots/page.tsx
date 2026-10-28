@@ -142,7 +142,7 @@ export default async function PortalBots({ searchParams }: Props) {
                       {b.supportServer.name}
                     </Link>
                   ) : (
-                    '—'
+                    '-'
                   )}
                 </td>
                 <td className="px-3 py-3 tabular-nums text-ink-2">{compact(b.serverCount)}</td>

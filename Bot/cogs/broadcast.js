@@ -8,7 +8,7 @@ import { card, links, siteLink } from '../lib/ui.js';
  *
  * The site never pushes at us: we ask. Every POLL we take a batch of deliveries, post each one in the channel
  * that server last used `/bump` in, and tell the site how each went. A batch we never report on is handed back
- * out after a few minutes, so a crash mid-send costs at most a few duplicate posts — far better than silently
+ * out after a few minutes, so a crash mid-send costs at most a few duplicate posts - far better than silently
  * dropping a message staff think went out.
  *
  * While a broadcast is draining we poll fast; the rest of the time, slowly.

@@ -119,7 +119,7 @@ export function BotModButtons({ botId, status, serverCount }: { botId: string; s
 }
 
 /**
- * A client listing's actions. The same three as the other boards, plus Sync — a reviewer's first question is
+ * A client listing's actions. The same three as the other boards, plus Sync - a reviewer's first question is
  * "what does this actually hand out today?", and the answer is a release read a moment ago, not one read when
  * the listing was submitted.
  */

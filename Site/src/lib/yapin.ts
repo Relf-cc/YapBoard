@@ -105,7 +105,7 @@ const roleCanManage = (role: Record<string, unknown>) => {
 /**
  * Yapin' has no "is a bot" marker: GET /users/{id} returns id, username, display_name, avatar_path, badges,
  * banner_path, created_at, bio and pronouns, and nothing else (openapi.json, schema User). So a listing can't
- * be refused for naming a human account — don't add a `bot` field here and check it, it would always be false
+ * be refused for naming a human account - don't add a `bot` field here and check it, it would always be false
  * and would refuse every listing. What we can check is that the account is in the support server: isMember.
  */
 export type YapinUser = { id: string; username: string; displayName: string | null; avatarUrl: string | null };

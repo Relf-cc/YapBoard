@@ -43,8 +43,8 @@ export function ClientTermsDialog({ clientName, busy, onClose, onAgree }: { clie
           no malware, no credential or token theft, and no hidden data collection.
         </Agreement>
         <Agreement checked={yapin} onChange={setYapin} href={LEGAL.yapinTerms} external title="Yapin’ terms of service">
-          My client follows Yapin’s terms and API rules — no automation of user accounts, no scraping, no evading
-          limits or moderation — and I accept that Yapin’, not YapBoard, decides what’s allowed on Yapin’.
+          My client follows Yapin’s terms and API rules - no automation of user accounts, no scraping, no evading
+          limits or moderation - and I accept that Yapin’, not YapBoard, decides what’s allowed on Yapin’.
         </Agreement>
       </div>
 

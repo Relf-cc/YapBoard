@@ -10,7 +10,7 @@ export * from './upload-fields';
 /**
  * Images people upload for their listings.
  *
- * YapBoard still doesn't touch the files a client ships — those stay on the maintainer's release page, and the
+ * YapBoard still doesn't touch the files a client ships - those stay on the maintainer's release page, and the
  * download dialog says so. This is only the pictures on the listing itself: an icon, a banner, screenshots.
  * Hotlinking them from an image host was the only option before, and it broke listings every time somebody's
  * free host expired.
@@ -30,7 +30,7 @@ const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
 export const MAX_UPLOADS_PER_USER = 120;
 
 /**
- * What a file really is, from its first bytes. Returns null for anything not in UPLOAD_TYPES — including a
+ * What a file really is, from its first bytes. Returns null for anything not in UPLOAD_TYPES - including a
  * .png that is actually something else, which is the case worth catching.
  */
 export function sniffImage(bytes: Uint8Array): { mime: string; ext: string } | null {

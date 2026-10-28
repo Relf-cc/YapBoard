@@ -113,7 +113,7 @@ export default function Guidelines() {
               <A href="/clients/terms">client terms</A> and Yapin’s terms before submitting.
             </>,
             <>
-              Downloading one is your decision — we don’t build, host or scan them. The{' '}
+              Downloading one is your decision - we don’t build, host or scan them. The{' '}
               <A href="/clients/terms#safety">safety notes</A> say what to check first.
             </>,
           ],
@@ -145,7 +145,7 @@ export default function Guidelines() {
                 <span key={k} className="flex items-start gap-2.5">
                   <BadgeMark kind={k} size={17} seed={k} className="mt-[3px]" />
                   <span>
-                    <b className="font-semibold text-ink">{BADGES[k].long}</b> — {BADGES[k].blurb}
+                    <b className="font-semibold text-ink">{BADGES[k].long}</b> - {BADGES[k].blurb}
                   </span>
                 </span>
               ))}

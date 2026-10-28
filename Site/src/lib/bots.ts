@@ -13,12 +13,12 @@ import { isStaff } from './session';
 /**
  * Bot listings: the same idea as a server listing, for the bots people run on Yapin'.
  *
- * A bot is listed against its Yapin' bot id — the one people paste into Server settings → Bots — so the "Add"
+ * A bot is listed against its Yapin' bot id - the one people paste into Server settings → Bots - so the "Add"
  * button can hand that straight over. Ownership is checked the same way servers are, but against the bot's
  * support server: whoever lists a bot has to be the owner or an admin of the server that supports it. That's a
  * real signal (you can't run a bot's support server without running the bot) and it reuses lib/yapin.ts.
  *
- * Bots share tags and badges with servers, and bump on the same 2 hour cooldown — but from the site, since a bot
+ * Bots share tags and badges with servers, and bump on the same 2 hour cooldown - but from the site, since a bot
  * can't type /bump about itself.
  */
 
@@ -53,7 +53,7 @@ export const toBotCard = (b: BotCardRow): BotCard => ({
 
 export const isBotViewable = (status: string) => status === 'PUBLIC' || status === 'UNLISTED';
 
-/** Waiting on staff. Not viewable, not bumpable, not in search — only the lister and staff see it. */
+/** Waiting on staff. Not viewable, not bumpable, not in search - only the lister and staff see it. */
 export const isBotPending = (status: string) => status === 'PENDING';
 
 /** Staff said no. The lister can edit and save, which puts it back in the queue (api/bots/[botId] PATCH). */

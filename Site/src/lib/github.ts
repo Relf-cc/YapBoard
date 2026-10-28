@@ -137,7 +137,7 @@ export async function fetchLatestRelease(repoInput: string): Promise<ReleaseResu
 
     if (latest.status === 404) {
       // 404 here is either "no repo" or "no full release yet". Ask for the list to tell those apart, which also
-      // picks up repos that only ever publish prereleases — common for a client in beta.
+      // picks up repos that only ever publish prereleases - common for a client in beta.
       const list = await get(`/repos/${repo}/releases?per_page=10`);
       if (list.status === 404) return { ok: false, reason: 'not_found' };
       if (list.status === 403 || list.status === 429) return { ok: false, reason: 'rate_limited' };

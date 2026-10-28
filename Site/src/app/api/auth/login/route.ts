@@ -10,7 +10,7 @@ import { clientIp, rateLimit } from '@/lib/http';
 /** Starts "Login with Yapin'" (OAuth2 + PKCE). Without credentials in dev, goes to the dev login page. */
 export async function GET(req: NextRequest) {
   if (!rateLimit(`login:${clientIp(req.headers)}`, 20, 60_000)) return new NextResponse('Too many login attempts. Wait a minute.', { status: 429 });
-  const next =safeNext(req.nextUrl.searchParams.get('next'), env.portalUrl);
+  const next =safeNext(req.nextUrl.searchParams.get('next'), env.portalUrl, env.platformUrl);
   if (!oauthEnabled()) return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(next)}`, env.siteUrl));
 
   const state = randomBytes(16).toString('base64url');

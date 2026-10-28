@@ -46,7 +46,7 @@ export default async function PortalLayout({ children }: { children: React.React
       />
       <main className="min-w-0 px-4 sm:px-8 py-8">
         {children}
-        <p className="mt-12 text-xs text-ink-3">© {new Date().getFullYear()} Christian Relf. All rights reserved. YapBoard is proprietary and confidential — internal staff tooling, not for sharing outside the team.</p>
+        <p className="mt-12 text-xs text-ink-3">© {new Date().getFullYear()} Christian Relf. All rights reserved. YapBoard is proprietary and confidential - internal staff tooling, not for sharing outside the team.</p>
       </main>
     </div>
   );

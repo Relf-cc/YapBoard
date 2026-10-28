@@ -78,7 +78,7 @@ export default async function ViewClient({ params }: Props) {
   /**
    * Releases refresh themselves. A page view with a stale release kicks off a sync and doesn't wait for it, so
    * nobody sits through a GitHub round trip; the new version is there on the next view. The limit is one sync
-   * per client per TTL across every visitor, not per visitor — a popular client being opened a hundred times
+   * per client per TTL across every visitor, not per visitor - a popular client being opened a hundred times
    * an hour must not become a hundred calls to GitHub. A failure is recorded, not retried in a loop.
    */
   if (c.releaseSource === 'GITHUB' && c.repo && releaseIsStale(c.releaseSyncedAt) && rateLimit(`client:autosync:${c.id}`, 1, RELEASE_TTL_MS)) {
@@ -276,8 +276,8 @@ export default async function ViewClient({ params }: Props) {
                 <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${c.accent} 85%, transparent), transparent)` }} />
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-5">
                   <Fact label="Downloads" value={compact(c.downloads)} icon={<Download size={14} style={{ color: c.accent }} />} />
-                  <Fact label="Version" value={c.version || '—'} icon={<GitBranch size={14} style={{ color: c.accent }} />} />
-                  <Fact label="Released" value={c.releasedAt ? timeAgo(c.releasedAt) : '—'} icon={<History size={14} style={{ color: c.accent }} />} />
+                  <Fact label="Version" value={c.version || '-'} icon={<GitBranch size={14} style={{ color: c.accent }} />} />
+                  <Fact label="Released" value={c.releasedAt ? timeAgo(c.releasedAt) : '-'} icon={<History size={14} style={{ color: c.accent }} />} />
                   <Fact label="Listed" value={c.createdAt.toLocaleDateString('en', { month: 'short', year: 'numeric' })} icon={<CalendarDays size={14} style={{ color: c.accent }} />} />
                 </dl>
                 <div className="mt-5 flex items-center gap-3 border-t border-line pt-5">

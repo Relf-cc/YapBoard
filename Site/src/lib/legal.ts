@@ -7,6 +7,11 @@
 export const LEGAL = {
   /** Bump this whenever any of the three pages change in substance. */
   updated: '24 October 2026',
+  /**
+   * The developer platform's terms have their own date: they change when the API does, which is on a
+   * different clock from the site's terms (src/app/platform/(open)/program).
+   */
+  platformUpdated: '28 October 2026',
   /** Who runs YapBoard. UK GDPR requires the controller's identity: a person's or company's name. */
   operator: 'YapBoard',
   /** Must be a real, monitored inbox. Rights requests, copyright notices and appeals all point here. */

@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 
   /**
-   * Where the downloads come from is the part of a listing a review is really about — staff approved a page
+   * Where the downloads come from is the part of a listing a review is really about - staff approved a page
    * pointing at one repo, not at whatever it's pointed at afterwards. So changing it sends the listing back to
    * the queue, the same way changing a bot's support server does. Everything else saves and stays live.
    */

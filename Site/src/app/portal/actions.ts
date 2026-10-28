@@ -12,6 +12,7 @@ import { BADGES, isBadge } from '@/lib/badges';
 import { broadcastSchema, queueBroadcast, type BroadcastInput } from '@/lib/broadcasts';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
+import { newInviteCode, readScopes, writeScopes } from '@/lib/platform';
 import { getUser, isAdmin, isStaff } from '@/lib/session';
 import { RELEASE_ERRORS } from '@/lib/github';
 import { getVotingConfig, refreshAllRanks, refreshRank, refreshRanksForUser, saveVotingConfig, votingSchema, type VotingConfig } from '@/lib/votes';
@@ -72,7 +73,7 @@ export async function resolveReport(input: z.input<typeof resolveSchema>): Promi
   });
   if (!report) return { ok: false, error: 'Report not found' };
   if (report.status !== 'OPEN') return { ok: false, error: 'Already handled by someone else' };
-  // One report, one listing — a server, a bot or a client (src/lib/reports.ts).
+  // One report, one listing - a server, a bot or a client (src/lib/reports.ts).
   const target = report.server ?? report.bot ?? report.client;
   if (!target) return { ok: false, error: 'That listing is gone' };
   const board: 'server' | 'bot' | 'client' = report.server ? 'server' : report.bot ? 'bot' : 'client';
@@ -328,7 +329,7 @@ const reviewSchema = z.object({ botId: z.string().min(1), action: z.enum(['appro
 
 /**
  * The bot review queue (/portal/bots?status=PENDING). Approving sends the listing wherever the lister asked
- * for — public, or unlisted if they ticked it. Denying keeps it editable: saving an edit puts it back in the
+ * for - public, or unlisted if they ticked it. Denying keeps it editable: saving an edit puts it back in the
  * queue (api/bots/[botId] PATCH), so a denial is a request for changes, not a tombstone.
  */
 export async function reviewBot(input: z.input<typeof reviewSchema>): Promise<Result> {
@@ -360,7 +361,7 @@ export async function reviewBot(input: z.input<typeof reviewSchema>): Promise<Re
           title: `${bot.name} is on YapBoard`,
           body:
             status === 'UNLISTED'
-              ? 'Staff approved your listing. You asked for it to stay unlisted, so it won’t show on the bot board — anyone with the link can still see it, and you can make it public whenever you like.'
+              ? 'Staff approved your listing. You asked for it to stay unlisted, so it won’t show on the bot board - anyone with the link can still see it, and you can make it public whenever you like.'
               : 'Staff approved your listing, so it’s live on the bot board now. Bump it from its page every couple of hours to stay near the top.',
           linkUrl: `${env.siteUrl}/bots/${botId}`,
           linkLabel: 'View listing',
@@ -373,7 +374,7 @@ export async function reviewBot(input: z.input<typeof reviewSchema>): Promise<Re
 
 > ${n}
 
-Fix that on the manage page and save — saving sends it straight back for review.`,
+Fix that on the manage page and save - saving sends it straight back for review.`,
           linkUrl: `${env.siteUrl}/bots/${botId}/manage`,
           linkLabel: 'Manage listing',
         },
@@ -463,7 +464,7 @@ const clientReviewSchema = z.object({ clientId: z.string().min(1), action: z.enu
  *
  * It matters more here than anywhere else on the site. A client listing points people at an executable, so
  * approving one is a staff member saying they looked at where that file comes from. Everything needed to do
- * that — the repo, the release, every download URL — is on the row in front of them.
+ * that - the repo, the release, every download URL - is on the row in front of them.
  */
 export async function reviewClient(input: z.input<typeof clientReviewSchema>): Promise<Result> {
   const me = await staff();
@@ -494,8 +495,8 @@ export async function reviewClient(input: z.input<typeof clientReviewSchema>): P
           title: `${client.name} is on YapBoard`,
           body:
             status === 'UNLISTED'
-              ? 'Staff approved your client listing. You asked for it to stay unlisted, so it won’t show on the client board — anyone with the link can still see it, and you can make it public whenever you like.'
-              : 'Staff approved your client listing, so it’s live on the client board now. Bump it from its manage page every couple of hours to stay near the top, and publish a release whenever you like — the download buttons and changelog keep themselves up to date.',
+              ? 'Staff approved your client listing. You asked for it to stay unlisted, so it won’t show on the client board - anyone with the link can still see it, and you can make it public whenever you like.'
+              : 'Staff approved your client listing, so it’s live on the client board now. Bump it from its manage page every couple of hours to stay near the top, and publish a release whenever you like - the download buttons and changelog keep themselves up to date.',
           linkUrl: `${env.siteUrl}/clients/${client.slug}`,
           linkLabel: 'View listing',
         }
@@ -507,7 +508,7 @@ export async function reviewClient(input: z.input<typeof clientReviewSchema>): P
 
 > ${n}
 
-Fix that on the manage page and save — saving sends it straight back for review.`,
+Fix that on the manage page and save - saving sends it straight back for review.`,
           linkUrl: `${env.siteUrl}/clients/${client.slug}/manage`,
           linkLabel: 'Manage listing',
         },
@@ -673,4 +674,122 @@ export async function deleteBroadcast(id: string): Promise<Result> {
   await db.broadcast.delete({ where: { id } });
   await log(me.id, 'broadcast.delete', 'broadcast', id, null);
   return done('Broadcast deleted');
+}
+
+/* ---------------- developer platform (src/lib/platform.ts) ---------------- */
+
+/**
+ * The staff side of platform.yapboard.dev. Staff decide three things and nothing else: who's in, what their
+ * ceiling of scopes is, and whether an app may keep calling. The developer picks from under that ceiling.
+ *
+ * Scope-setting is admin-only. Everything on the platform acts on other people's listings, so widening what a
+ * third-party bot may do is a different kind of decision from hiding a listing.
+ */
+
+const inviteSchema = z.object({
+  note,
+  forUserId: z.string().trim().max(64).optional().transform((v) => v || null),
+  appLimit: z.number().int().min(1).max(10).default(2),
+  scopes: z.array(z.string()).default([]),
+  /** Days until it stops working. 0 means it doesn't expire. */
+  expiresInDays: z.number().int().min(0).max(90).default(14),
+});
+
+/** Writes an invite and hands back the code for staff to pass on. Nothing is emailed or DMed. */
+export async function createPlatformInvite(input: z.input<typeof inviteSchema>): Promise<Result & { code?: string }> {
+  const me = await staff();
+  const p = inviteSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { note: n, forUserId, appLimit, scopes, expiresInDays } = p.data;
+  if (scopes.length && !isAdmin(me)) return { ok: false, error: 'Only admins can grant scopes' };
+
+  const code = newInviteCode();
+  await db.platformInvite.create({
+    data: {
+      code,
+      note: n,
+      forUserId,
+      appLimit,
+      scopes: writeScopes(scopes),
+      expiresAt: expiresInDays ? new Date(Date.now() + expiresInDays * 864e5) : null,
+      invitedById: me.id,
+    },
+  });
+  await log(me.id, 'platform.invite', 'platform_invite', code, n);
+  return { ...done(`Invite ${code} created`), code };
+}
+
+/** Withdraws an invite that hasn't been used. One already redeemed is history: suspend the member instead. */
+export async function revokePlatformInvite(id: string): Promise<Result> {
+  const me = await staff();
+  if (typeof id !== 'string' || !id) return { ok: false, error: 'Bad input' };
+  const row = await db.platformInvite.findUnique({ where: { id }, select: { code: true, redeemedAt: true, revokedAt: true } });
+  if (!row) return { ok: false, error: 'Invite not found' };
+  if (row.redeemedAt) return { ok: false, error: 'Already used - suspend the member instead' };
+  if (row.revokedAt) return { ok: false, error: 'Already withdrawn' };
+  await db.platformInvite.update({ where: { id }, data: { revokedAt: new Date() } });
+  await log(me.id, 'platform.invite_revoke', 'platform_invite', row.code, null);
+  return done('Invite withdrawn');
+}
+
+const memberSchema = z.object({
+  userId: z.string().min(1),
+  action: z.enum(['suspend', 'restore', 'scopes', 'limit']),
+  scopes: z.array(z.string()).optional(),
+  appLimit: z.number().int().min(1).max(10).optional(),
+  note,
+});
+
+export async function setPlatformMember(input: z.input<typeof memberSchema>): Promise<Result> {
+  const me = await staff();
+  const p = memberSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { userId, action, scopes, appLimit, note: n } = p.data;
+  const m = await db.platformMember.findUnique({ where: { userId }, select: { status: true } });
+  if (!m) return { ok: false, error: 'Not a program member' };
+
+  if (action === 'scopes' || action === 'limit') {
+    if (!isAdmin(me)) return { ok: false, error: 'Only admins can change what a member may do' };
+    const data = action === 'scopes' ? { scopes: writeScopes(scopes ?? []) } : { appLimit: appLimit ?? 2 };
+    await db.platformMember.update({ where: { userId }, data });
+    // Scopes are a ceiling, so narrowing one has to narrow the apps under it too - otherwise an app keeps
+    // calling with a scope its member no longer holds.
+    if (action === 'scopes') {
+      const allowed = readScopes(writeScopes(scopes ?? []));
+      const apps = await db.platformApp.findMany({ where: { ownerId: userId }, select: { id: true, scopes: true } });
+      await Promise.all(
+        apps.map((a) => {
+          const kept = readScopes(a.scopes).filter((s) => allowed.includes(s));
+          return kept.length === readScopes(a.scopes).length ? null : db.platformApp.update({ where: { id: a.id }, data: { scopes: writeScopes(kept) } });
+        }),
+      );
+    }
+    await log(me.id, `platform.member_${action}`, 'platform_member', userId, action === 'scopes' ? (scopes ?? []).join(', ') || 'none' : String(appLimit));
+    return done('Saved');
+  }
+
+  const suspend = action === 'suspend';
+  if (suspend === (m.status === 'SUSPENDED')) return { ok: false, error: suspend ? 'Already suspended' : 'Not suspended' };
+  await db.platformMember.update({ where: { userId }, data: { status: suspend ? 'SUSPENDED' : 'ACTIVE', statusNote: suspend ? n : null } });
+  await log(me.id, `platform.member_${suspend ? 'suspend' : 'restore'}`, 'platform_member', userId, n);
+  return done(suspend ? 'Member suspended - every key of theirs is refused' : 'Member active again');
+}
+
+const appSuspendSchema = z.object({ appId: z.string().min(1), action: z.enum(['suspend', 'restore']), note });
+
+/** Suspend or restore one app. A suspension is staff's; the developer can't lift it from their side. */
+export async function moderatePlatformApp(input: z.input<typeof appSuspendSchema>): Promise<Result> {
+  const me = await staff();
+  const p = appSuspendSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Bad input' };
+  const { appId, action, note: n } = p.data;
+  const app = await db.platformApp.findUnique({ where: { id: appId }, select: { status: true, name: true } });
+  if (!app) return { ok: false, error: 'App not found' };
+  if (app.status === 'REVOKED') return { ok: false, error: 'That app is retired' };
+  if (action === 'suspend' && app.status === 'SUSPENDED') return { ok: false, error: 'Already suspended' };
+  if (action === 'restore' && app.status !== 'SUSPENDED') return { ok: false, error: 'Not suspended' };
+
+  await db.platformApp.update({ where: { id: appId }, data: { status: action === 'suspend' ? 'SUSPENDED' : 'ACTIVE', statusNote: action === 'suspend' ? n : null } });
+  await log(me.id, `platform.app_${action}`, 'platform_app', appId, n);
+  return done(action === 'suspend' ? `${app.name} suspended` : `${app.name} active again`);
 }

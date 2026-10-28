@@ -16,7 +16,7 @@ const STREAM = process.env.NEXT_PUBLIC_BUG_REPORT_URL;
 export type FeedbackKind = 'bug' | 'idea';
 
 /**
- * Copy for each kind. Both land in the same stream — suggestions are tagged in the summary rather than sent
+ * Copy for each kind. Both land in the same stream - suggestions are tagged in the summary rather than sent
  * somewhere new, so one stream still sees everything.
  */
 const COPY = {

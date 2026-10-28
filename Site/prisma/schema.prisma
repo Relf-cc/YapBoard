@@ -21,6 +21,10 @@ model User {
   role        String    @default("USER")
   bannedAt    DateTime?
   banReason   String?
+  /// The Stripe Customer (cus_…) for this account, made the first time they open checkout.
+  /// Stripe's Customer is the ownership boundary billing webhooks resolve to, so this is the one
+  /// link between a Stripe event and a YapBoard account (src/lib/stripe.ts).
+  stripeCustomerId String? @unique
   createdAt   DateTime  @default(now())
   lastLoginAt DateTime  @default(now())
 
@@ -40,6 +44,11 @@ model User {
   broadcasts        Broadcast[]
   botDms            BotDm[]
   uploads           Upload[]
+  proSubscriptions  ProSubscription[]
+  billingAlerts     BillingAlert[]
+  platformMember    PlatformMember?
+  platformInvitesSent     PlatformInvite[]   @relation("platformInviter")
+  platformInvitesRedeemed PlatformInvite[]   @relation("platformRedeemer")
 }
 
 /// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
@@ -314,7 +323,7 @@ model BroadcastDelivery {
 
 /// One DM the bot owes someone, currently a bot listing review decision (src/lib/bot-dms.ts).
 /// The site queues a row; the bot claims PENDING rows, sends them and reports back, like broadcasts.
-/// The dashboard stays the real record — a DM is a nudge, so one that can't be delivered is logged, not retried forever.
+/// The dashboard stays the real record - a DM is a nudge, so one that can't be delivered is logged, not retried forever.
 model BotDm {
   id        Int       @id @default(autoincrement())
   userId    String
@@ -432,7 +441,7 @@ model BotBump {
  */
 
 /// A listed client: somebody's own build of Yapin', shipped as its own executable rather than a bot or a server.
-/// Nothing about it lives on Yapin', so unlike a server or a bot there is no id to key it on — it gets a cuid and
+/// Nothing about it lives on Yapin', so unlike a server or a bot there is no id to key it on - it gets a cuid and
 /// a slug for its URL. Everything else (review queue, badges, tags, bumps, reports) works the way bots do.
 model ClientListing {
   id          String  @id @default(cuid())
@@ -573,7 +582,7 @@ model ClientBump {
 /// An image somebody uploaded on YapBoard, rather than linking from somewhere else.
 ///
 /// The bytes live in the database so an upload travels with the volume and with any backup of it, the same
-/// way everything else here does — there is no second store to keep in sync. They're small on purpose (see
+/// way everything else here does - there is no second store to keep in sync. They're small on purpose (see
 /// MAX_UPLOAD_BYTES in src/lib/upload-fields.ts); if this ever grows past a few hundred megabytes, move the
 /// `data` column to object storage and keep the rest of the row as it is.
 ///
@@ -586,7 +595,7 @@ model Upload {
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   /// image/png | image/jpeg | image/webp | image/gif, read from the file's own first bytes, never from the browser.
   mime      String
-  /// png | jpg | webp | gif — the extension the URL ends in, so the path still looks like a file.
+  /// png | jpg | webp | gif - the extension the URL ends in, so the path still looks like a file.
   ext       String
   bytes     Int
   /// What it was picked for: icon | banner | screenshot. Sets the size limit, and tells staff what they're looking at.
@@ -596,4 +605,244 @@ model Upload {
 
   @@index([ownerId, createdAt])
   @@index([createdAt])
+}
+
+/**
+ * ---------------- YapBoard Pro billing (src/lib/stripe.ts, src/lib/pro.ts) ----------------
+ *
+ * Stripe holds the truth about money; these tables hold only what the site needs to answer
+ * "is this listing on Pro?" without calling Stripe on every page view. Everything here is
+ * written by the webhook (src/app/api/stripe/webhook/route.ts), never by a page.
+ */
+
+/// One Stripe subscription to YapBoard Pro. Entitlement is worked out from these rows by isPro()
+/// in src/lib/pro.ts - nothing else should read `status` directly.
+model ProSubscription {
+  /// The Stripe Subscription id (sub_…). The primary key, so a replayed webhook upserts this row
+  /// instead of making a second one.
+  id               String    @id
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Stripe's own status, stored verbatim: active | trialing | past_due | canceled | unpaid |
+  /// incomplete | incomplete_expired | paused. Mapped to entitlement in src/lib/pro.ts.
+  status           String
+  /// The Price it's on, so the manage page can say "£4/month" without a round trip.
+  priceId          String
+  /// monthly | annual, read from the Price's metadata when the subscription is written.
+  cycle            String    @default("monthly")
+  /// Extra listing slots bought on top of the base plan: the quantity of the slot Price on the
+  /// Stripe subscription. The base plan always covers one server, one bot and one client; each
+  /// extra slot covers one more listing of any kind. Worked out in src/lib/pro.ts.
+  extraSlots       Int       @default(0)
+  /// End of the period already paid for. Pro lasts until here even once a cancellation is scheduled.
+  currentPeriodEnd DateTime?
+  /// Set when the owner has asked to cancel but the paid period hasn't run out yet.
+  cancelAt         DateTime?
+  canceledAt       DateTime?
+  trialEnd         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  assignments      ProAssignment[]
+
+  @@index([userId, status])
+  @@index([currentPeriodEnd])
+}
+
+/// One listing the owner has put under their Pro plan.
+///
+/// Pro is bought per listing, so the site has to know *which* ones: a plan covers one server, one
+/// bot and one client, plus one more listing of any kind per extra slot. The owner chooses, and can
+/// change their mind - moving a slot is free and immediate.
+///
+/// Rows are never deleted to make a plan fit. If a downgrade leaves more listings assigned than
+/// there are slots, the extras stop counting (oldest assignment keeps the slot) and the owner is
+/// asked to pick; the row stays so re-adding a slot restores it. Same rule as everything else here:
+/// hidden, kept, restored - never deleted.
+model ProAssignment {
+  id             String          @id @default(cuid())
+  subscriptionId String
+  subscription   ProSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  /// server | bot | client
+  kind           String
+  /// Server.id, BotListing.id or ClientListing.id. Not a relation: one column can't point at three
+  /// tables, and the owner check happens before the row is written (src/app/api/billing/slots).
+  listingId      String
+  assignedAt     DateTime        @default(now())
+
+  /// A listing can only be under one plan at a time.
+  @@unique([kind, listingId])
+  @@index([subscriptionId, assignedAt])
+}
+
+/// Every Stripe webhook we've already handled. Stripe retries until it gets a 2xx and can deliver
+/// the same event twice, so the handler claims an id here first and does nothing if it's taken.
+model StripeEvent {
+  /// Stripe's event id (evt_…).
+  id         String    @id
+  type       String
+  receivedAt DateTime  @default(now())
+  handledAt  DateTime?
+  /// Why handling failed, when it did. The row stays so a retry can be told apart from a first try.
+  error      String?
+
+  @@index([type, receivedAt])
+}
+
+/// Something about a payment that a person needs to look at: a dispute, a refund, a fraud warning,
+/// or a payment that keeps failing. Shown in the staff portal.
+///
+/// This exists because a listing can be paying us while staff are deciding whether to remove it,
+/// and because a dispute means the money is already gone - neither is something to find out about
+/// from a Stripe email weeks later.
+model BillingAlert {
+  id         Int       @id @default(autoincrement())
+  /// Null when the Stripe customer couldn't be matched to an account, which is itself worth seeing.
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// dispute | refund | fraud_warning | payment_failed
+  kind       String
+  /// The Stripe object it came from (ch_…, dp_…, in_…), so staff can find it in the Dashboard.
+  stripeId   String
+  detail     String
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([resolvedAt, createdAt])
+  @@index([userId])
+}
+
+/**
+ * ---------------- Developer platform (src/lib/platform.ts) ----------------
+ *
+ * platform.yapboard.dev, an invite-only program: a Yapin' bot developer we've admitted can put YapBoard's
+ * commands (`/bump`, listing lookups, search) inside their own bot, by calling the partner API with a key
+ * they mint there.
+ *
+ * Invite-only because these calls act on other people's listings, so the bot sending them has to be one we
+ * can name and turn off. Three rows carry that: the invite staff wrote, the member it admitted, and the app
+ * (one bot) whose keys the API checks.
+ */
+
+/// One invite to the program. Staff write it in the portal and hand the code to a developer; redeeming it at
+/// platform.yapboard.dev makes a PlatformMember. The code is kept in full (not hashed) so staff can read it
+/// back and resend it - it only ever grants what a staff member already decided to grant.
+model PlatformInvite {
+  id           String    @id @default(cuid())
+  /// What gets typed in to redeem it: YB-XXXX-XXXX (src/lib/platform.ts).
+  code         String    @unique
+  /// Who it's for, in staff's own words ("@ellie, writes Yapper.js bots"). The invite isn't bound to an
+  /// account until it's redeemed, so this is the only record of intent.
+  note         String?
+  /// Optional: only this Yapin' user id can redeem it. Blank means whoever holds the code.
+  forUserId    String?
+  /// How many apps the member it admits may register.
+  appLimit     Int       @default(2)
+  /// Which scopes the member starts with, as a JSON array of SCOPE keys.
+  scopes       String    @default("[]")
+  invitedById  String
+  invitedBy    User      @relation("platformInviter", fields: [invitedById], references: [id])
+  expiresAt    DateTime?
+  redeemedAt   DateTime?
+  redeemedById String?
+  redeemedBy   User?     @relation("platformRedeemer", fields: [redeemedById], references: [id])
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  member PlatformMember?
+
+  @@index([redeemedAt, createdAt])
+}
+
+/// A developer who has been admitted. Without a row here, platform.yapboard.dev shows the invite wall -
+/// that is the whole of "invite only".
+model PlatformMember {
+  userId     String    @id
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// ACTIVE | SUSPENDED. Suspended keeps everything but stops every key at the door.
+  status     String    @default("ACTIVE")
+  /// Why staff suspended them. Shown to the developer on their overview.
+  statusNote String?
+  /// How many apps they may register. Raised per member in the portal.
+  appLimit   Int       @default(2)
+  /// The scopes staff allow them, as a JSON array of SCOPE keys. An app can only ask for these.
+  scopes     String    @default("[]")
+  /// The invite this came from. Null for members added straight from the portal.
+  inviteId   String?         @unique
+  invite     PlatformInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  joinedAt   DateTime  @default(now())
+
+  apps PlatformApp[]
+
+  @@index([status, joinedAt])
+}
+
+/// One bot putting YapBoard's commands in front of its own users. `botId` is the bot's Yapin' user id, so a
+/// bump made through the API can be traced back to the bot that sent it.
+model PlatformApp {
+  id         String  @id @default(cuid())
+  /// The bot's Yapin' user id. One app per bot, across the whole program.
+  botId      String  @unique
+  name       String
+  /// One line about what it does with the commands, for staff reviewing the program.
+  summary    String  @default("")
+  /// Where to reach the developer about this app (a support server invite, an issue tracker).
+  contactUrl String?
+  /// What it may call, as a JSON array of SCOPE keys. Always a subset of the member's own scopes.
+  scopes     String  @default("[]")
+  /// ACTIVE | PAUSED (the developer stopped it) | SUSPENDED (staff did) | REVOKED (gone for good)
+  status     String  @default("ACTIVE")
+  statusNote String?
+  /// Totals, so the overview doesn't have to add up PlatformUsage on every page view.
+  calls      Int     @default(0)
+  errors     Int     @default(0)
+  lastCallAt DateTime?
+  ownerId    String
+  owner      PlatformMember @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  keys  PlatformKey[]
+  usage PlatformUsage[]
+
+  @@index([ownerId, createdAt])
+  @@index([status, lastCallAt])
+}
+
+/// One API key for one app. Only the hash is kept, so a key shown once can never be shown again - the
+/// developer mints a new one and revokes the old, which is also how rotation works.
+model PlatformKey {
+  id         String    @id @default(cuid())
+  appId      String
+  app        PlatformApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  /// What it's for, in the developer's words ("prod", "my laptop").
+  label      String    @default("")
+  /// The first few characters, so a key can be told apart in the list: ybp_AbC12345…
+  prefix     String
+  /// sha256 of the whole key. Unique, so two keys can never collide.
+  hash       String    @unique
+  lastUsedAt DateTime?
+  /// Revoked keys stay: a request that arrives with one should read as "revoked", not "never existed".
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([appId, createdAt])
+}
+
+/// One app's calls to one endpoint on one UTC day. Written by the API (src/lib/platform.ts), read by the
+/// developer's app page and the portal. Counts only - no request bodies, nothing about who typed the command.
+model PlatformUsage {
+  id       Int      @id @default(autoincrement())
+  appId    String
+  app      PlatformApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  /// Midnight UTC of the day being counted.
+  day      DateTime
+  /// The endpoint key: bump | listing | search | bots (src/lib/platform.ts ENDPOINTS).
+  endpoint String
+  calls    Int      @default(0)
+  /// Calls that answered 4xx or 5xx. A key that only errors is usually a broken integration, not abuse.
+  errors   Int      @default(0)
+
+  @@unique([appId, day, endpoint])
+  @@index([appId, day])
 }

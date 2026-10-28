@@ -20,7 +20,7 @@ const SEAL = (() => {
 const STAR = 'M20.6 1.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55z';
 
 /**
- * One badge: a coloured seal that glistens — a light sweep crosses it every few seconds and a small sparkle
+ * One badge: a coloured seal that glistens - a light sweep crosses it every few seconds and a small sparkle
  * twinkles. `seed` (e.g. the server id) offsets the timing so a grid of badges doesn't shine in lockstep.
  */
 export function Badge({ kind, size = 18, seed = '', className, tooltip = true }: { kind: BadgeKind; size?: number; seed?: string; className?: string; tooltip?: boolean }) {

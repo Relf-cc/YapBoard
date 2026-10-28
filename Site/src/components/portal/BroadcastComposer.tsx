@@ -150,7 +150,7 @@ function Composer({ reach, onDone }: { reach: number; onDone: () => void }) {
       }}
     >
       <p className="text-sm text-ink-3">
-        This is posted by the bot in <b className="text-ink-2">{reach}</b> server{reach === 1 ? '' : 's'} — each one in the channel it last used <code className="font-mono">/bump</code> in. Saved as a draft first; sending is a separate step.
+        This is posted by the bot in <b className="text-ink-2">{reach}</b> server{reach === 1 ? '' : 's'} - each one in the channel it last used <code className="font-mono">/bump</code> in. Saved as a draft first; sending is a separate step.
       </p>
 
       <label className="mt-4 block">

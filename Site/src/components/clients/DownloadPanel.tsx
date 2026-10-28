@@ -146,7 +146,7 @@ export function DownloadPanel({ clientId, clientName, accent, version, releaseUr
       <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-ink-3">
         <ShieldAlert size={14} className="mt-px shrink-0 text-warn" />
         <span>
-          YapBoard doesn’t build, host or scan these files — every download goes straight to the maintainer.{' '}
+          YapBoard doesn’t build, host or scan these files - every download goes straight to the maintainer.{' '}
           <Link href="/clients/terms#safety" className="underline decoration-line hover:text-ink">
             What to check before you run one
           </Link>
@@ -194,7 +194,7 @@ function TrustDialog({ file, clientName, onClose, onConfirm }: { file: DownloadF
         <Point>
           <b className="text-ink">{clientName}</b> is made by someone else. We don’t build, host or scan it.
         </Point>
-        <Point>It runs with your Yapin’ account signed in — a dishonest client can read your messages and take your token.</Point>
+        <Point>It runs with your Yapin’ account signed in - a dishonest client can read your messages and take your token.</Point>
       </ul>
 
       <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 transition-colors hover:border-line-strong">

@@ -15,6 +15,6 @@ export async function POST(req: NextRequest) {
   const id = `dev-${username}`;
   await upsertUser({ id, username, display_name: username.replace(/_/g, ' ') }, staff ? 'ADMIN' : 'USER');
   await createSession(id);
-  const next = safeNext(String(form.get('next') || '/'), env.portalUrl);
+  const next = safeNext(String(form.get('next') || '/'), env.portalUrl, env.platformUrl);
   return NextResponse.redirect(next.startsWith('http') ? next : new URL(next, env.siteUrl), 303);
 }

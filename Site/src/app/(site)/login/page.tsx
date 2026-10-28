@@ -16,7 +16,7 @@ type Props = { searchParams: Promise<{ next?: string; error?: string }> };
 export default async function Login({ searchParams }: Props) {
   const { next: rawNext, error: errorCode } = await searchParams;
   const error = loginError(errorCode);
-  const next = safeNext(rawNext, env.portalUrl);
+  const next = safeNext(rawNext, env.portalUrl, env.platformUrl);
   if (await getUser()) redirect(next);
 
   return (

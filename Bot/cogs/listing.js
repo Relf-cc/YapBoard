@@ -183,7 +183,7 @@ export default async function setup(bot) {
     })
       .field('Members', number(l.memberCount), true)
       .field('Bumps', number(l.bumpCount), true)
-      .field('Next bump', !live ? '—' : ready ? '**Ready now**' : `in ${until(l.nextBumpAt)}`, true)
+      .field('Next bump', !live ? '-' : ready ? '**Ready now**' : `in ${until(l.nextBumpAt)}`, true)
       .field('Views', number(l.views), true)
       .field('Joins', number(l.joins), true)
       .field('Status', STATUS[l.status] || l.status, true);

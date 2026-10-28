@@ -2,7 +2,7 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 /**
  * Staff-granted badges. Every badge is the same scalloped, glistening seal (src/components/Badge.tsx) and
- * differs only by colour and icon, so adding one is a single entry here — nothing else needs to change.
+ * differs only by colour and icon, so adding one is a single entry here - nothing else needs to change.
  *
  * A server can hold several (the ServerBadge table). They're shown in the order they're listed below.
  */
@@ -54,7 +54,7 @@ export const BADGES = {
   SUPPORT: {
     label: 'Support',
     long: 'Official YapBoard support server',
-    blurb: 'The YapBoard team’s own server — help, bug reports and updates.',
+    blurb: 'The YapBoard team’s own server - help, bug reports and updates.',
     // A hotter, purer orange than the board's coral accent, so it reads as YapBoard's own without matching Featured.
     from: '#ffab4d',
     to: '#f06400',
@@ -145,7 +145,7 @@ export const topBadge = (kinds: readonly (string | null | undefined)[]): BadgeKi
  */
 export const hasSupport = (kinds: readonly (string | null | undefined)[]): boolean => kinds.includes('SUPPORT');
 
-/** YapBoard Pro. Bought, not granted, so it isn't a badge — but it's drawn as the same seal. */
+/** YapBoard Pro. Bought, not granted, so it isn't a badge - but it's drawn as the same seal. */
 export const PRO_MARK: MarkDef = {
   label: 'Pro',
   long: 'YapBoard Pro',

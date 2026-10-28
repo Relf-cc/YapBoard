@@ -8,7 +8,7 @@ import { countOnce } from '@/lib/http';
 
 /**
  * Counts the click on "Add to your server", then sends people to the bot's own page when it has one.
- * Bots without a link have nowhere to send anyone — they're added by pasting the id — so that goes back to
+ * Bots without a link have nowhere to send anyone - they're added by pasting the id - so that goes back to
  * the listing, where the id sits in a copy box.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ botId: string }> }) {

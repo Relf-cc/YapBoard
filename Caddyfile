@@ -1,6 +1,7 @@
 # Internal proxy between the Cloudflare Tunnel (cloudflared) and the site. Cloudflare terminates HTTPS, so this is
-# plain HTTP on the Docker network and nothing here is published to the host. yapboard.dev, portal.yapboard.dev and
-# api.yapboard.dev are the same Next app, told apart by Host (cloudflared passes the public hostname through).
+# plain HTTP on the Docker network and nothing here is published to the host. yapboard.dev, portal.yapboard.dev,
+# platform.yapboard.dev and api.yapboard.dev are the same Next app, told apart by Host (cloudflared passes the
+# public hostname through).
 
 {
 	servers {

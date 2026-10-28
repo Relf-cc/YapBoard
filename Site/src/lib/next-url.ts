@@ -1,11 +1,14 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
-/** Only same-site paths (or the portal) are allowed after login, so ?next= can't be an open redirect. */
-export function safeNext(next: string | null | undefined, portalUrl?: string): string {
+/**
+ * Only same-site paths - or one of the areas on their own hostname, the portal and the platform - are allowed
+ * after login, so ?next= can't be an open redirect.
+ */
+export function safeNext(next: string | null | undefined, ...allowed: (string | undefined)[]): string {
   if (!next) return '/';
   // Browsers drop tabs and newlines from URLs and read \ as /, so "/\t/evil.com" would become "//evil.com".
   if (/[\u0000-\u001f\u007f\\]/.test(next)) return '/';
-  if (portalUrl && (next === portalUrl || next.startsWith(portalUrl + '/'))) return next;
+  if (allowed.some((root) => root && (next === root || next.startsWith(root + '/')))) return next;
   if (!next.startsWith('/') || next.startsWith('//')) return '/';
   // Last check: resolved against a dummy origin, the path must stay on it.
   try {

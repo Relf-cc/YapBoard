@@ -5,7 +5,7 @@ import { Fragment } from 'react';
 /**
  * Release notes, as GitHub hands them over: Markdown written by whoever cut the release.
  *
- * Rendered the same way a listing's description is — React elements only, never HTML — because this text comes
+ * Rendered the same way a listing's description is - React elements only, never HTML - because this text comes
  * from a third party's repo rather than from the lister, and a changelog is the last place that should be able
  * to put markup on the page. It covers what release notes actually use: headings, bullets, bold, code, links,
  * and GitHub's "Full Changelog" compare line. Anything else falls through as plain text, which is the right

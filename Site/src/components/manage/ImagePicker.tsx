@@ -39,7 +39,7 @@ export function ImagePicker({
   async function handleFile(file: File) {
     setUploadError('');
     if (file.size > limit) {
-      setUploadError(`That image is too big — the limit is ${megabytes(limit)}.`);
+      setUploadError(`That image is too big - the limit is ${megabytes(limit)}.`);
       return;
     }
     setUploading(true);
@@ -65,7 +65,7 @@ export function ImagePicker({
 
   return (
     <div className="space-y-2">
-      {/* Drop zone — shown when there's no image set yet, or while uploading */}
+      {/* Drop zone - shown when there's no image set yet, or while uploading */}
       {(!value || uploading) && (
         <button
           type="button"
@@ -90,7 +90,7 @@ export function ImagePicker({
         </button>
       )}
 
-      {/* Thumbnail + clear — shown when an upload path is set */}
+      {/* Thumbnail + clear - shown when an upload path is set */}
       {value && isOwn && !uploading && (
         <div className="group relative overflow-hidden rounded-xl border border-line bg-raised">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -116,7 +116,7 @@ export function ImagePicker({
         </div>
       )}
 
-      {/* URL input — always shown so people can still paste a link, unless they've uploaded something */}
+      {/* URL input - always shown so people can still paste a link, unless they've uploaded something */}
       {!isOwn && (
         <div className="flex gap-2">
           <input
@@ -173,7 +173,7 @@ export function ScreenshotPickerRow({
 
   async function handleFile(file: File) {
     setUploadError('');
-    if (file.size > limit) { setUploadError(`Too big — max ${megabytes(limit)}.`); return; }
+    if (file.size > limit) { setUploadError(`Too big - max ${megabytes(limit)}.`); return; }
     setUploading(true);
     const body = new FormData();
     body.append('file', file);

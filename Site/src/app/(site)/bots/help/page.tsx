@@ -24,7 +24,7 @@ const PROBLEMS: [string, string][] = [
   ],
   [
     '“That bot isn’t in your support server”',
-    'Add the bot to the server first. A support server has to be somewhere the bot actually is — that’s part of how we know it’s yours.',
+    'Add the bot to the server first. A support server has to be somewhere the bot actually is - that’s part of how we know it’s yours.',
   ],
   [
     '“Only the server’s owner or an admin”',
@@ -62,9 +62,9 @@ export default function BotHelp() {
         <div className="mt-10 card p-6">
           <h2 className="font-bold">What you need first</h2>
           <ul className="mt-3 space-y-2 text-sm text-ink-2 leading-relaxed">
-            <li>— A bot on Yapin’ that you run.</li>
+            <li>- A bot on Yapin’ that you run.</li>
             <li>
-              — A <b className="text-ink">support server</b> for it: a server you own or admin, with the bot in it, where people can get help.
+              - A <b className="text-ink">support server</b> for it: a server you own or admin, with the bot in it, where people can get help.
             </li>
           </ul>
           <p className="mt-3 text-sm text-ink-3 leading-relaxed">
@@ -94,12 +94,12 @@ export default function BotHelp() {
 
         <Step n={2} icon={<MessageSquare size={18} />} title="Run /addbot in that server" delay={0.12}>
           <p>
-            Type <code className="font-mono text-ink-2">/addbot</code> followed by your bot’s ID — the same one you paste into{' '}
+            Type <code className="font-mono text-ink-2">/addbot</code> followed by your bot’s ID - the same one you paste into{' '}
             <b className="text-ink-2">Server settings → Bots</b>. YapBoard replies with a link to the form that already has both IDs filled in, so there’s nothing
             left to copy by hand.
           </p>
           <p className="mt-3 rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-warn">
-            <b>Don’t @ the bot.</b> On Yapin’, mentioning a bot in a command is how you pick which bot the command goes to — so{' '}
+            <b>Don’t @ the bot.</b> On Yapin’, mentioning a bot in a command is how you pick which bot the command goes to - so{' '}
             <code className="font-mono">/addbot @YourBot</code> gets sent to your bot, not to YapBoard, and never reaches us.
           </p>
           <p className="mt-3 text-ink-3">
@@ -115,16 +115,16 @@ export default function BotHelp() {
           <p>A one-line summary, a description and a few tags. Three things make the difference:</p>
           <ul className="mt-3 space-y-1.5">
             <li>
-              — Say what the bot <b className="text-ink-2">does</b> in the first line. “Music bot with playlists and DJ roles”, not “the best bot ever”.
+              - Say what the bot <b className="text-ink-2">does</b> in the first line. “Music bot with playlists and DJ roles”, not “the best bot ever”.
             </li>
-            <li>— Write a real description. One line tells people nothing, and it’s the usual reason a listing comes back.</li>
-            <li>— Pick tags that actually match. Tags are how people find you.</li>
+            <li>- Write a real description. One line tells people nothing, and it’s the usual reason a listing comes back.</li>
+            <li>- Pick tags that actually match. Tags are how people find you.</li>
           </ul>
         </Step>
 
         <Step n={4} icon={<ShieldCheck size={18} />} title="Send it in, and wait for a check" delay={0.16}>
           <p>
-            A staff member reads every bot listing before it goes on the board — usually quickly. Until then it’s only visible to you, and it won’t turn up on the
+            A staff member reads every bot listing before it goes on the board - usually quickly. Until then it’s only visible to you, and it won’t turn up on the
             board or in search.
           </p>
           <p className="mt-3">

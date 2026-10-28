@@ -14,13 +14,13 @@ import { MAX_TAGS, normalizeTags } from './tags';
 import type { SessionUser } from './session';
 import { isStaff } from './session';
 
-/** The form's own shape — themes, release sources, limits — lives in a module the browser can import too. */
+/** The form's own shape - themes, release sources, limits - lives in a module the browser can import too. */
 export * from './client-fields';
 
 /**
  * Client listings: the third board.
  *
- * A client is somebody's own build of Yapin' — a modified desktop app, shipped as its own executable. That
+ * A client is somebody's own build of Yapin' - a modified desktop app, shipped as its own executable. That
  * makes it unlike the other two boards in one way that drives most of this file: there is nothing on Yapin' to
  * check it against. A server has an invite and a member count; a bot has an account and a support server. A
  * client is a file on somebody else's release page, so ownership can't be proved the way it is for a bot, and
@@ -46,8 +46,8 @@ export const RELEASE_TTL_MS = 30 * 60_000;
 /* ---------------- slugs ---------------- */
 
 /**
- * A slug nothing else is using. Names collide more here than elsewhere — half the clients on any board are
- * called some variation of the app they fork — so a taken one gets -2, -3 and so on rather than being refused.
+ * A slug nothing else is using. Names collide more here than elsewhere - half the clients on any board are
+ * called some variation of the app they fork - so a taken one gets -2, -3 and so on rather than being refused.
  */
 export async function uniqueSlug(name: string): Promise<string> {
   const base = slugify(name) || 'client';
@@ -206,7 +206,7 @@ export async function setClientTags(tx: Prisma.TransactionClient, clientId: stri
 }
 
 /**
- * Replace the links the lister keeps. Rows synced from GitHub are left alone — those belong to the release.
+ * Replace the links the lister keeps. Rows synced from GitHub are left alone - those belong to the release.
  *
  * Matched to what's already there by URL rather than wiped and rebuilt, so renaming a button or reordering the
  * list doesn't reset its click count. The same rule the release sync follows.

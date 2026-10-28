@@ -7,7 +7,7 @@ import { answer, card, fileUrl, memberCountOf, number, serverIdOf, siteLink, STA
 const HELP = [
   ['/bump', 'Moves your server to the top of the list. Anyone in the server can do it, once every 2 hours.'],
   ['/yapboard', 'Owner and admins: your listing’s stats (only you see them), or a link to list the server.'],
-  ['/info', 'This server’s details — name, ID, members — and whether it’s on YapBoard.'],
+  ['/info', 'This server’s details - name, ID, members - and whether it’s on YapBoard.'],
   ['/addbot', 'Owner and admins: start a bot listing. `/addbot <bot id>` fills the IDs in for you.'],
   ['/invite', 'Gets the link to add YapBoard to another server.'],
   ['/help', 'Lists the commands.'],

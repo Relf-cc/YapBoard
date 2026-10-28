@@ -210,7 +210,7 @@ async function main() {
     }
   }
 
-  // Clients. Download links are made up and point nowhere real — the point is the shape of the page.
+  // Clients. Download links are made up and point nowhere real - the point is the shape of the page.
   for (const [i, [name, summary, platforms, framework, repo, version, tags]] of CLIENTS.entries()) {
     const owner = users[(i + 4) % users.length];
     const createdAt = new Date(now - rand(90) * 864e5);

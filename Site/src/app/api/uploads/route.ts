@@ -8,7 +8,7 @@ import { MAX_UPLOAD_BYTES, isUploadKind, saveUpload } from '@/lib/uploads';
  * One image, posted as multipart form-data by the picker in the listing form: `file` and `kind`.
  *
  * Nothing is attached to a listing here. The response is a path (/u/<id>.png) that the form drops into the
- * field it was picked for, and the listing claims it when the form is saved — so an upload the person then
+ * field it was picked for, and the listing claims it when the form is saved - so an upload the person then
  * changes their mind about is simply never referenced, and the sweep clears it a day later.
  */
 

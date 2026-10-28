@@ -69,14 +69,14 @@ export default async function ManageBot({ params, searchParams }: Props) {
       {b.status === 'PENDING' && (
         <div className="mt-6 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           Waiting for a staff review. It isn’t on the bot board yet, and nobody but you and staff can open its page. You
-          can keep editing while you wait — saving doesn’t put you back in the queue.
+          can keep editing while you wait - saving doesn’t put you back in the queue.
         </div>
       )}
 
       {b.status === 'DENIED' && (
         <div className="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           <b>Staff asked for changes{b.statusNote ? ':' : '.'}</b>
-          {b.statusNote ? ` ${b.statusNote}` : ''} Fix it below and save — that sends the listing back for review.
+          {b.statusNote ? ` ${b.statusNote}` : ''} Fix it below and save - that sends the listing back for review.
         </div>
       )}
 

@@ -5,7 +5,7 @@
  * What an uploaded image may be, and what its URL looks like afterwards.
  *
  * Split out of src/lib/uploads.ts for the same reason client-fields.ts is split out of clients.ts: that file
- * is `server-only` — it reaches the database — and the picker in the browser needs these limits to say no
+ * is `server-only` - it reaches the database - and the picker in the browser needs these limits to say no
  * before a 40 MB photo is sent anywhere. uploads.ts re-exports everything here.
  */
 

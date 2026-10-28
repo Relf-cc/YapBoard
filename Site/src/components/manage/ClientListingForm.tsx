@@ -63,7 +63,7 @@ type Errors = Partial<Record<keyof ClientListingValues | 'agreeTerms', string[]>
  * The listing form for a client, on both /clients/add and the manage page.
  *
  * Two things set it apart from the server and bot forms. Creating a listing goes through the terms dialog
- * first — a client is software other people will run, so accepting the client terms and Yapin's terms is part
+ * first - a client is software other people will run, so accepting the client terms and Yapin's terms is part
  * of submitting, not a line of small print under the button. And the downloads section is a real editor:
  * listers either point at a GitHub repo and let releases fill it in, or keep the links themselves.
  */
@@ -194,7 +194,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               <Field
                 label="GitHub repository"
                 error={errors.repo}
-                help="Paste the repo URL or owner/repo. We read releases/latest and sort its files by platform — .exe to Windows, .deb to Linux, and so on."
+                help="Paste the repo URL or owner/repo. We read releases/latest and sort its files by platform - .exe to Windows, .deb to Linux, and so on."
               >
                 <div className="flex gap-2">
                   <input
@@ -214,7 +214,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               </Field>
             ) : (
               <p className="text-[13px] leading-relaxed text-ink-3">
-                You keep the links yourself. Add one per platform below — they show up as download buttons, behind the same Trust &amp; Safety notice every client gets.
+                You keep the links yourself. Add one per platform below - they show up as download buttons, behind the same Trust &amp; Safety notice every client gets.
               </p>
             )}
 
@@ -290,7 +290,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               </Field>
             </div>
 
-            <Field label="Header style" help="How the top of your page is drawn when there's no banner — and over it when there is.">
+            <Field label="Header style" help="How the top of your page is drawn when there's no banner - and over it when there is.">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((t) => (
                   <button
@@ -419,7 +419,7 @@ function FileEditor({ files, onChange, error, optional }: { files: ClientFileVal
       </div>
       <p className="mb-3 text-[13px] text-ink-3">
         {optional
-          ? 'Optional, on top of the release files — a portable build, a mirror, a package on another store.'
+          ? 'Optional, on top of the release files - a portable build, a mirror, a package on another store.'
           : 'One per platform. These are the buttons people press.'}
       </p>
 

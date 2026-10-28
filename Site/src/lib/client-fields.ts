@@ -5,8 +5,8 @@
  * The parts of a client listing's shape that the form in the browser needs as well as the server: the choices
  * on the page, and the limits behind the counters next to them.
  *
- * They live here rather than in src/lib/clients.ts because that file is `server-only` — it reaches the
- * database and GitHub — and a client component importing it would drag all of that into the browser bundle.
+ * They live here rather than in src/lib/clients.ts because that file is `server-only` - it reaches the
+ * database and GitHub - and a client component importing it would drag all of that into the browser bundle.
  * src/lib/clients.ts re-exports everything here, so server code can keep importing from one place.
  */
 

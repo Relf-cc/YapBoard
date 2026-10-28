@@ -133,7 +133,7 @@ function ReportDialog({ target, onClose }: { target: Target; onClose: () => void
                 : target.kind === 'bot'
                   ? 'Anything that helps us check, like how you’re involved with the bot.'
                   : target.kind === 'client'
-                    ? 'Anything that helps us check — where the download really goes, or what the build does.'
+                    ? 'Anything that helps us check - where the download really goes, or what the build does.'
                     : 'Anything that helps us check, like who you are in the server.'
             }
           />

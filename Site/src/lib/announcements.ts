@@ -9,8 +9,8 @@ import type { SessionUser } from './session';
  * Site-wide notices, written by staff in the portal (/portal/announcements).
  *
  * Two kinds, and a page can show one of each:
- *   BANNER — a bar across the top of every page. Dismissible ones can be closed; the rest stay put.
- *   MODAL  — a dialog, shown once and then never again for that person.
+ *   BANNER - a bar across the top of every page. Dismissible ones can be closed; the rest stay put.
+ *   MODAL  - a dialog, shown once and then never again for that person.
  *
  * Who sees one is `audience`: everyone, only logged-in people, or only new ones (an account younger than
  * `newWithinHours`; a logged-out visitor has no account, so they count as new).

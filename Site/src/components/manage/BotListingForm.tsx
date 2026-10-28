@@ -126,7 +126,7 @@ export function BotListingForm({ mode, initial, devMode }: { mode: 'create' | 'e
               maxLength={2000}
               value={v.description}
               onChange={(e) => set('description', e.target.value)}
-              placeholder={'What does your bot do? What are its best commands?\n\n- /play — queue a track\n- /poll — ask the server something\n- Slash commands only, no prefix needed'}
+              placeholder={'What does your bot do? What are its best commands?\n\n- /play - queue a track\n- /poll - ask the server something\n- Slash commands only, no prefix needed'}
             />
           </Field>
         </Section>

@@ -18,7 +18,8 @@ export function sameOrigin(req: NextRequest) {
   try {
     const o = new URL(origin);
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    return o.host === host || o.origin === env.siteUrl || o.origin === new URL(env.portalUrl).origin;
+    const ours = [env.siteUrl, new URL(env.portalUrl).origin, new URL(env.platformUrl).origin];
+    return o.host === host || ours.includes(o.origin);
   } catch {
     return false;
   }

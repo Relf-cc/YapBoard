@@ -48,7 +48,7 @@ export default async function ManageClient({ params, searchParams }: Props) {
           <div className="mb-8 flex items-start gap-3 rounded-2xl border border-accent/40 bg-accent-soft px-5 py-4">
             <PartyPopper size={20} className="mt-0.5 shrink-0 text-accent" />
             <p className="text-sm leading-relaxed">
-              <b>Sent for review.</b> A staff member checks every client before it goes on the board — we’ll DM you
+              <b>Sent for review.</b> A staff member checks every client before it goes on the board - we’ll DM you
               through the YapBoard bot either way. You can keep editing while you wait.
             </p>
           </div>
@@ -81,14 +81,14 @@ export default async function ManageClient({ params, searchParams }: Props) {
       {c.status === 'PENDING' && (
         <div className="mt-6 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           Waiting for a staff review. It isn’t on the client board yet, and nobody but you and staff can open its page.
-          You can keep editing while you wait — saving doesn’t put you back to the end of the queue.
+          You can keep editing while you wait - saving doesn’t put you back to the end of the queue.
         </div>
       )}
 
       {c.status === 'DENIED' && (
         <div className="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           <b>Staff asked for changes{c.statusNote ? ':' : '.'}</b>
-          {c.statusNote ? ` ${c.statusNote}` : ''} Fix it below and save — that sends the listing back for review.
+          {c.statusNote ? ` ${c.statusNote}` : ''} Fix it below and save - that sends the listing back for review.
         </div>
       )}
 

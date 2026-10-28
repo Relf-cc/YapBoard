@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (!s) return fail('Check the form', 422, { fields: { supportServerId: ['That server isn’t listed on YapBoard yet'] } });
       /**
        * This used to accept any listed server, so a listing could be pointed at a stranger's. Naming a server
-       * as a bot's support server is the whole ownership claim, so it has to be one this person runs — the same
+       * as a bot's support server is the whole ownership claim, so it has to be one this person runs - the same
        * check POST /api/bots makes. Staff can move a listing anywhere.
        */
       if (supportChanged && !isStaff(m.user) && botEnabled()) {

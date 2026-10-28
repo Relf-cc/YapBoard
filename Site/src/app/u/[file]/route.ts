@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 
 /**
- * Serve an uploaded image by id. URLs are /u/<id>.<ext> — the extension is cosmetic (browsers read the
+ * Serve an uploaded image by id. URLs are /u/<id>.<ext> - the extension is cosmetic (browsers read the
  * Content-Type header) but it makes the path look like a file to link previewers and image hotlink checkers.
  *
  * Cache-Control is long: the content of a given id never changes, and an id is never reused.

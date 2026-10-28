@@ -43,7 +43,7 @@ export default async function AnnouncementsPage() {
 
   return (
     <div className="max-w-5xl">
-      <PageHead title="Announcements" sub="A bar across the top of the site, or a dialog people see once. Only one of each shows at a time — the newest live one wins." />
+      <PageHead title="Announcements" sub="A bar across the top of the site, or a dialog people see once. Only one of each shows at a time - the newest live one wins." />
       <AnnouncementEditor rows={editorRows} labels={{ kinds: KINDS, audiences: AUDIENCES, tones: TONES }} />
     </div>
   );

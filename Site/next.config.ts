@@ -11,8 +11,8 @@ const origin = (url: string | undefined) => {
   }
 };
 
-// Forms may land on the site or the portal (login with ?next= a portal page redirects there).
-const formTargets = [...new Set(["'self'", origin(process.env.NEXT_PUBLIC_SITE_URL), origin(process.env.PORTAL_URL)].filter(Boolean))].join(' ');
+// Forms may land on the site, the portal or the platform (login with ?next= one of their pages redirects there).
+const formTargets = [...new Set(["'self'", origin(process.env.NEXT_PUBLIC_SITE_URL), origin(process.env.PORTAL_URL), origin(process.env.PLATFORM_URL)].filter(Boolean))].join(' ');
 // Bug reports are posted from the browser to a Kern stream (src/components/BugReport.tsx).
 const bugStream = origin(process.env.NEXT_PUBLIC_BUG_REPORT_URL);
 

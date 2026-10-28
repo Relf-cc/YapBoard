@@ -95,7 +95,7 @@ export function classifyAsset(name: string): Classified {
   const byWord = BY_WORD.find(([re]) => re.test(n));
   if (byWord) return { platform: byWord[1], kind, arch };
 
-  // A tarball that hasn't said otherwise by now is a Linux build in practice — "atom-amd64.tar.gz" and its
+  // A tarball that hasn't said otherwise by now is a Linux build in practice - "atom-amd64.tar.gz" and its
   // kind. Checked after the words, so "something-mac.tar.gz" has already been read correctly.
   if (/^tar\./.test(kind) || kind === 'tgz') return { platform: 'linux', kind, arch };
 
@@ -106,7 +106,7 @@ export function classifyAsset(name: string): Classified {
  * Release files nobody wants to click.
  *
  * Two kinds. Checksums, signatures and update manifests, which every release tool adds; and the debug side of a
- * build — symbol bundles, PDBs, dSYMs, source maps and type definitions — which a project shipping proper
+ * build - symbol bundles, PDBs, dSYMs, source maps and type definitions - which a project shipping proper
  * installers also publishes, and which would otherwise outnumber them three to one on the page. The test is the
  * name alone, so it stays a general rule rather than a list of particular projects.
  *

@@ -88,7 +88,7 @@ function Banner({ a, onClose }: { a: LiveAnnouncement; onClose: () => void }) {
           <Icon size={16} className="shrink-0" />
           <p className="min-w-0 flex-1 text-[13.5px] leading-snug">
             <b className="font-semibold">{a.title}</b>
-            <span className="text-ink-2"> — {a.body}</span>
+            <span className="text-ink-2"> - {a.body}</span>
           </p>
           {a.linkUrl && (
             <Link href={a.linkUrl} className="hidden shrink-0 items-center gap-1 text-[13px] font-semibold underline-offset-4 hover:underline sm:inline-flex">

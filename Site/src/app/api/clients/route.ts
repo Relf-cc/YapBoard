@@ -10,7 +10,7 @@ import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
 /**
  * Listing a client.
  *
- * Nothing here can be checked against Yapin' the way a server's invite or a bot's support server can — a client
+ * Nothing here can be checked against Yapin' the way a server's invite or a bot's support server can - a client
  * is a file on somebody's release page. So the gate is the review queue every listing goes through, and the
  * terms the lister accepts in the dialog before this request is sent. `agreeTerms` is required rather than
  * assumed: the dialog is the only place the two sets of terms are put in front of them, and the timestamp it

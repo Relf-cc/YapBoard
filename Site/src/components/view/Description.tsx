@@ -3,23 +3,23 @@
 import { Fragment, type ReactNode } from 'react';
 
 /**
- * Markdown-ish description renderer. Everything is built from React elements — nothing a lister writes
+ * Markdown-ish description renderer. Everything is built from React elements - nothing a lister writes
  * can become raw HTML. Supported:
  *
  * Block:
- *   # H1 / ## H2 / ### H3 — headings
- *   - item / * item / • item — unordered list
- *   1. item / 2. item       — ordered list
- *   --- / *** / ___         — horizontal rule (three or more, alone on a line)
- *   ```…```                 — fenced code block (monospace; no syntax colouring)
- *   blank lines             — paragraph break
+ *   # H1 / ## H2 / ### H3 - headings
+ *   - item / * item / • item - unordered list
+ *   1. item / 2. item       - ordered list
+ *   --- / *** / ___         - horizontal rule (three or more, alone on a line)
+ *   ```…```                 - fenced code block (monospace; no syntax colouring)
+ *   blank lines             - paragraph break
  *
  * Inline (paragraphs, list items, headings):
  *   **bold** / __bold__
  *   *italic* / _italic_
  *   `code`
- *   [text](https://…)  — named links; only https:// targets are linked
- *   https://…          — bare links
+ *   [text](https://…)  - named links; only https:// targets are linked
+ *   https://…          - bare links
  */
 export function Description({ text }: { text: string }) {
   const blocks = parseBlocks(text.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
@@ -70,20 +70,20 @@ function parseBlocks(src: string): Block[] {
       continue;
     }
 
-    // Horizontal rule — three or more -, * or _ (optionally spaced), nothing else on the line
+    // Horizontal rule - three or more -, * or _ (optionally spaced), nothing else on the line
     if (/^(\s*[-*_]){3,}\s*$/.test(line) && /[-*_]/.test(line)) {
       result.push({ type: 'hr' });
       i++;
       continue;
     }
 
-    // Blank line — skip
+    // Blank line - skip
     if (/^\s*$/.test(line)) {
       i++;
       continue;
     }
 
-    // Unordered list — consume consecutive list lines (blank lines between items are allowed)
+    // Unordered list - consume consecutive list lines (blank lines between items are allowed)
     if (/^\s*[-*•]\s+/.test(line)) {
       const items: string[] = [];
       while (i < raw.length) {
@@ -117,7 +117,7 @@ function parseBlocks(src: string): Block[] {
       continue;
     }
 
-    // Paragraph — collect until blank line or a block-level marker
+    // Paragraph - collect until blank line or a block-level marker
     const lines: string[] = [];
     while (
       i < raw.length &&

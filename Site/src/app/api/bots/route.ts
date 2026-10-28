@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     /**
      * Yapin' won't say whether an account is a bot (see YapinUser), so the closest we can get is: the account
      * has to be in the server you run. That stops someone listing an arbitrary ID, or a stranger's bot, against
-     * a server of their own. It isn't proof the bot is theirs — anyone can add a public bot to their server.
+     * a server of their own. It isn't proof the bot is theirs - anyone can add a public bot to their server.
      */
     if ((await isMember(supportServerId, botId)) === false) {
       return fail('That bot isn’t in your support server. Add it there first, then list it.', 422, {
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const mine = existing.ownerId === g.user.id;
     return fail(
       mine && existing.status === 'DENIED'
-        ? 'This listing was denied. Open it, fix what staff asked for and save — that sends it back for review.'
+        ? 'This listing was denied. Open it, fix what staff asked for and save - that sends it back for review.'
         : mine && existing.status === 'PENDING'
           ? 'This bot is already waiting for review.'
           : mine

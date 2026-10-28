@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     console.error('[auth] callback failed', e);
     return fail('failed');
   }
-  const next = safeNext(saved.next, env.portalUrl);
+  const next = safeNext(saved.next, env.portalUrl, env.platformUrl);
   const res = NextResponse.redirect(next.startsWith('http') ? next : new URL(next, env.siteUrl));
   res.cookies.set('yb_oauth', '', { path: '/api/auth', maxAge: 0 });
   return res;

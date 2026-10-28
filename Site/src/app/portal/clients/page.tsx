@@ -44,7 +44,7 @@ type Props = { searchParams: Promise<{ q?: string; status?: string; sort?: strin
 /**
  * The client board's half of the portal.
  *
- * Reviewing a client isn't reviewing a description — it's deciding whether to point people at an executable.
+ * Reviewing a client isn't reviewing a description - it's deciding whether to point people at an executable.
  * So each row shows the whole chain at once: the repo, the version, and every download URL the listing hands
  * out, with the host of each one spelled out. A link going somewhere other than the repo is the single thing
  * most worth noticing, and it's visible without opening anything.
@@ -235,7 +235,7 @@ function ClientRow({ c, base }: { c: Row; base: string }) {
             )}
           </div>
           <div className="text-ink-3">
-            Release: <span className="font-mono text-ink-2">{c.version || '—'}</span>
+            Release: <span className="font-mono text-ink-2">{c.version || '-'}</span>
             {c.releaseSyncedAt ? <span className="text-ink-3"> · read {timeAgo(c.releaseSyncedAt)}</span> : null}
           </div>
           {c.releaseError && <div className="text-warn">Last sync failed: {c.releaseError}</div>}

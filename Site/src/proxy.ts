@@ -5,13 +5,24 @@ import { NextResponse, type NextRequest } from 'next/server';
 const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(base + '/');
 
 /**
- * One Next app, three hosts:
+ * One Next app, four hosts:
  * - yapboard.dev is the site. Its pages call /api/* on the same origin.
  * - portal.yapboard.dev serves the staff portal at its root: /reports there is /portal/reports here.
- *   On the main domain in production, /portal redirects to the subdomain.
+ * - platform.yapboard.dev serves the developer platform the same way: /apps there is /platform/apps here.
+ *   On the main domain in production, /portal and /platform redirect to their subdomains.
  * - api.yapboard.dev serves the API at its root: /servers/123 there is /api/servers/123 here.
- * In dev, localhost:3000/portal and /api work directly (and so do portal.localhost:3000 and api.localhost:3000).
+ * In dev, localhost:3000/portal, /platform and /api work directly (and so do the *.localhost:3000 hosts).
  */
+
+/**
+ * The two logged-in areas on their own hostnames. Both work the same way, so they're described once:
+ * `prefix` is the subdomain, `path` the folder under src/app, and `url` the env var holding the public URL.
+ */
+const AREAS = [
+  { prefix: 'portal.', path: '/portal', url: () => process.env.PORTAL_URL },
+  { prefix: 'platform.', path: '/platform', url: () => process.env.PLATFORM_URL },
+] as const;
+
 export function proxy(req: NextRequest) {
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const { pathname, search } = req.nextUrl;
@@ -32,31 +43,37 @@ export function proxy(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // API routes on the site and portal hosts are served as they are.
+  // API routes on the site, portal and platform hosts are served as they are. Partner bots call
+  // /api/platform/v1/* with a key of their own, so these never want a session cookie.
   if (under(pathname, '/api')) return NextResponse.next();
 
-  const onPortalHost = host.startsWith('portal.');
-  const portalPath = under(pathname, '/portal');
+  const area = AREAS.find((a) => host.startsWith(a.prefix));
+  const onPath = AREAS.find((a) => under(pathname, a.path));
 
-  // First line of defence: no session cookie, no portal. (Every portal page also checks staff itself; this just
-  // means anonymous requests never reach rendering at all.)
-  if ((onPortalHost || portalPath) && !req.cookies.has('yb_session')) {
-    const portal = (process.env.PORTAL_URL || req.nextUrl.origin).replace(/\/$/, '');
-    const back = onPortalHost ? `${portal}${pathname === '/' ? '' : pathname}${search}` : `${pathname}${search}`;
+  // First line of defence: no session cookie, no portal and no platform. (Every page behind them also checks
+  // for itself; this just means anonymous requests never reach rendering at all.)
+  if ((area || onPath) && !req.cookies.has('yb_session')) {
+    // Come back to where they actually asked for: the hostname they used on a subdomain, the path on the
+    // main domain. safeNext (src/lib/next-url.ts) only lets PORTAL_URL and PLATFORM_URL through, so an
+    // unconfigured host lands on the site's front page rather than being followed.
+    const back = area ? here(pathname === '/' ? '' : pathname) : `${pathname}${search}`;
     return NextResponse.redirect(`${site}/login?next=${encodeURIComponent(back)}`);
   }
 
-  if (onPortalHost) {
-    // Pretty URLs on the subdomain: /portal/reports → /reports
-    if (portalPath) return NextResponse.redirect(here(pathname.slice('/portal'.length) || '/'));
+  if (area) {
+    // Pretty URLs on the subdomain: /portal/reports → /reports, /platform/apps → /apps
+    if (onPath === area) return NextResponse.redirect(here(pathname.slice(area.path.length) || '/'));
     const url = req.nextUrl.clone();
-    url.pathname = `/portal${pathname === '/' ? '' : pathname}`;
+    url.pathname = `${area.path}${pathname === '/' ? '' : pathname}`;
     return NextResponse.rewrite(url);
   }
 
-  const portalUrl = process.env.PORTAL_URL;
-  if (process.env.NODE_ENV === 'production' && portalUrl && /^https?:\/\/portal\./.test(portalUrl) && portalPath) {
-    return NextResponse.redirect(`${portalUrl.replace(/\/$/, '')}${pathname.slice('/portal'.length)}${search}`);
+  // On the main domain in production, send each area to its own hostname.
+  if (process.env.NODE_ENV === 'production' && onPath) {
+    const away = (onPath.url() || '').replace(/\/$/, '');
+    if (new RegExp(`^https?://${onPath.prefix.replace('.', '\\.')}`).test(away)) {
+      return NextResponse.redirect(`${away}${pathname.slice(onPath.path.length)}${search}`);
+    }
   }
   return NextResponse.next();
 }

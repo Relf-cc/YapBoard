@@ -26,7 +26,7 @@ export function SupportFlair({ seed = '' }: { seed?: string }) {
 /**
  * The support listing's own panel. Only the support server gets it, and it carries what the server is for:
  * a bug report and a suggestion that go straight to the team (src/components/BugReport.tsx). Abuse reports
- * are off here instead — see SupportNoReport.
+ * are off here instead - see SupportNoReport.
  */
 export function SupportBanner({ seed = '', className }: { seed?: string; className?: string }) {
   return (
@@ -61,7 +61,7 @@ export function SupportBanner({ seed = '', className }: { seed?: string; classNa
 /** Stands in for the report link on a support listing: staff's own server can't be reported for abuse. */
 export function SupportNoReport() {
   return (
-    <Tooltip content={`${SUPPORT.long}. Reports are off here — send a bug report or a suggestion from this page instead.`}>
+    <Tooltip content={`${SUPPORT.long}. Reports are off here - send a bug report or a suggestion from this page instead.`}>
       <span className="inline-flex items-center gap-1.5 text-ink-3">
         <ShieldCheck size={13} style={{ color: SUPPORT.glow }} />
         Can’t be reported
