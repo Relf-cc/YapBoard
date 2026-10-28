@@ -302,10 +302,24 @@ export async function moderateBot(input: z.input<typeof botSchema>): Promise<Res
   const p = botSchema.safeParse(input);
   if (!p.success) return { ok: false, error: 'Bad input' };
   const { botId, action, note: n } = p.data;
+  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { name: true, ownerId: true } });
+  if (!bot) return { ok: false, error: 'Bot not found' };
   const status = action === 'hide' ? 'HIDDEN' : action === 'remove' ? 'REMOVED' : 'PUBLIC';
   const r = await db.botListing.updateMany({ where: { id: botId }, data: { status, statusNote: action === 'restore' ? null : n } });
   if (!r.count) return { ok: false, error: 'Bot not found' };
   await log(me.id, `bot.${action}`, 'bot', botId, n);
+
+  // Hiding or removing a live listing is as much news to the owner as a review decision, so tell them the same way.
+  if (action !== 'restore') {
+    await queueBotDm({
+      userId: bot.ownerId,
+      kind: `bot.${action}`,
+      title: action === 'hide' ? `${bot.name} was hidden` : `${bot.name} was removed`,
+      body: `Staff ${action === 'hide' ? 'hid' : 'removed'} your listing${n ? `:\n\n> ${n}` : '.'}`,
+      linkUrl: `${env.siteUrl}/bots/${botId}/manage`,
+      linkLabel: 'Manage listing',
+    });
+  }
   revalidatePath('/', 'layout');
   return done(action === 'restore' ? 'Bot restored' : action === 'hide' ? 'Bot hidden' : 'Bot removed');
 }
@@ -419,10 +433,24 @@ export async function moderateClient(input: z.input<typeof clientSchema>): Promi
   const p = clientSchema.safeParse(input);
   if (!p.success) return { ok: false, error: 'Bad input' };
   const { clientId, action, note: n } = p.data;
+  const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { name: true, slug: true, ownerId: true } });
+  if (!client) return { ok: false, error: 'Client not found' };
   const status = action === 'hide' ? 'HIDDEN' : action === 'remove' ? 'REMOVED' : 'PUBLIC';
   const r = await db.clientListing.updateMany({ where: { id: clientId }, data: { status, statusNote: action === 'restore' ? null : n } });
   if (!r.count) return { ok: false, error: 'Client not found' };
   await log(me.id, `client.${action}`, 'client', clientId, n);
+
+  // Hiding or removing a live listing is as much news to the owner as a review decision, so tell them the same way.
+  if (action !== 'restore') {
+    await queueBotDm({
+      userId: client.ownerId,
+      kind: `client.${action}`,
+      title: action === 'hide' ? `${client.name} was hidden` : `${client.name} was removed`,
+      body: `Staff ${action === 'hide' ? 'hid' : 'removed'} your client listing${n ? `:\n\n> ${n}` : '.'}`,
+      linkUrl: `${env.siteUrl}/clients/${client.slug}/manage`,
+      linkLabel: 'Manage listing',
+    });
+  }
   revalidatePath('/', 'layout');
   return done(action === 'restore' ? 'Client restored' : action === 'hide' ? 'Client hidden' : 'Client removed');
 }
