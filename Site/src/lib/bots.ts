@@ -6,7 +6,8 @@ import type { Prisma } from '@prisma/client';
 import { sortBadges, type BadgeKind } from './badges';
 import { db } from './db';
 import { LANGUAGES } from './languages';
-import { MAX_TAGS, normalizeTags } from './tags';
+import { normalizeTags } from './tags';
+import { limitsFor, type Limits } from './pro-fields';
 import type { SessionUser } from './session';
 import { isStaff } from './session';
 
@@ -89,25 +90,33 @@ const httpsUrl = (message: string) =>
     .transform((v) => v || null)
     .refine((v) => v === null || /^https:\/\/\S+\.\S+/.test(v), message);
 
-export const botListingSchema = z.object({
-  summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),
-  description: z.string().trim().min(30, 'Tell people a bit more (30+ characters)').max(2000, 'Max 2000 characters'),
-  /// Where people can read more or add it from the bot's own page. Optional: the bot id is enough to add it.
-  inviteUrl: httpsUrl('Use a full https link, or leave it empty'),
-  website: httpsUrl('Use a full https link, or leave it empty'),
-  prefix: optional(8),
-  library: optional(40),
-  language: z.string().refine((v) => v in LANGUAGES, 'Pick a language'),
-  nsfw: z.boolean(),
-  unlisted: z.boolean(),
-  accent: z.string().regex(/^#[0-9a-f]{6}$/i, 'Pick a colour'),
-  tags: z
-    .array(z.string().max(40))
-    .max(10)
-    .transform(normalizeTags)
-    .refine((t) => t.length >= 1, 'Add at least one tag')
-    .refine((t) => t.length <= MAX_TAGS, `Up to ${MAX_TAGS} tags`),
-});
+/**
+ * The shape of a bot listing save, for a listing with these caps. A factory for the same reason the
+ * server one is - see the long note on `listingSchemaFor` in src/lib/servers.ts.
+ */
+export const botListingSchemaFor = (limits: Limits) =>
+  z.object({
+    summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),
+    description: z.string().trim().min(30, 'Tell people a bit more (30+ characters)').max(limits.description, `Max ${limits.description} characters`),
+    /// Where people can read more or add it from the bot's own page. Optional: the bot id is enough to add it.
+    inviteUrl: httpsUrl('Use a full https link, or leave it empty'),
+    website: httpsUrl('Use a full https link, or leave it empty'),
+    prefix: optional(8),
+    library: optional(40),
+    language: z.string().refine((v) => v in LANGUAGES, 'Pick a language'),
+    nsfw: z.boolean(),
+    unlisted: z.boolean(),
+    accent: z.string().regex(/^#[0-9a-f]{6}$/i, 'Pick a colour'),
+    tags: z
+      .array(z.string().max(40))
+      .max(20)
+      .transform(normalizeTags)
+      .refine((t) => t.length >= 1, 'Add at least one tag')
+      .refine((t) => t.length <= limits.tags, `Up to ${limits.tags} tags`),
+  });
+
+/** Free-listing shape. A bot that doesn't exist yet can't be on Pro, so this is what `POST` accepts. */
+export const botListingSchema = botListingSchemaFor(limitsFor('bot', false));
 
 export type BotListingInput = z.infer<typeof botListingSchema>;
 
@@ -123,7 +132,7 @@ export async function setBotTags(tx: Prisma.TransactionClient, botId: string, ta
 export type BotBumpResult = { ok: true; bumpCount: number; nextAt: string } | { ok: false; reason: 'not_found' | 'not_listed' | 'cooldown'; nextAt?: string };
 
 /** Moves a bot to the top of the bumped sort. Same 2 hour cooldown as servers, but pressed on the site. */
-export async function bumpBot(botId: string, userId: string): Promise<BotBumpResult> {
+export async function bumpBot(botId: string, userId: string, appId?: string | null): Promise<BotBumpResult> {
   const bot = await db.botListing.findUnique({ where: { id: botId }, select: { status: true, bumpedAt: true } });
   if (!bot) return { ok: false, reason: 'not_found' };
   if (bot.status !== 'PUBLIC') return { ok: false, reason: 'not_listed' };
@@ -138,7 +147,7 @@ export async function bumpBot(botId: string, userId: string): Promise<BotBumpRes
       data: { bumpedAt: new Date(now), bumpCount: { increment: 1 } },
     });
     if (!res.count) return null;
-    await tx.botBump.create({ data: { botId, userId } });
+    await tx.botBump.create({ data: { botId, userId, appId: appId ?? null } });
     return tx.botListing.findUnique({ where: { id: botId }, select: { bumpCount: true } });
   });
   if (!updated) return { ok: false, reason: 'cooldown' };

@@ -2,9 +2,10 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { approvedStatus, botListingSchema, canManageBot, isOwnerEditable, setBotTags } from '@/lib/bots';
+import { approvedStatus, botListingSchemaFor, canManageBot, isOwnerEditable, setBotTags } from '@/lib/bots';
 import { db } from '@/lib/db';
 import { fail, json, readJson, requireUser } from '@/lib/http';
+import { grandfather, limitsOf } from '@/lib/pro';
 import { isStaff } from '@/lib/session';
 import { botEnabled } from '@/lib/env';
 import { checkManager, isMember, MANAGE_ERRORS } from '@/lib/yapin';
@@ -15,21 +16,28 @@ async function loadManaged(req: NextRequest, ctx: Ctx) {
   const g = await requireUser(req);
   if (g.error) return { error: g.error };
   const { botId } = await ctx.params;
-  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { id: true, ownerId: true, status: true, supportServerId: true, requestedUnlisted: true } });
+  const bot = await db.botListing.findUnique({
+    where: { id: botId },
+    // description and the tag count come along for `grandfather`: a lapsed listing must still be editable.
+    select: { id: true, ownerId: true, status: true, supportServerId: true, requestedUnlisted: true, description: true, _count: { select: { tags: true } } },
+  });
   if (!bot) return { error: fail('Not found', 404) };
   if (!canManageBot(g.user, bot)) return { error: fail('You can’t edit this listing', 403) };
   return { user: g.user, bot };
 }
 
-const patchSchema = botListingSchema.extend({
-  /** Changing which server supports the bot. '' unlinks it. Only servers listed here can be linked. */
-  supportServerId: z.string().trim().max(64).optional(),
-});
+const patchSchemaFor = (limits: Parameters<typeof botListingSchemaFor>[0]) =>
+  botListingSchemaFor(limits).extend({
+    /** Changing which server supports the bot. '' unlinks it. Only servers listed here can be linked. */
+    supportServerId: z.string().trim().max(64).optional(),
+  });
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const m = await loadManaged(req, ctx);
   if (m.error) return m.error;
-  const parsed = patchSchema.safeParse(await readJson(req));
+  // What this listing may contain depends on whether a Pro plan covers it (src/lib/pro.ts).
+  const limits = grandfather(await limitsOf('bot', m.bot.id, m.bot.ownerId), { description: m.bot.description.length, tags: m.bot._count.tags });
+  const parsed = patchSchemaFor(limits).safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
   const { tags, unlisted, supportServerId, ...data } = parsed.data;
 

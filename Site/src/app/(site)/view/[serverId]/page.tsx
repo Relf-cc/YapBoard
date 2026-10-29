@@ -9,16 +9,19 @@ import { ArrowBigUp, ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Globe2, Pen
 import { db } from '@/lib/db';
 import { getUser } from '@/lib/session';
 import { countOnce } from '@/lib/http';
-import { canManageListing, cardSelect, isViewable, toCard } from '@/lib/servers';
+import { canManageListing, cardSelect, isViewable, markPro, readLinks, readScreenshots, toCard } from '@/lib/servers';
+import { isPro, limitsFor } from '@/lib/pro';
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
 import { hasSupport } from '@/lib/badges';
-import { BadgeNames, BadgeRow } from '@/components/Badge';
+import { BadgeMark, BadgeNames, BadgeRow } from '@/components/Badge';
 import { SupportBanner, SupportNoReport } from '@/components/SupportFlair';
 import { NsfwMark } from '@/components/NsfwMark';
 import { TagChip } from '@/components/TagChip';
 import { ServerGrid } from '@/components/ServerGrid';
+import { ListingHero } from '@/components/ListingHero';
+import { Screenshots } from '@/components/Screenshots';
 import { Reveal } from '@/components/Reveal';
 import { ReportButton } from '@/components/view/ReportButton';
 import { ShareButton } from '@/components/view/ShareButton';
@@ -59,55 +62,40 @@ export default async function ViewServer({ params }: Props) {
   const canVote = voting.enabled && !s.votingOff && s.status === 'PUBLIC';
   const [votes, votedUntil] = canVote ? await Promise.all([recentVotes(s.id), user ? nextVoteAt(s.id, user.id, voting) : null]) : [0, null];
 
+  // What this page may draw. A lapsed plan keeps the rows and stops drawing them (src/lib/pro.ts).
+  const pro = await isPro('server', s.id, s.ownerId);
+  const limits = limitsFor('server', pro);
+  const screenshots = readScreenshots(s.screenshots, limits.screenshots);
+  const links = readLinks(s.links, limits.links);
+
   const tags = s.tags.map((t) => t.tag.name);
   const badges = s.badges.map((b) => b.kind);
   // The support listing says so in its own panel below, so the chip would only repeat it.
   const supportBadge = hasSupport(badges);
+  // Pro marks are filled in after the pick, so the lookup only covers the three cards that get drawn.
   const similar = tags.length
-    ? (
-        await db.server.findMany({
-          where: { id: { not: s.id }, status: 'PUBLIC', nsfw: s.nsfw ? undefined : false, tags: { some: { tag: { name: { in: tags } } } } },
-          select: cardSelect,
-          orderBy: { rankedAt: { sort: 'desc', nulls: 'last' } },
-          take: 24,
-        })
+    ? await markPro(
+        (
+          await db.server.findMany({
+            where: { id: { not: s.id }, status: 'PUBLIC', nsfw: s.nsfw ? undefined : false, tags: { some: { tag: { name: { in: tags } } } } },
+            select: cardSelect,
+            orderBy: { rankedAt: { sort: 'desc', nulls: 'last' } },
+            take: 24,
+          })
+        )
+          .map(toCard)
+          .map((c) => ({ c, shared: c.tags.filter((t) => tags.includes(t)).length }))
+          .sort((a, b) => b.shared - a.shared)
+          .slice(0, 3)
+          .map((x) => x.c),
       )
-        .map(toCard)
-        .map((c) => ({ c, shared: c.tags.filter((t) => tags.includes(t)).length }))
-        .sort((a, b) => b.shared - a.shared)
-        .slice(0, 3)
-        .map((x) => x.c)
     : [];
 
   const owner = s.owner.displayName || s.owner.username;
 
   return (
     <div style={{ '--listing-accent': s.accent } as CSSProperties}>
-      {/* banner */}
-      <div className="relative h-40 sm:h-56 overflow-hidden border-b border-line" style={{ background: `color-mix(in srgb, ${s.accent} 34%, var(--bg))` }}>
-        {s.bannerUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
-        ) : (
-          <>
-            <div
-              aria-hidden
-              className="absolute inset-0 opacity-70"
-              style={{
-                backgroundImage: `radial-gradient(circle at 1px 1px, color-mix(in srgb, ${s.accent} 70%, transparent) 1px, transparent 0)`,
-                backgroundSize: '18px 18px',
-              }}
-            />
-            <div
-              aria-hidden
-              className="absolute -left-10 bottom-0 h-56 w-56 sm:h-72 sm:w-72 rounded-full blur-3xl opacity-50"
-              style={{ background: `color-mix(in srgb, ${s.accent} 85%, transparent)` }}
-            />
-          </>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-bg/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/10" />
-      </div>
+      <ListingHero accent={s.accent} theme={limits.themes ? s.theme : 'DEFAULT'} bannerUrl={s.bannerUrl} />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {s.status !== 'PUBLIC' && (
@@ -131,6 +119,13 @@ export default async function ViewServer({ params }: Props) {
                       <>
                         {' '}
                         <BadgeRow kinds={badges} seed={s.id} size={30} max={4} className="-mt-1.5" />
+                      </>
+                    )}
+                    {/* Bought, not granted, so it sits outside BadgeRow and never counts towards its `max`. */}
+                    {pro && (
+                      <>
+                        {' '}
+                        <BadgeMark kind="PRO" size={30} seed={s.id} className="-mt-1.5" />
                       </>
                     )}
                   </h1>
@@ -177,6 +172,12 @@ export default async function ViewServer({ params }: Props) {
                     nextAt={votedUntil ? votedUntil.toISOString() : null}
                   />
                 )}
+                {links.map((l) => (
+                  <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="btn btn-secondary btn-lg group">
+                    {l.label}
+                    <ArrowUpRight size={16} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </a>
+                ))}
                 <ShareButton url={`/view/${s.id}`} />
                 {manager && (
                   <Link href={`/manage/${s.id}`} className="btn btn-secondary btn-lg">
@@ -186,6 +187,15 @@ export default async function ViewServer({ params }: Props) {
                 )}
               </div>
             </Reveal>
+
+            {screenshots.length > 0 && (
+              <Reveal delay={0.1}>
+                <section className="mt-12">
+                  <h2 className="text-lg font-bold mb-4">Screenshots</h2>
+                  <Screenshots urls={screenshots} name={s.name} accent={s.accent} />
+                </section>
+              </Reveal>
+            )}
 
             <Reveal delay={0.1}>
               <section className="mt-12">

@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { botEnabled, env } from '@/lib/env';
 import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
-import { listingSchema, setTags } from '@/lib/servers';
+import { listingData, listingSchema, setTags } from '@/lib/servers';
+import { limitsFor } from '@/lib/pro';
 import { checkManager, MANAGE_ERRORS } from '@/lib/yapin';
 
 const createSchema = listingSchema.extend({
@@ -21,7 +22,12 @@ export async function POST(req: NextRequest) {
 
   const parsed = createSchema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
-  const { serverId, name: devName, tags, unlisted, ...data } = parsed.data;
+  // serverId and name are columns this route sets itself, below, so they're kept out of `listingData`.
+  const { serverId, name: devName, ...listing } = parsed.data;
+  const { tags, unlisted } = listing;
+  // A server that doesn't exist yet can't be covered by a plan, so it's created on the free caps and the
+  // owner points a slot at it afterwards (POST /api/billing/slots).
+  const data = listingData(listing, limitsFor('server', false));
 
   let name = devName ?? '';
   let iconUrl: string | null = null;

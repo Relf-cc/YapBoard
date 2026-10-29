@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { GitBranch, ShieldCheck, Sparkles } from 'lucide-react';
 import { getUser } from '@/lib/session';
+import { limitsFor } from '@/lib/pro';
 import { ClientListingForm, type ClientListingValues } from '@/components/manage/ClientListingForm';
 import { Reveal } from '@/components/Reveal';
 import { GlyphScatter } from '@/components/Glyphs';
@@ -85,7 +86,7 @@ export default async function AddClient() {
       </Reveal>
 
       <div className="mt-10">
-        <ClientListingForm mode="create" initial={initial} />
+        <ClientListingForm mode="create" initial={initial} limits={limitsFor('client', false)} />
       </div>
     </div>
   );

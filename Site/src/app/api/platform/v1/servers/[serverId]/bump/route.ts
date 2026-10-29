@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (banned) return json({ ok: false, reason: 'banned' });
 
     const server = await db.server.findUnique({ where: { id: serverId }, select: { name: true, iconUrl: true, accent: true } });
-    const result = await bumpServer(serverId, user.id, 'bot');
+    const result = await bumpServer(serverId, user.id, 'bot', app.id);
     // The channel is worth keeping even when the bump itself was too soon: it's still where people talk to us.
     const fresh = { ...(memberCount !== undefined && { memberCount }), ...(channelId && { bumpChannelId: channelId, bumpChannelAt: new Date() }) };
     if (server && Object.keys(fresh).length) await db.server.update({ where: { id: serverId }, data: fresh });

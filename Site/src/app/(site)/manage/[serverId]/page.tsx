@@ -7,7 +7,9 @@ import { ArrowUpRight, PartyPopper } from 'lucide-react';
 import { db } from '@/lib/db';
 import { botEnabled } from '@/lib/env';
 import { getUser } from '@/lib/session';
-import { canManageListing } from '@/lib/servers';
+import { canManageListing, readLinks, readScreenshots } from '@/lib/servers';
+import { grandfather, isPro, limitsFor, planState } from '@/lib/pro';
+import { billingEnabled } from '@/lib/env';
 import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { BadgeRow } from '@/components/Badge';
@@ -17,6 +19,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ListingForm } from '@/components/manage/ListingForm';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 import { DangerZone } from '@/components/manage/DangerZone';
+import { ProPanel } from '@/components/manage/ProPanel';
 import { SyncButton } from '@/components/manage/SyncButton';
 
 export const metadata: Metadata = { title: 'Manage listing' };
@@ -31,6 +34,12 @@ export default async function Manage({ params, searchParams }: Props) {
 
   const s = await db.server.findUnique({ where: { id: serverId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } } } });
   if (!s || !canManageListing(user, s)) notFound();
+
+  // What this listing may contain, raised to cover whatever it already holds so a lapsed plan can't make
+  // the form unsaveable. The route works the same numbers out again for itself (src/lib/pro.ts).
+  const plan = await planState(s.ownerId);
+  const pro = await isPro('server', s.id, s.ownerId);
+  const limits = grandfather(limitsFor('server', pro), { description: s.description.length, tags: s.tags.length });
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-10">
@@ -110,10 +119,17 @@ export default async function Manage({ params, searchParams }: Props) {
             broadcastsOff: s.broadcastsOff,
             accent: s.accent,
             tags: s.tags.map((t) => t.tag.name),
+            theme: s.theme,
+            screenshots: readScreenshots(s.screenshots, limits.screenshots),
+            links: readLinks(s.links, limits.links),
             badges: s.badges.map((b) => b.kind),
           }}
+          limits={limits}
+          pro={pro}
         />
       </div>
+
+      <ProPanel kind="server" listingId={s.id} plan={plan} billingOn={billingEnabled()} removed={s.status === 'REMOVED'} />
 
       {s.status !== 'REMOVED' && <DangerZone serverId={s.id} name={s.name} />}
     </div>

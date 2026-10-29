@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, Bot, ChevronsUp, PenLine } from 'lucide-react';
 import { db } from '@/lib/db';
-import { cardSelect, toCard } from '@/lib/servers';
+import { cardSelect, toCards } from '@/lib/servers';
 import { popularTags } from '@/lib/search';
 import { Hero } from '@/components/home/Hero';
 import { BumpMarquee } from '@/components/home/BumpMarquee';
@@ -25,7 +25,7 @@ export default async function Home() {
     db.server.aggregate({ where: { status: 'PUBLIC' }, _count: true, _sum: { memberCount: true } }),
     db.bump.count({ where: { createdAt: { gte: dayAgo } } }),
   ]);
-  const cards = bumped.map(toCard);
+  const [cards, freshCards] = await Promise.all([toCards(bumped), toCards(fresh)]);
 
   return (
     <>
@@ -75,7 +75,7 @@ export default async function Home() {
       {fresh.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-20">
           <SectionHead title="New this week" sub="Say hi before everyone else does." href="/servers?sort=new" />
-          <ServerGrid servers={fresh.map(toCard)} />
+          <ServerGrid servers={freshCards} />
         </section>
       )}
 

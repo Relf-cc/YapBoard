@@ -77,6 +77,13 @@ model Server {
   nsfw          Boolean   @default(false)
   /// Accent used on the server page (hex)
   accent        String    @default("#ff6b4a")
+  /// Hero backdrop on the listing page: GLOW | GRID | WAVE | FLAT (src/lib/client-fields.ts THEMES).
+  /// Pro only - a free listing keeps the default header, so this is ignored until the listing is covered.
+  theme         String    @default("GLOW")
+  /// Up to 6 https screenshots, as a JSON array of strings (SQLite has no array type). Pro only.
+  screenshots   String?
+  /// Extra buttons beside Join, as a JSON array of {label, url} (src/lib/pro-fields.ts). Pro only.
+  links         String?
   /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
   status        String    @default("PUBLIC")
   statusNote    String?
@@ -151,11 +158,17 @@ model Bump {
   userId    String
   /// bot | web
   source    String   @default("bot")
+  /// The platform app that carried it, when a program member's bot did (src/lib/platform.ts). Null for
+  /// YapBoard's own bot and for the site. Not a relation: a bump is history and outlives any app, so this
+  /// is kept as a plain id even if the app is deleted.
+  appId     String?
   createdAt DateTime @default(now())
   server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([serverId, createdAt])
+  /// "What has this app carried, and how far does it reach?"
+  @@index([appId, createdAt])
 }
 
 /// A vote for a server. Never deleted by staff, only revoked, so it can be restored (src/lib/votes.ts).
@@ -429,11 +442,14 @@ model BotBump {
   id        Int        @id @default(autoincrement())
   botId     String
   userId    String
+  /// The platform app that carried it, as on Bump.
+  appId     String?
   createdAt DateTime   @default(now())
   bot       BotListing @relation(fields: [botId], references: [id], onDelete: Cascade)
   user      User       @relation(fields: [userId], references: [id])
 
   @@index([botId, createdAt])
+  @@index([appId, createdAt])
 }
 
 /**
@@ -572,11 +588,14 @@ model ClientBump {
   id        Int           @id @default(autoincrement())
   clientId  String
   userId    String
+  /// The platform app that carried it, as on Bump.
+  appId     String?
   createdAt DateTime      @default(now())
   client    ClientListing @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user      User          @relation(fields: [userId], references: [id])
 
   @@index([clientId, createdAt])
+  @@index([appId, createdAt])
 }
 
 /// An image somebody uploaded on YapBoard, rather than linking from somewhere else.
@@ -802,8 +821,9 @@ model PlatformApp {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  keys  PlatformKey[]
-  usage PlatformUsage[]
+  keys     PlatformKey[]
+  usage    PlatformUsage[]
+  outcomes PlatformOutcome[]
 
   @@index([ownerId, createdAt])
   @@index([status, lastCallAt])
@@ -842,7 +862,38 @@ model PlatformUsage {
   calls    Int      @default(0)
   /// Calls that answered 4xx or 5xx. A key that only errors is usually a broken integration, not abuse.
   errors   Int      @default(0)
+  /// Calls that answered 200 with `ok: false` — a cooldown, an unlisted server, the wrong server. Not
+  /// failures: a bot whose bumps are mostly refused is working correctly and asking too often.
+  refused  Int      @default(0)
+  /// Total handler time in milliseconds, so the average is msTotal/calls. Sum rather than average because
+  /// sums add up across days and endpoints and averages don't.
+  msTotal  Int      @default(0)
 
   @@unique([appId, day, endpoint])
   @@index([appId, day])
+}
+
+/// Why one app's calls to one endpoint ended, counted per UTC day: `ok`, a refusal reason (`cooldown`,
+/// `not_found`, `not_listed`, `wrong_server`, `banned`) or an HTTP status (`http_401`, `http_429`…).
+///
+/// A row per outcome rather than a column per outcome, so a new refusal reason needs no migration. This is
+/// the detail behind PlatformUsage's four counters; both are written by recordCall in src/lib/platform.ts,
+/// in the same call, so they can't drift.
+///
+/// It earns its keep twice over. A developer sees which answer their command actually gets — mostly
+/// cooldowns means they're asking too often, `not_found` means they're reaching servers that aren't listed
+/// yet (and should be seeing the add link). Staff see `wrong_server` piling up, which is what probing for
+/// other people's bots looks like.
+model PlatformOutcome {
+  id       Int         @id @default(autoincrement())
+  appId    String
+  app      PlatformApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  day      DateTime
+  endpoint String
+  outcome  String
+  count    Int         @default(0)
+
+  @@unique([appId, day, endpoint, outcome])
+  @@index([appId, day])
+  @@index([outcome, day])
 }

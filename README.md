@@ -121,6 +121,26 @@ every request passes the same three gates - key live, app and member active, sco
 limit. Calls are counted per app, per endpoint, per day, so both sides can see what a bot is doing: the developer
 on their app page, staff on `/portal/platform`.
 
+Members get four pages: an overview, their apps, the reference (`/docs`), and the requirements
+(`/requirements`) — what an integration has to do, with JS and Python snippets that were run against the API
+before being pasted in. The headline requirement is that a `/bump` in a server with no listing must show the
+`addUrl` the refusal carries, as an invitation to list it: a bot that swallows that moment takes the useful
+half of the API and gives nothing back to the board it reads from. The rest is anti-abuse — send the person
+not the bot, show the cooldown instead of retrying, no bumping on timers or for rewards, no mirroring the
+boards, keys server-side. They form part of the terms (`/program`), which read as terms rather than house
+rules because redeeming an invite is what accepts them.
+
+Both sides can see what a bot is doing. Every call is counted per app, per endpoint, per UTC day — served,
+refused, errored, and total handler time so the average response shows — and each answer is counted by name
+in `PlatformOutcome`: `ok`, a refusal reason (`cooldown`, `not_found`, `wrong_server`…) or an HTTP status.
+That split matters because a refusal is not a fault: an app whose bumps are mostly cooldowns is asking too
+often, one with `not_found` piling up is reaching servers that aren't listed yet (and should be showing the
+add link), and one with `wrong_server` piling up is probing for other people's bots. A developer sees their
+own shares and the advice behind them on their app page; staff see the programme-wide version, the busiest
+apps and those rates on `/portal/platform`. Bump rows also carry the `appId` that carried them, so "bumps
+carried, people bumping, servers reached" is counted from bumps that actually landed rather than calls that
+were made.
+
 Nothing here is destructive. Staff suspend a member (every key of theirs is refused) or one app; a developer
 pauses an app or retires it; keys are revoked, never deleted - a request arriving with an old one should read as
 "revoked", not "never existed".

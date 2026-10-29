@@ -7,6 +7,7 @@ import { Bot, ShieldCheck } from 'lucide-react';
 import { botEnabled, env } from '@/lib/env';
 import { getUser } from '@/lib/session';
 import { withQuery } from '@/lib/next-url';
+import { limitsFor } from '@/lib/pro';
 import { BotListingForm, type BotListingValues } from '@/components/manage/BotListingForm';
 import { Reveal } from '@/components/Reveal';
 import { GlyphScatter } from '@/components/Glyphs';
@@ -98,7 +99,7 @@ export default async function AddBot({ searchParams }: { searchParams: Promise<{
 
       {!offline && (
         <div className="mt-10">
-          <BotListingForm mode="create" initial={initial} devMode={devMode} />
+          <BotListingForm mode="create" initial={initial} devMode={devMode} limits={limitsFor('bot', false)} />
         </div>
       )}
     </div>

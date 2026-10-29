@@ -3,14 +3,18 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
-import { ArrowRight, BadgeCheck, ChartColumn, Check, ChevronsUp, Link2, Minus, Pin, Timer, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Check, Hash, Images, Link2, Minus, Paintbrush, ScrollText, type LucideIcon } from 'lucide-react';
 import { BadgeMark } from '@/components/Badge';
 import { Reveal } from '@/components/Reveal';
 import { GlyphScatter, Note, type ScatterItem } from '@/components/Glyphs';
+import { ProCheckout } from '@/components/pro/ProCheckout';
+import { billingEnabled } from '@/lib/env';
+import { freeLimits, planState, proLimits, PRICING } from '@/lib/pro';
+import { getUser } from '@/lib/session';
 
 export const metadata: Metadata = {
   title: 'YapBoard Pro',
-  description: 'A purple check, stronger bumps and deeper stats for your Yapin’ server listing.',
+  description: 'Screenshots, a header style, extra buttons, twice the tags and a much longer description - for your server, bot and client.',
 };
 
 /** Re-points the site accent at purple for this page only, so buttons, chips and links follow without new styles. */
@@ -23,32 +27,60 @@ const PURPLE = {
   '--on-accent': '#13092b',
 } as CSSProperties;
 
+const free = freeLimits('server');
+const pro = proLimits('server');
+
+/**
+ * What Pro actually does, in the order it's worth paying for.
+ *
+ * Every line here is a field the forms and the listing pages really gate on `isPro` - src/lib/pro.ts is
+ * the one place that decides, and src/lib/pro-fields.ts holds the numbers quoted below. Nothing on this
+ * page is a plan; if it's written here, it works.
+ */
 const PERKS: { icon: LucideIcon; title: string; body: string }[] = [
-  { icon: BadgeCheck, title: 'Purple checkmark', body: 'Next to your name on every card, search result and server page.' },
-  { icon: ChevronsUp, title: 'Stronger bumps', body: 'Bump every hour instead of every two, and stay near the top for longer.' },
-  { icon: ChartColumn, title: 'Deeper stats', body: 'Views, joins and bumps day by day, so you can see what’s working.' },
-  { icon: Pin, title: 'Featured spot', body: 'Take turns in the featured row on the home page and in matching searches.' },
-  { icon: Link2, title: 'Custom link', body: 'A short yapboard.dev link with your server’s name in it.' },
-  { icon: Timer, title: 'Priority review', body: 'Your edits and requests go to the front of the staff queue.' },
+  { icon: Images, title: 'Screenshots', body: `A gallery on your page, up to ${pro.screenshots} images. People decide from pictures long before they read a word.` },
+  { icon: Paintbrush, title: 'Header style', body: 'Four ways to draw the top of your page, built from your own accent colour, instead of the default.' },
+  { icon: Link2, title: 'Extra buttons', body: `Up to ${pro.links} of your own buttons beside Join - a website, a wiki, a shop, your YouTube.` },
+  { icon: Hash, title: 'Twice the tags', body: `${pro.tags} instead of ${free.tags}, so you turn up in more of the searches that fit. Tags are discovery, not ranking.` },
+  { icon: ScrollText, title: 'Room to write', body: `${pro.description.toLocaleString()} characters instead of ${free.description.toLocaleString()}, with full Markdown.` },
+  { icon: Check, title: 'The Pro mark', body: 'On your cards and your page, so people can see the listing is looked after. Not a staff check.' },
 ];
 
 /** [feature, free, pro]: true for included, a string to spell out the difference. */
 const COMPARE: [string, boolean | string, boolean | string][] = [
-  ['Listing, tags and server page', true, true],
-  ['Bump with /bump', 'Every 2 hours', 'Every hour'],
-  ['View, join and bump totals', true, true],
-  ['Day-by-day stats', false, true],
-  ['Purple checkmark', false, true],
-  ['Featured spot', false, true],
-  ['Custom link', false, true],
-  ['Priority review', false, true],
+  ['Listing, tags and page', true, true],
+  ['Bump with /bump', 'Every 2 hours', 'Every 2 hours'],
+  ['Where you rank', 'Bumps and votes', 'Bumps and votes'],
+  ['Tags', String(free.tags), String(pro.tags)],
+  ['Description', `${free.description.toLocaleString()} characters`, `${pro.description.toLocaleString()} characters`],
+  ['Screenshot gallery', false, `Up to ${pro.screenshots}`],
+  ['Header style', false, '4 styles'],
+  ['Extra buttons', false, `Up to ${pro.links}`],
+  ['The Pro mark', false, true],
 ];
 
 const FAQ: [string, string][] = [
-  ['When is Pro coming?', 'Soon. We’re building it now and will announce it on YapBoard when it’s ready.'],
-  ['How much will it cost?', 'We’ll share pricing at launch. It will be a simple monthly price per server, with no ads or upsells inside it.'],
-  ['Will free listings change?', 'No. Everything that’s free today stays free. Pro adds to it.'],
-  ['Does Pro change the rules?', 'No. Pro servers follow the same listing guidelines and can still be hidden or removed. The purple check means a server has Pro. It isn’t a staff check like Verified.'],
+  [
+    'Does Pro push my server up the board?',
+    'No, and it never will. Where a server sits is decided by bumps and votes, and anyone in your server can bump it every two hours whether you pay or not. Pro makes your listing better, not better-placed - the day the front page can be bought is the day nobody bothers bumping.',
+  ],
+  [
+    'What does it cost?',
+    `${PRICING.symbol}${PRICING.base.monthly} a month covers one server, one bot and one client. Each extra listing of any kind is ${PRICING.symbol}${PRICING.slot.monthly} a month more, so three servers and a bot is ${PRICING.symbol}${PRICING.base.monthly + PRICING.slot.monthly * 2} a month. The annual plan is two months free. Prices are in ${PRICING.currency}.`,
+  ],
+  [
+    'Which of my listings does it cover?',
+    'You choose. A plan comes with one slot for a server, one for a bot and one for a client, and you point each at whichever listing you like from its manage page. Extra slots float - use them on whatever mix you want, and move them whenever.',
+  ],
+  [
+    'What if I cancel?',
+    'Nothing is deleted, ever. Your gallery, header style and extra buttons stop showing and sit waiting; the tags and the description you already wrote stay exactly where they are, and stay editable. What you lose is the ability to add more. Come back and the page is as you left it.',
+  ],
+  ['Will free listings change?', 'No. Everything that’s free today stays free. Pro adds to it, and never takes anything away to sell it back.'],
+  [
+    'Does Pro change the rules?',
+    'No. Pro listings follow the same guidelines and can still be hidden or removed, on exactly the same terms. The Pro mark says a listing is on a plan. It isn’t a staff check like Verified.',
+  ],
 ];
 
 const GLYPHS: Record<'hero' | 'compare' | 'faq' | 'closer', ScatterItem[]> = {
@@ -80,7 +112,11 @@ const GLYPHS: Record<'hero' | 'compare' | 'faq' | 'closer', ScatterItem[]> = {
   ],
 };
 
-export default function ProPage() {
+export default async function ProPage() {
+  const user = await getUser();
+  const plan = await planState(user?.id);
+  const onSale = billingEnabled();
+
   return (
     <div style={PURPLE}>
       {/* ---------- hero ---------- */}
@@ -92,20 +128,18 @@ export default function ProPage() {
             YapBoard Pro
           </p>
           <h1 className="mx-auto mt-4 max-w-2xl text-[40px] sm:text-[56px] font-extrabold leading-[1.02] tracking-[-0.02em]">
-            Get your server <span className="text-accent">seen first.</span>
+            Your listing, <span className="text-accent">properly.</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-lg text-[16.5px] leading-relaxed text-ink-2">A purple check, stronger bumps and deeper stats, for owners who want more from their listing.</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-2.5">
-            <span className="btn btn-primary btn-lg cursor-default">Coming soon</span>
-            <a href="#perks" className="btn btn-secondary btn-lg group">
-              See what’s included
-              <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
-            </a>
-          </div>
+          <p className="mx-auto mt-5 max-w-xl text-[16.5px] leading-relaxed text-ink-2">
+            Screenshots, a header style, your own buttons, twice the tags and room to actually write. One plan covers a server, a bot and a client.
+          </p>
+          <p className="mx-auto mt-3 max-w-md text-[13.5px] leading-relaxed text-ink-3">
+            It doesn&rsquo;t touch where you rank. Bumps and votes decide that, free or not.
+          </p>
         </Reveal>
 
         <Reveal delay={0.08}>
-          <ListPreview />
+          <PagePreview />
         </Reveal>
       </section>
 
@@ -137,6 +171,28 @@ export default function ProPage() {
             </Reveal>
           ))}
         </div>
+        <Reveal>
+          <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
+            Bot listings get the tags, the description and the mark - there&rsquo;s nowhere on a bot page for a gallery yet. Client listings get {proLimits('client').screenshots}{' '}
+            screenshots instead of {freeLimits('client').screenshots}, since they&rsquo;ve always had a gallery and a header style for free.
+          </p>
+        </Reveal>
+      </section>
+
+      {/* ---------- price ---------- */}
+      <section id="price" className="mx-auto max-w-5xl px-4 sm:px-6 mt-24 scroll-mt-24">
+        <Reveal>
+          <div className="text-center">
+            <h2 className="text-2xl sm:text-[28px] font-extrabold">One plan, three boards</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-3">
+              A server, a bot and a client are covered from the start. Running more than one of something? Add a listing for {PRICING.symbol}
+              {PRICING.slot.monthly} a month.
+            </p>
+          </div>
+        </Reveal>
+        <Reveal delay={0.06} className="mt-8">
+          <ProCheckout plan={plan} loggedIn={!!user} onSale={onSale} />
+        </Reveal>
       </section>
 
       {/* ---------- free vs pro ---------- */}
@@ -144,6 +200,7 @@ export default function ProPage() {
         <Reveal className="relative">
           <GlyphScatter items={GLYPHS.compare} className="hidden lg:block" />
           <h2 className="text-2xl sm:text-[28px] font-extrabold">Free and Pro</h2>
+          <p className="mt-1 text-sm text-ink-3">For a server listing.</p>
           <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface">
             <table className="w-full text-sm">
               <thead>
@@ -160,14 +217,14 @@ export default function ProPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {COMPARE.map(([feature, free, pro]) => (
+                {COMPARE.map(([feature, freeCell, proCell]) => (
                   <tr key={feature}>
                     <td className="h-12 px-5 text-ink-2">{feature}</td>
                     <td className="px-3 text-center">
-                      <Cell v={free} />
+                      <Cell v={freeCell} />
                     </td>
                     <td className="px-3 text-center bg-accent-soft/40">
-                      <Cell v={pro} pro />
+                      <Cell v={proCell} pro />
                     </td>
                   </tr>
                 ))}
@@ -185,7 +242,7 @@ export default function ProPage() {
           <div className="mt-6 divide-y divide-line rounded-2xl border border-line bg-surface">
             {FAQ.map(([q, a]) => (
               <details key={q} className="group px-5 [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex h-14 cursor-pointer list-none items-center justify-between gap-4 font-semibold">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-3 font-semibold">
                   {q}
                   <span aria-hidden className="relative size-3.5 shrink-0 text-ink-3">
                     <span className="absolute inset-x-0 top-1/2 h-[1.5px] -translate-y-1/2 rounded bg-current" />
@@ -205,10 +262,14 @@ export default function ProPage() {
           <div className="relative overflow-hidden rounded-2xl border border-line bg-surface px-6 py-10 text-center">
             <GlyphScatter items={GLYPHS.closer} />
             <BadgeMark kind="PRO" size={30} seed="pro-cta" />
-            <h2 className="mt-4 text-2xl font-extrabold">Pro is on the way</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-3">List your server for free now. When Pro launches, it’s one click to upgrade.</p>
-            <Link href="/add" className="btn btn-primary mt-6 group">
-              List your server
+            <h2 className="mt-4 text-2xl font-extrabold">{plan.active ? 'Pick your listings' : 'Make your listing worth clicking'}</h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-3">
+              {plan.active
+                ? 'Open any listing you own and put it on Pro from its manage page.'
+                : 'Free listings stay free, and always will. Pro is for when you want the page to do more work.'}
+            </p>
+            <Link href={plan.active ? '/dashboard' : onSale ? '#price' : '/add'} className="btn btn-primary mt-6 group">
+              {plan.active ? 'Your listings' : onSale ? 'See the price' : 'List your server'}
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
@@ -218,46 +279,68 @@ export default function ProPage() {
   );
 }
 
-function Cell({ v, pro }: { v: boolean | string; pro?: boolean }) {
-  if (typeof v === 'string') return <span className={pro ? 'font-semibold text-ink' : 'text-ink-3'}>{v}</span>;
-  if (v) return <Check size={16} className={`mx-auto ${pro ? 'text-accent' : 'text-ink-2'}`} aria-label="Included" />;
+function Cell({ v, pro: isPro }: { v: boolean | string; pro?: boolean }) {
+  if (typeof v === 'string') return <span className={isPro ? 'font-semibold text-ink' : 'text-ink-3'}>{v}</span>;
+  if (v) return <Check size={16} className={`mx-auto ${isPro ? 'text-accent' : 'text-ink-2'}`} aria-label="Included" />;
   return <Minus size={16} className="mx-auto text-ink-3/50" aria-label="Not included" />;
 }
 
-/** The list, with a Pro server on top: the same picture the Pro ad uses on /servers, larger. */
-function ListPreview() {
-  const rest: [string, string][] = [
-    ['36%', '52%'],
-    ['28%', '44%'],
-  ];
+/**
+ * A small drawing of a Pro listing page: the header style, the mark, a gallery and the extra buttons.
+ *
+ * It replaces an older picture of the board with a Pro server sitting on top of it, which sold placement
+ * Pro doesn't buy. This one only shows things Pro actually does.
+ */
+function PagePreview() {
   return (
-    <div aria-hidden className="relative mx-auto mt-14 max-w-xl rounded-2xl border border-line bg-raised p-3 sm:p-4 text-left">
-      <Note className="absolute right-full top-1 mr-1 hidden lg:flex">you, on top</Note>
-      <Note flip className="absolute left-full top-1 ml-1 hidden lg:flex">
-        bumped every hour
+    <div aria-hidden className="relative mx-auto mt-14 max-w-xl overflow-hidden rounded-2xl border border-line bg-raised text-left">
+      <Note className="absolute right-full top-6 mr-1 hidden lg:flex">your header</Note>
+      <Note flip className="absolute left-full top-24 ml-1 hidden lg:flex">
+        your gallery
       </Note>
-      <div className="flex items-center gap-3.5 rounded-xl border border-line-strong bg-surface p-3.5">
-        <span className="grid size-11 shrink-0 place-items-center rounded-[12px] bg-accent-soft font-display text-lg font-extrabold text-accent">Y</span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 font-display font-bold">
-            Your server <BadgeMark kind="PRO" size={16} seed="pro-hero" />
-          </div>
-          <div className="mt-1 h-1.5 w-2/3 rounded-full bg-surface-3" />
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-0.5 text-[12.5px] text-ink-3">
-          <ChevronsUp size={14} className="text-accent" />
-          just now
-        </span>
+
+      {/* header */}
+      <div className="relative h-20 overflow-hidden" style={{ background: 'color-mix(in srgb, var(--accent) 34%, var(--bg))' }}>
+        <span className="absolute inset-0 opacity-70" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--accent) 70%, transparent) 1px, transparent 0)', backgroundSize: '14px 14px' }} />
+        <span className="absolute -left-6 -bottom-8 size-28 rounded-full opacity-50 blur-2xl" style={{ background: 'var(--accent)' }} />
+        <span className="absolute inset-0 bg-gradient-to-t from-raised/90 to-transparent" />
       </div>
-      {rest.map(([a, b], i) => (
-        <div key={i} className="flex items-center gap-3.5 px-3.5 py-3 opacity-50">
-          <span className="size-9 shrink-0 rounded-[10px] bg-surface-3" />
-          <div className="flex-1 space-y-2">
-            <div className="h-2 rounded-full bg-surface-3" style={{ width: a }} />
-            <div className="h-1.5 rounded-full bg-surface-2" style={{ width: b }} />
+
+      <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+        {/* name + mark */}
+        <div className="-mt-6 flex items-end gap-3">
+          <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-accent-soft font-display text-lg font-extrabold text-accent ring-[4px] ring-raised">Y</span>
+          <div className="min-w-0 flex-1 pb-0.5">
+            <div className="flex items-center gap-1.5 font-display text-[15px] font-bold">
+              Your server <BadgeMark kind="PRO" size={15} seed="pro-hero" />
+            </div>
+            <div className="mt-1.5 h-1.5 w-2/3 rounded-full bg-surface-3" />
           </div>
         </div>
-      ))}
+
+        {/* buttons */}
+        <div className="mt-4 flex gap-2">
+          <span className="h-7 w-20 rounded-lg bg-accent" />
+          <span className="h-7 w-16 rounded-lg border border-line-strong bg-surface" />
+          <span className="h-7 w-16 rounded-lg border border-line-strong bg-surface" />
+        </div>
+
+        {/* gallery */}
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="relative block h-16 overflow-hidden rounded-lg border border-line bg-surface">
+              <span className="absolute inset-0 opacity-40" style={{ background: `linear-gradient(${120 + i * 40}deg, color-mix(in srgb, var(--accent) 45%, transparent), transparent)` }} />
+            </span>
+          ))}
+        </div>
+
+        {/* description */}
+        <div className="mt-4 space-y-1.5">
+          <span className="block h-1.5 w-full rounded-full bg-surface-3" />
+          <span className="block h-1.5 w-[92%] rounded-full bg-surface-3" />
+          <span className="block h-1.5 w-[78%] rounded-full bg-surface-2" />
+        </div>
+      </div>
     </div>
   );
 }

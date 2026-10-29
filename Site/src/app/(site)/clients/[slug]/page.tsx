@@ -32,7 +32,8 @@ import { ClientGrid } from '@/components/ClientGrid';
 import { Changelog } from '@/components/clients/Changelog';
 import { DownloadPanel } from '@/components/clients/DownloadPanel';
 import { PlatformIcon } from '@/components/clients/PlatformIcon';
-import { Screenshots } from '@/components/clients/Screenshots';
+import { ListingHero } from '@/components/ListingHero';
+import { Screenshots } from '@/components/Screenshots';
 import { NsfwMark } from '@/components/NsfwMark';
 import { Reveal } from '@/components/Reveal';
 import { SupportBanner, SupportNoReport } from '@/components/SupportFlair';
@@ -116,7 +117,7 @@ export default async function ViewClient({ params }: Props) {
 
   return (
     <div style={{ '--listing-accent': c.accent } as CSSProperties}>
-      <Hero accent={c.accent} theme={c.theme} bannerUrl={c.bannerUrl} />
+      <ListingHero accent={c.accent} theme={c.theme} bannerUrl={c.bannerUrl} />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {c.status !== 'PUBLIC' && (
@@ -349,44 +350,6 @@ export default async function ViewClient({ params }: Props) {
           </section>
         )}
       </div>
-    </div>
-  );
-}
-
-/**
- * The header. Four styles the lister picks from (lib/clients.ts THEMES), each drawn from their accent colour,
- * with their banner image over the top when they've set one. It's the main thing that stops every client page
- * looking like every other one.
- */
-function Hero({ accent, theme, bannerUrl }: { accent: string; theme: string; bannerUrl: string | null }) {
-  return (
-    <div className="relative h-40 overflow-hidden border-b border-line sm:h-56" style={{ background: `color-mix(in srgb, ${accent} 34%, var(--bg))` }}>
-      {theme === 'GRID' && (
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-70"
-          style={{ backgroundImage: `radial-gradient(circle at 1px 1px, color-mix(in srgb, ${accent} 70%, transparent) 1px, transparent 0)`, backgroundSize: '18px 18px' }}
-        />
-      )}
-      {theme === 'WAVE' && (
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-60"
-          style={{ backgroundImage: `repeating-linear-gradient(115deg, color-mix(in srgb, ${accent} 55%, transparent) 0 14px, transparent 14px 34px)` }}
-        />
-      )}
-      {theme === 'GLOW' && (
-        <>
-          <div aria-hidden className="absolute -left-10 bottom-0 h-56 w-56 rounded-full opacity-50 blur-3xl sm:h-72 sm:w-72" style={{ background: `color-mix(in srgb, ${accent} 85%, transparent)` }} />
-          <div aria-hidden className="absolute -right-16 -top-10 h-48 w-48 rounded-full opacity-35 blur-3xl sm:h-64 sm:w-64" style={{ background: `color-mix(in srgb, ${accent} 70%, transparent)` }} />
-        </>
-      )}
-      {bannerUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-bg/80 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/10" />
     </div>
   );
 }

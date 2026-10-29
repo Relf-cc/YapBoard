@@ -10,7 +10,8 @@ import { LANGUAGES } from './languages';
 import { classifyAsset, isNoise, isPlatform, PLATFORM_ORDER, type Platform } from './platforms';
 import { MAX_MANUAL_FILES, MAX_SCREENSHOTS, isTheme, RESERVED_SLUGS, slugify } from './client-fields';
 import { isUploadPath } from './upload-fields';
-import { MAX_TAGS, normalizeTags } from './tags';
+import { normalizeTags } from './tags';
+import { limitsFor, type Limits } from './pro-fields';
 import type { SessionUser } from './session';
 import { isStaff } from './session';
 
@@ -131,54 +132,62 @@ export const manualFileSchema = z.object({
 
 export type ManualFile = z.infer<typeof manualFileSchema>;
 
-export const clientListingSchema = z.object({
-  name: z.string().trim().min(2, 'Give it a name').max(60, 'Keep the name under 60 characters'),
-  summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),
-  description: z.string().trim().min(50, 'Tell people what it changes (50+ characters)').max(4000, 'Max 4000 characters'),
-  iconUrl: imageUrl('Use a full https link or upload an image, or leave it empty'),
-  bannerUrl: imageUrl('Use a full https link or upload an image, or leave it empty'),
-  website: httpsUrl('Use a full https link, or leave it empty'),
-  sourceUrl: httpsUrl('Use a full https link, or leave it empty'),
-  framework: optional(40),
-  supportServerId: z
-    .string()
-    .trim()
-    .max(64)
-    .nullish()
-    .transform((v) => v || null)
-    .refine((v) => v === null || /^[A-Za-z0-9_-]+$/.test(v), 'That doesn’t look like a server ID'),
-  language: z.string().refine((v) => v in LANGUAGES, 'Pick a language'),
-  nsfw: z.boolean(),
-  unlisted: z.boolean(),
-  accent: z.string().regex(/^#[0-9a-f]{6}$/i, 'Pick a colour'),
-  theme: z.string().refine(isTheme, 'Pick a style'),
-  screenshots: z
-    .array(z.string().trim().max(500))
-    .max(20)
-    .transform((list) => list.map((s) => (s && !s.startsWith('/') && !/^https?:\/\//.test(s) ? `https://${s}` : s)).filter(Boolean))
-    .refine((list) => list.every((s) => isUploadPath(s) || /^https:\/\/\S+\.\S+/.test(s)), 'Screenshots need full https links or uploaded images')
-    .refine((list) => list.length <= MAX_SCREENSHOTS, `Up to ${MAX_SCREENSHOTS} screenshots`),
-  platforms: z
-    .array(z.string())
-    .max(PLATFORM_ORDER.length)
-    .transform((list) => [...new Set(list.filter(isPlatform))])
-    .refine((list) => list.length >= 1, 'Say what it runs on'),
-  releaseSource: z.enum(['GITHUB', 'MANUAL']),
-  /** Anything that names a GitHub repo: the URL, the clone URL or "owner/repo". Stored as "owner/repo". */
-  repo: z
-    .string()
-    .trim()
-    .max(300)
-    .nullish()
-    .transform((v) => v || null),
-  files: z.array(manualFileSchema).max(MAX_MANUAL_FILES, `Up to ${MAX_MANUAL_FILES} links`),
-  tags: z
-    .array(z.string().max(40))
-    .max(10)
-    .transform(normalizeTags)
-    .refine((t) => t.length >= 1, 'Add at least one tag')
-    .refine((t) => t.length <= MAX_TAGS, `Up to ${MAX_TAGS} tags`),
-});
+/**
+ * The shape of a client listing save, for a listing with these caps. A factory for the same reason the
+ * server one is - see the long note on `listingSchemaFor` in src/lib/servers.ts.
+ */
+export const clientListingSchemaFor = (limits: Limits) =>
+  z.object({
+    name: z.string().trim().min(2, 'Give it a name').max(60, 'Keep the name under 60 characters'),
+    summary: z.string().trim().min(10, 'Give it at least 10 characters').max(140, 'Keep it under 140 characters'),
+    description: z.string().trim().min(50, 'Tell people what it changes (50+ characters)').max(limits.description, `Max ${limits.description} characters`),
+    iconUrl: imageUrl('Use a full https link or upload an image, or leave it empty'),
+    bannerUrl: imageUrl('Use a full https link or upload an image, or leave it empty'),
+    website: httpsUrl('Use a full https link, or leave it empty'),
+    sourceUrl: httpsUrl('Use a full https link, or leave it empty'),
+    framework: optional(40),
+    supportServerId: z
+      .string()
+      .trim()
+      .max(64)
+      .nullish()
+      .transform((v) => v || null)
+      .refine((v) => v === null || /^[A-Za-z0-9_-]+$/.test(v), 'That doesn’t look like a server ID'),
+    language: z.string().refine((v) => v in LANGUAGES, 'Pick a language'),
+    nsfw: z.boolean(),
+    unlisted: z.boolean(),
+    accent: z.string().regex(/^#[0-9a-f]{6}$/i, 'Pick a colour'),
+    theme: z.string().refine(isTheme, 'Pick a style'),
+    screenshots: z
+      .array(z.string().trim().max(500))
+      .max(20)
+      .transform((list) => list.map((s) => (s && !s.startsWith('/') && !/^https?:\/\//.test(s) ? `https://${s}` : s)).filter(Boolean))
+      .refine((list) => list.every((s) => isUploadPath(s) || /^https:\/\/\S+\.\S+/.test(s)), 'Screenshots need full https links or uploaded images')
+      .refine((list) => list.length <= limits.screenshots, `Up to ${limits.screenshots} screenshots`),
+    platforms: z
+      .array(z.string())
+      .max(PLATFORM_ORDER.length)
+      .transform((list) => [...new Set(list.filter(isPlatform))])
+      .refine((list) => list.length >= 1, 'Say what it runs on'),
+    releaseSource: z.enum(['GITHUB', 'MANUAL']),
+    /** Anything that names a GitHub repo: the URL, the clone URL or "owner/repo". Stored as "owner/repo". */
+    repo: z
+      .string()
+      .trim()
+      .max(300)
+      .nullish()
+      .transform((v) => v || null),
+    files: z.array(manualFileSchema).max(MAX_MANUAL_FILES, `Up to ${MAX_MANUAL_FILES} links`),
+    tags: z
+      .array(z.string().max(40))
+      .max(20)
+      .transform(normalizeTags)
+      .refine((t) => t.length >= 1, 'Add at least one tag')
+      .refine((t) => t.length <= limits.tags, `Up to ${limits.tags} tags`),
+  });
+
+/** Free-listing shape. A client that doesn't exist yet can't be on Pro, so this is what `POST` accepts. */
+export const clientListingSchema = clientListingSchemaFor(limitsFor('client', false));
 
 export type ClientListingInput = z.infer<typeof clientListingSchema>;
 
@@ -367,12 +376,14 @@ export function readPlatforms(raw: string | null): Platform[] {
 }
 
 /** Screenshots are stored the same way, and read back the same way: anything odd shows nothing. */
-export function readScreenshots(raw: string | null): string[] {
-  if (!raw) return [];
+export function readScreenshots(raw: string | null, max = MAX_SCREENSHOTS): string[] {
+  if (!raw || max <= 0) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((s): s is string => typeof s === 'string' && /^https:\/\/\S+$/.test(s)).slice(0, MAX_SCREENSHOTS);
+    // Uploaded screenshots have to be allowed here as well as in the schema: an upload is stored as its
+    // /u/<id>.png path, so testing for https alone silently dropped every image anybody had uploaded.
+    return parsed.filter((s): s is string => typeof s === 'string' && (isUploadPath(s) || /^https:\/\/\S+\.\S+/.test(s))).slice(0, max);
   } catch {
     return [];
   }
@@ -393,7 +404,7 @@ export type ClientBumpResult =
   | { ok: false; reason: 'not_found' | 'not_listed' | 'cooldown'; nextAt?: string };
 
 /** Moves a client to the top of the bumped sort. Same 2 hour cooldown as the other boards, pressed on the site. */
-export async function bumpClient(clientId: string, userId: string): Promise<ClientBumpResult> {
+export async function bumpClient(clientId: string, userId: string, appId?: string | null): Promise<ClientBumpResult> {
   const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { status: true, bumpedAt: true } });
   if (!client) return { ok: false, reason: 'not_found' };
   if (client.status !== 'PUBLIC') return { ok: false, reason: 'not_listed' };
@@ -408,7 +419,7 @@ export async function bumpClient(clientId: string, userId: string): Promise<Clie
       data: { bumpedAt: new Date(now), bumpCount: { increment: 1 } },
     });
     if (!res.count) return null;
-    await tx.clientBump.create({ data: { clientId, userId } });
+    await tx.clientBump.create({ data: { clientId, userId, appId: appId ?? null } });
     return tx.clientListing.findUnique({ where: { id: clientId }, select: { bumpCount: true } });
   });
   if (!updated) return { ok: false, reason: 'cooldown' };

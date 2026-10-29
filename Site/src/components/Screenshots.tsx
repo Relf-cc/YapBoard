@@ -7,9 +7,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 /**
- * A client's screenshots: a scrolling strip that opens full size.
+ * A listing's screenshots: a scrolling strip that opens full size.
  *
- * The images are hotlinked from wherever the lister put them, so each one can fail on its own; a broken URL
+ * Images hosted elsewhere are hotlinked from wherever the lister put them, so each one can fail on its own; a broken URL
  * drops out of the strip rather than leaving a grey box behind. Nothing here is proxied or cached by YapBoard.
  */
 export function Screenshots({ urls, name, accent }: { urls: string[]; name: string; accent: string }) {

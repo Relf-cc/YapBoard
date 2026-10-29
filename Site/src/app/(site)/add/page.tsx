@@ -6,6 +6,7 @@ import { Bot, Terminal } from 'lucide-react';
 import { botEnabled, env } from '@/lib/env';
 import { getUser } from '@/lib/session';
 import { withQuery } from '@/lib/next-url';
+import { limitsFor } from '@/lib/pro';
 import { ListingForm, type ListingValues } from '@/components/manage/ListingForm';
 import { CopyField } from '@/components/CopyField';
 import { Reveal } from '@/components/Reveal';
@@ -38,6 +39,9 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
     broadcastsOff: false,
     accent: '#ff6b4a',
     tags: [],
+    theme: 'GLOW',
+    screenshots: [],
+    links: [],
   };
 
   return (
@@ -91,7 +95,7 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
 
       {!offline && (
         <div className="mt-10">
-          <ListingForm mode="create" initial={initial} devMode={devMode} />
+          <ListingForm mode="create" initial={initial} devMode={devMode} limits={limitsFor('server', false)} pro={false} />
         </div>
       )}
     </div>

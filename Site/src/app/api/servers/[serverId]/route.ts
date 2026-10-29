@@ -4,7 +4,8 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { fail, json, readJson, requireUser } from '@/lib/http';
-import { canManageListing, listingSchema, setTags } from '@/lib/servers';
+import { canManageListing, listingData, listingSchemaFor, setTags } from '@/lib/servers';
+import { grandfather, limitsOf } from '@/lib/pro';
 import { isStaff } from '@/lib/session';
 
 type Ctx = { params: Promise<{ serverId: string }> };
@@ -13,7 +14,11 @@ async function loadManaged(req: NextRequest, ctx: Ctx) {
   const g = await requireUser(req);
   if (g.error) return { error: g.error };
   const { serverId } = await ctx.params;
-  const server = await db.server.findUnique({ where: { id: serverId }, select: { id: true, ownerId: true, status: true } });
+  const server = await db.server.findUnique({
+    where: { id: serverId },
+    // description and the tag count come along for `grandfather`: a lapsed listing must still be editable.
+    select: { id: true, ownerId: true, status: true, description: true, _count: { select: { tags: true } } },
+  });
   if (!server) return { error: fail('Not found', 404) };
   if (!canManageListing(g.user, server)) return { error: fail('You can’t edit this listing', 403) };
   return { user: g.user, server };
@@ -22,13 +27,21 @@ async function loadManaged(req: NextRequest, ctx: Ctx) {
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const m = await loadManaged(req, ctx);
   if (m.error) return m.error;
-  const parsed = listingSchema.safeParse(await readJson(req));
+  // What this listing may contain depends on whether a Pro plan covers it, raised to cover whatever it
+  // already holds so a lapsed plan can't make the form unsaveable (src/lib/pro.ts).
+  const limits = grandfather(await limitsOf('server', m.server.id, m.server.ownerId), {
+    description: m.server.description.length,
+    tags: m.server._count.tags,
+  });
+
+  const parsed = listingSchemaFor(limits).safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
-  const { tags, unlisted, ...data } = parsed.data;
+  const { tags } = parsed.data;
   // Owners can flip public/unlisted; staff decisions (HIDDEN/REMOVED) stay put.
-  const status = m.server.status === 'PUBLIC' || m.server.status === 'UNLISTED' ? (unlisted ? 'UNLISTED' : 'PUBLIC') : m.server.status;
+  const status =
+    m.server.status === 'PUBLIC' || m.server.status === 'UNLISTED' ? (parsed.data.unlisted ? 'UNLISTED' : 'PUBLIC') : m.server.status;
   await db.$transaction(async (tx) => {
-    await tx.server.update({ where: { id: m.server.id }, data: { ...data, status } });
+    await tx.server.update({ where: { id: m.server.id }, data: { ...listingData(parsed.data, limits), status } });
     await setTags(tx, m.server.id, tags);
   });
   return json({ ok: true, status });

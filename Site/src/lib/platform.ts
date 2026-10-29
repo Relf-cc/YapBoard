@@ -194,38 +194,170 @@ export async function authenticate(req: Request): Promise<Auth> {
 const midnightUtc = (d = new Date()) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
 /**
- * Counts one call. Never throws: a request that worked shouldn't fail because its tally didn't land, and a
- * request that failed shouldn't be masked by a second error from in here.
+ * What an answer was, in one word, for PlatformOutcome.
+ *
+ * A 200 isn't automatically a success here: a bump turned down for a cooldown is a 200 with `ok: false`, and
+ * that's the single most useful thing a developer can see about their own integration. Refusals carry a
+ * `reason`, so that becomes the outcome; anything else is `ok` or the status it answered with.
  */
-export async function recordCall(appId: string, keyId: string, endpoint: Endpoint, ok: boolean) {
+export async function outcomeOf(res: NextResponse, endpoint: Endpoint): Promise<{ outcome: string; refused: boolean }> {
+  if (res.status >= 400) return { outcome: `http_${res.status}`, refused: false };
+  // Only the bump endpoints answer with ok/reason, so only they are worth reading back.
+  if (!endpoint.startsWith('bump')) return { outcome: 'ok', refused: false };
+  try {
+    const body = (await res.clone().json()) as { ok?: boolean; reason?: string };
+    if (body?.ok === false) return { outcome: typeof body.reason === 'string' ? body.reason.slice(0, 32) : 'refused', refused: true };
+  } catch {
+    // A body that won't parse isn't worth failing a request over; count it as served.
+  }
+  return { outcome: 'ok', refused: false };
+}
+
+/**
+ * Counts one call: the rollup on PlatformUsage and the app, and the detail on PlatformOutcome. Never throws
+ * — a request that worked shouldn't fail because its tally didn't land, and a request that failed shouldn't
+ * be masked by a second error from in here.
+ */
+export async function recordCall(appId: string, keyId: string, endpoint: Endpoint, ok: boolean, extra?: { outcome?: string; refused?: boolean; ms?: number }) {
   const day = midnightUtc();
+  const ms = Math.max(0, Math.round(extra?.ms ?? 0));
+  const refused = extra?.refused ? 1 : 0;
+  const outcome = extra?.outcome ?? (ok ? 'ok' : 'error');
   await Promise.all([
     db.platformUsage.upsert({
       where: { appId_day_endpoint: { appId, day, endpoint } },
-      create: { appId, day, endpoint, calls: 1, errors: ok ? 0 : 1 },
-      update: { calls: { increment: 1 }, ...(ok ? {} : { errors: { increment: 1 } }) },
+      create: { appId, day, endpoint, calls: 1, errors: ok ? 0 : 1, refused, msTotal: ms },
+      update: { calls: { increment: 1 }, ...(ok ? {} : { errors: { increment: 1 } }), ...(refused ? { refused: { increment: 1 } } : {}), msTotal: { increment: ms } },
+    }),
+    db.platformOutcome.upsert({
+      where: { appId_day_endpoint_outcome: { appId, day, endpoint, outcome } },
+      create: { appId, day, endpoint, outcome, count: 1 },
+      update: { count: { increment: 1 } },
     }),
     db.platformApp.update({ where: { id: appId }, data: { calls: { increment: 1 }, ...(ok ? {} : { errors: { increment: 1 } }), lastCallAt: new Date() } }),
     db.platformKey.update({ where: { id: keyId }, data: { lastUsedAt: new Date() } }),
   ]).catch(() => {});
 }
 
-/** The last `days` days of one app's usage, oldest first, with every day present even at zero. */
+/**
+ * The last `days` days of one app's usage, oldest first, with every day present even at zero.
+ *
+ * Three numbers per day, because they mean different things: served, refused (a cooldown is not a fault) and
+ * errored. A bar that's mostly refusals is a bot asking too often; one that's mostly errors is broken.
+ */
 export async function usageSeries(appId: string, days = 14) {
   const from = midnightUtc(new Date(Date.now() - (days - 1) * 864e5));
   const rows = await db.platformUsage.findMany({ where: { appId, day: { gte: from } }, orderBy: { day: 'asc' } });
+  const sum = (list: typeof rows, key: 'calls' | 'errors' | 'refused') => list.reduce((n, r) => n + r[key], 0);
   return Array.from({ length: days }, (_, i) => {
     const day = new Date(from.getTime() + i * 864e5);
     const mine = rows.filter((r) => r.day.getTime() === day.getTime());
-    return { day: day.toISOString().slice(0, 10), calls: mine.reduce((n, r) => n + r.calls, 0), errors: mine.reduce((n, r) => n + r.errors, 0) };
+    return { day: day.toISOString().slice(0, 10), calls: sum(mine, 'calls'), errors: sum(mine, 'errors'), refused: sum(mine, 'refused') };
   });
 }
 
-/** Per-endpoint totals over the same window, for the app page's breakdown. */
+/** Per-endpoint totals over the same window, with the average response time, for the app page. */
 export async function usageByEndpoint(appId: string, days = 14) {
   const from = midnightUtc(new Date(Date.now() - (days - 1) * 864e5));
-  const rows = await db.platformUsage.groupBy({ by: ['endpoint'], where: { appId, day: { gte: from } }, _sum: { calls: true, errors: true } });
-  return rows.map((r) => ({ endpoint: r.endpoint, calls: r._sum.calls ?? 0, errors: r._sum.errors ?? 0 })).sort((a, b) => b.calls - a.calls);
+  const rows = await db.platformUsage.groupBy({ by: ['endpoint'], where: { appId, day: { gte: from } }, _sum: { calls: true, errors: true, refused: true, msTotal: true } });
+  return rows
+    .map((r) => {
+      const calls = r._sum.calls ?? 0;
+      return {
+        endpoint: r.endpoint,
+        calls,
+        errors: r._sum.errors ?? 0,
+        refused: r._sum.refused ?? 0,
+        avgMs: calls ? Math.round((r._sum.msTotal ?? 0) / calls) : 0,
+      };
+    })
+    .sort((a, b) => b.calls - a.calls);
+}
+
+/** Every outcome one app saw over the window, commonest first: ok, cooldown, not_found, http_429\u2026 */
+export async function outcomeTotals(appId: string, days = 14) {
+  const from = midnightUtc(new Date(Date.now() - (days - 1) * 864e5));
+  const rows = await db.platformOutcome.groupBy({ by: ['outcome'], where: { appId, day: { gte: from } }, _sum: { count: true } });
+  return rows.map((r) => ({ outcome: r.outcome, count: r._sum.count ?? 0 })).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * How far an app's bumps reach: how many it carried, and across how many listings and people.
+ *
+ * Counted from the bump rows themselves (Bump.appId and friends), not from the call counters, so it says
+ * what actually landed rather than what was asked for \u2014 a thousand refused bumps reach nobody.
+ */
+export async function reachFor(appId: string, days = 30) {
+  const since = new Date(Date.now() - days * 864e5);
+  const where = { appId, createdAt: { gte: since } };
+  const [servers, bots, clients, people] = await Promise.all([
+    db.bump.findMany({ where, distinct: ['serverId'], select: { serverId: true } }),
+    db.botBump.findMany({ where, distinct: ['botId'], select: { botId: true } }),
+    db.clientBump.findMany({ where, distinct: ['clientId'], select: { clientId: true } }),
+    db.bump.findMany({ where, distinct: ['userId'], select: { userId: true } }),
+  ]);
+  const [serverBumps, botBumps, clientBumps] = await Promise.all([
+    db.bump.count({ where }),
+    db.botBump.count({ where }),
+    db.clientBump.count({ where }),
+  ]);
+  return {
+    days,
+    bumps: serverBumps + botBumps + clientBumps,
+    servers: servers.length,
+    bots: bots.length,
+    clients: clients.length,
+    people: people.length,
+  };
+}
+
+/** The whole programme, for the portal: per-day calls, and the outcomes behind them. */
+export async function platformSeries(days = 14) {
+  const from = midnightUtc(new Date(Date.now() - (days - 1) * 864e5));
+  const rows = await db.platformUsage.groupBy({ by: ['day'], where: { day: { gte: from } }, _sum: { calls: true, errors: true, refused: true } });
+  return Array.from({ length: days }, (_, i) => {
+    const day = new Date(from.getTime() + i * 864e5);
+    const mine = rows.find((r) => r.day.getTime() === day.getTime());
+    return { day: day.toISOString().slice(0, 10), calls: mine?._sum.calls ?? 0, errors: mine?._sum.errors ?? 0, refused: mine?._sum.refused ?? 0 };
+  });
+}
+
+export async function platformOutcomes(days = 14) {
+  const from = midnightUtc(new Date(Date.now() - (days - 1) * 864e5));
+  const rows = await db.platformOutcome.groupBy({ by: ['outcome'], where: { day: { gte: from } }, _sum: { count: true } });
+  return rows.map((r) => ({ outcome: r.outcome, count: r._sum.count ?? 0 })).sort((a, b) => b.count - a.count);
+}
+
+/** Busiest apps over the window, with the rates staff actually read: errors, refusals, wrong_server. */
+export async function busiestApps(days = 14, take = 8) {
+  const from = midnightUtc(new Date(Date.now() - (days - 1) * 864e5));
+  const [usage, wrongServer] = await Promise.all([
+    db.platformUsage.groupBy({ by: ['appId'], where: { day: { gte: from } }, _sum: { calls: true, errors: true, refused: true, msTotal: true } }),
+    db.platformOutcome.groupBy({ by: ['appId'], where: { day: { gte: from }, outcome: 'wrong_server' }, _sum: { count: true } }),
+  ]);
+  const apps = await db.platformApp.findMany({
+    where: { id: { in: usage.map((u) => u.appId) } },
+    select: { id: true, name: true, botId: true, status: true, owner: { select: { user: { select: { username: true } } } } },
+  });
+  return usage
+    .map((u) => {
+      const app = apps.find((a) => a.id === u.appId);
+      const calls = u._sum.calls ?? 0;
+      return {
+        appId: u.appId,
+        name: app?.name ?? 'Deleted app',
+        botId: app?.botId ?? '',
+        status: app?.status ?? 'REVOKED',
+        username: app?.owner.user.username ?? '?',
+        calls,
+        errors: u._sum.errors ?? 0,
+        refused: u._sum.refused ?? 0,
+        avgMs: calls ? Math.round((u._sum.msTotal ?? 0) / calls) : 0,
+        wrongServer: wrongServer.find((w) => w.appId === u.appId)?._sum.count ?? 0,
+      };
+    })
+    .sort((a, b) => b.calls - a.calls)
+    .slice(0, take);
 }
 
 /* ---------------- what the forms accept ---------------- */
@@ -334,25 +466,28 @@ export async function handle(
 
   const need = ENDPOINTS[endpoint];
   if (need && !app.scopes.includes(need)) {
-    await recordCall(app.id, keyId, endpoint, false);
+    await recordCall(app.id, keyId, endpoint, false, { outcome: 'http_403' });
     return fail(`Your app doesn’t hold the \`${need}\` scope. Add it on platform.yapboard.dev.`, 403);
   }
   // Bumps are counted twice: once against the app's own ceiling, once against the lower bump ceiling.
   // One bump budget across all three boards: `need` is 'bump' whichever board the endpoint was for.
   const limited = !rateLimit(`plat:${app.id}`, RATE.perMinute, 60_000) || (need === 'bump' && !rateLimit(`plat:bump:${app.id}`, RATE.bumpPerMinute, 60_000));
   if (limited) {
-    await recordCall(app.id, keyId, endpoint, false);
+    await recordCall(app.id, keyId, endpoint, false, { outcome: 'http_429' });
     return fail('Slow down - too many requests this minute', 429);
   }
 
   let res: NextResponse;
+  const started = Date.now();
   try {
     res = await fn(app);
   } catch {
     // The developer gets a plain 500; what broke is ours to find in the logs, not theirs to read.
     res = fail('Something went wrong on our side', 500);
   }
-  await recordCall(app.id, keyId, endpoint, res.status < 400);
+  const ms = Date.now() - started;
+  const { outcome, refused } = await outcomeOf(res, endpoint);
+  await recordCall(app.id, keyId, endpoint, res.status < 400, { outcome, refused, ms });
   return res;
 }
 

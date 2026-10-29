@@ -124,6 +124,10 @@ export default async function PlatformTerms() {
             </>,
             'Don’t work around a scope, a limit, a cooldown or a refusal: no second key to double a quota, no second app for one bot, no retrying a refusal in a loop, no sending calls through anything that disguises where they came from.',
             'Treat a refusal as an answer. A turned-down bump tells you when it can happen again; show that to the person instead of trying again.',
+            <>
+              The <A href={`${base}/requirements`}>integration requirements</A> set out what your bot has to do with each of these answers.
+              They form part of these terms, and we keep them short enough to read in one sitting.
+            </>,
             'Cache what you read if you like, but keep it current and don’t build a copy of the boards out of it (see below).',
           ],
         },
@@ -135,6 +139,7 @@ export default async function PlatformTerms() {
             'You must not bump on a timer, on a schedule, on joining a server, as a side effect of some other command, or in bulk. You must not reward, pay, require or pressure anyone to bump — no bump-for-roles, no bump-to-unlock, no bump channels your bot drives on people’s behalf.',
             'Where a bump may come from is limited too: anyone in a server may bump that server, but a bot or a client may only be bumped from a server it belongs to - its support server, or a server its lister owns. One server must not be used to bump a shelf of listings that have nothing to do with it.',
             'You must report the server a command was typed in honestly. We can’t verify it from outside Yapin’, so we rely on you: sending a server the command didn’t come from, to get past the rule above, is a breach of these terms and we treat it as seriously as bumping nobody asked for.',
+            'Where a bump lands in a server that isn’t listed, you must show the add link we hand back with the refusal, as an invitation to list it. Swallowing that moment takes the useful half of the API and gives nothing back to the board you read from, so it is a requirement of membership rather than a suggestion.',
             'This clause is the one we enforce first and discuss afterwards, because a bump moves a real listing on a real board and the person it belongs to can’t undo it.',
           ],
         },
@@ -234,8 +239,9 @@ export default async function PlatformTerms() {
             <>These terms are governed by the law of {LEGAL.law}, and its courts have exclusive jurisdiction. If you’re a consumer, you keep any rights you have under the law where you live.</>,
             'If any part of these terms can’t be enforced, the rest still stands. Not enforcing something straight away doesn’t mean we’ve given it up. You can’t transfer this agreement; we may transfer it as part of transferring YapBoard.',
             <>
-              These terms, your invite, the <A href={`${base}/docs`}>reference</A> it points to, and our site terms, listing guidelines and privacy
-              notice are the whole agreement about the platform between us.
+              These terms, your invite, the <A href={`${base}/docs`}>reference</A> and the{' '}
+              <A href={`${base}/requirements`}>integration requirements</A> they point to, and our site terms, listing guidelines and privacy notice
+              are the whole agreement about the platform between us.
             </>,
             <>Questions, or something you’re unsure is allowed? Ask first: {mail}.</>,
           ],

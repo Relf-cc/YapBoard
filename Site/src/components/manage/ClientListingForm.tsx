@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { ImagePicker, ScreenshotPickerRow } from './ImagePicker';
+import { ImagePicker } from './ImagePicker';
+import { ProLock, ScreenshotEditor, ThemePicker } from './ProFields';
 import clsx from 'clsx';
 import { sortBadges } from '@/lib/badges';
-import { MAX_MANUAL_FILES, MAX_SCREENSHOTS, RELEASE_SOURCES, THEMES } from '@/lib/client-fields';
+import { MAX_MANUAL_FILES, RELEASE_SOURCES } from '@/lib/client-fields';
+import type { Limits } from '@/lib/pro-fields';
 import { LANGUAGES } from '@/lib/languages';
 import { PLATFORMS, PLATFORM_ORDER, type Platform } from '@/lib/platforms';
 import { Dropdown } from '../Dropdown';
@@ -67,7 +69,7 @@ type Errors = Partial<Record<keyof ClientListingValues | 'agreeTerms', string[]>
  * of submitting, not a line of small print under the button. And the downloads section is a real editor:
  * listers either point at a GitHub repo and let releases fill it in, or keep the links themselves.
  */
-export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; initial: ClientListingValues }) {
+export function ClientListingForm({ mode, initial, limits }: { mode: 'create' | 'edit'; initial: ClientListingValues; limits: Limits }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState<Errors>({});
@@ -166,13 +168,13 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
             <Field
               label="Description"
               error={errors.description}
-              count={[v.description.length, 4000]}
+              count={[v.description.length, limits.description]}
               help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers. Say what you changed and what you didn't."
             >
               <textarea
                 className="field"
                 rows={10}
-                maxLength={4000}
+                maxLength={limits.description}
                 value={v.description}
                 onChange={(e) => set('description', e.target.value)}
                 placeholder={"What does your client add or change?\n\n- Custom themes and CSS\n- A plugin loader\n- Compact mode and a smaller sidebar\n\nWhat it doesn't do: no automation, no self-botting, no message scraping."}
@@ -291,20 +293,7 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
             </div>
 
             <Field label="Header style" help="How the top of your page is drawn when there's no banner - and over it when there is.">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    aria-pressed={v.theme === t}
-                    onClick={() => set('theme', t)}
-                    className={clsx('overflow-hidden rounded-xl border text-left transition-colors', v.theme === t ? 'border-accent/60' : 'border-line hover:border-line-strong')}
-                  >
-                    <ThemeSwatch theme={t} accent={v.accent} />
-                    <span className="block px-3 py-2 text-[13px] font-medium">{THEMES[t]}</span>
-                  </button>
-                ))}
-              </div>
+              <ThemePicker value={v.theme} onChange={(t) => set('theme', t)} accent={v.accent} idPrefix="client" />
             </Field>
 
             <Field label="Accent colour">
@@ -327,12 +316,12 @@ export function ClientListingForm({ mode, initial }: { mode: 'create' | 'edit'; 
               </div>
             </Field>
 
-            <ScreenshotEditor urls={v.screenshots} onChange={(s) => set('screenshots', s)} error={errors.screenshots} />
+            <ScreenshotEditor urls={v.screenshots} onChange={(s) => set('screenshots', s)} error={errors.screenshots} max={limits.screenshots} />
           </Section>
 
           <Section title="Tags" hint="Up to five. These drive search, so pick what people would type.">
             <Field error={errors.tags}>
-              <TagInput value={v.tags} onChange={(t) => set('tags', t)} invalid={!!errors.tags} />
+              <TagInput value={v.tags} onChange={(t) => set('tags', t)} invalid={!!errors.tags} max={limits.tags} />
             </Field>
           </Section>
 
@@ -445,64 +434,6 @@ function FileEditor({ files, onChange, error, optional }: { files: ClientFileVal
       )}
       {error?.length ? <p className="mt-2 text-[13px] text-danger">{error[0]}</p> : null}
     </div>
-  );
-}
-
-/* ---------------- screenshots ---------------- */
-
-function ScreenshotEditor({ urls, onChange, error }: { urls: string[]; onChange: (u: string[]) => void; error?: string[] }) {
-  const replace = (i: number, url: string) => onChange(urls.map((x, j) => (j === i ? url : x)));
-  return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <span className="label">Screenshots</span>
-        <span className="text-xs tabular-nums text-ink-3">
-          {urls.length}/{MAX_SCREENSHOTS}
-        </span>
-      </div>
-      <p className="mb-3 text-[13px] text-ink-3">Optional, and the single best thing you can add. Upload an image or paste a link.</p>
-      <div className="space-y-2">
-        {urls.map((u, i) => (
-          <ScreenshotPickerRow
-            key={i}
-            url={u}
-            index={i}
-            onRemove={() => onChange(urls.filter((_, j) => j !== i))}
-            onUpload={(url) => replace(i, url)}
-            onUrlChange={(url) => replace(i, url)}
-          />
-        ))}
-      </div>
-      {urls.length < MAX_SCREENSHOTS && (
-        <button type="button" onClick={() => onChange([...urls, ''])} className="btn btn-secondary btn-sm mt-3">
-          <Plus size={15} /> Add a screenshot
-        </button>
-      )}
-      {error?.length ? <p className="mt-2 text-[13px] text-danger">{error[0]}</p> : null}
-    </div>
-  );
-}
-
-/** A tiny drawing of each header style, so the choice is made by looking rather than by reading four words. */
-function ThemeSwatch({ theme, accent }: { theme: keyof typeof THEMES; accent: string }) {
-  const base = { background: `color-mix(in srgb, ${accent} 26%, var(--bg))` };
-  return (
-    <span aria-hidden className="relative block h-12 w-full overflow-hidden" style={base}>
-      {theme === 'GLOW' && <span className="absolute -left-4 -bottom-6 size-20 rounded-full blur-xl" style={{ background: accent, opacity: 0.75 }} />}
-      {theme === 'GRID' && (
-        <span
-          className="absolute inset-0 opacity-70"
-          style={{ backgroundImage: `radial-gradient(circle at 1px 1px, color-mix(in srgb, ${accent} 75%, transparent) 1px, transparent 0)`, backgroundSize: '9px 9px' }}
-        />
-      )}
-      {theme === 'WAVE' && (
-        <span
-          className="absolute inset-0 opacity-70"
-          style={{ backgroundImage: `repeating-linear-gradient(115deg, color-mix(in srgb, ${accent} 60%, transparent) 0 6px, transparent 6px 14px)` }}
-        />
-      )}
-      <span className="absolute inset-0 bg-gradient-to-t from-bg/80 to-transparent" />
-    </span>
   );
 }
 

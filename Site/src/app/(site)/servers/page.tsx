@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, SearchX, X } from 'lucide-react';
 import clsx from 'clsx';
 import { AD_MIN_RESULTS, parseSearch, search, searchHref, SIZES, SORTS, type SearchParams } from '@/lib/search';
 import { LANGUAGES, languageName } from '@/lib/languages';
+import { hasPlan } from '@/lib/pro';
+import { getUser } from '@/lib/session';
 import { ServerGrid } from '@/components/ServerGrid';
 import { SearchBar } from '@/components/SearchBar';
 import { SortSelect, LanguageSelect } from '@/components/browse/Selects';
@@ -24,12 +26,14 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function Browse({ searchParams }: Props) {
   const p = parseSearch(await searchParams);
-  const res = await search(p);
+  const [res, user] = await Promise.all([search(p), getUser()]);
   const page = Math.min(p.page, res.pages);
   const filtered = p.q || p.tags.length || p.lang || p.size !== 'any' || p.nsfw || p.verified;
   const title = p.q ? `Results for “${p.q}”` : p.tags.length ? p.tags.map((t) => `#${t}`).join(' + ') : 'All servers';
-  // A random slot for the YapBoard Pro card, picked fresh on each request.
-  const adAt = res.items.length >= AD_MIN_RESULTS ? Math.floor(Math.random() * (res.items.length + 1)) : undefined;
+  // A random slot for the YapBoard Pro card, picked fresh on each request - and no card at all for
+  // somebody already paying for Pro, who has nothing to be sold.
+  const showAd = res.items.length >= AD_MIN_RESULTS && !(await hasPlan(user?.id));
+  const adAt = showAd ? Math.floor(Math.random() * (res.items.length + 1)) : undefined;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-8">

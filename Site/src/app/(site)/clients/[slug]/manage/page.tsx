@@ -5,6 +5,8 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowUpRight, Clock3, PartyPopper } from 'lucide-react';
 import { canManageClient, readPlatforms, readScreenshots } from '@/lib/clients';
+import { grandfather, isPro, limitsFor, planState } from '@/lib/pro';
+import { billingEnabled } from '@/lib/env';
 import { db } from '@/lib/db';
 import { compact } from '@/lib/format';
 import { RELEASE_ERRORS, type ReleaseFailure } from '@/lib/github';
@@ -17,6 +19,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 import { ClientListingForm } from '@/components/manage/ClientListingForm';
 import { DangerZone } from '@/components/manage/DangerZone';
+import { ProPanel } from '@/components/manage/ProPanel';
 
 export const metadata: Metadata = { title: 'Manage client listing' };
 
@@ -37,6 +40,11 @@ export default async function ManageClient({ params, searchParams }: Props) {
     },
   });
   if (!c || !canManageClient(user, c)) notFound();
+
+  // Raised to cover whatever the listing already holds, so a lapsed plan can't make the form unsaveable.
+  const plan = await planState(c.ownerId);
+  const pro = await isPro('client', c.id, c.ownerId);
+  const limits = grandfather(limitsFor('client', pro), { description: c.description.length, tags: c.tags.length });
 
   const manual = c.files.filter((f) => !f.managed);
   const managedCount = c.files.length - manual.length;
@@ -127,6 +135,7 @@ export default async function ManageClient({ params, searchParams }: Props) {
 
       <div className="mt-10">
         <ClientListingForm
+          limits={limits}
           mode="edit"
           initial={{
             id: c.id,
@@ -145,7 +154,7 @@ export default async function ManageClient({ params, searchParams }: Props) {
             unlisted: c.status === 'UNLISTED' || (c.status === 'PENDING' && c.requestedUnlisted),
             accent: c.accent,
             theme: c.theme,
-            screenshots: readScreenshots(c.screenshots),
+            screenshots: readScreenshots(c.screenshots, limits.screenshots),
             platforms: readPlatforms(c.platforms),
             releaseSource: c.releaseSource,
             repo: c.repo ?? '',
@@ -159,6 +168,8 @@ export default async function ManageClient({ params, searchParams }: Props) {
           }}
         />
       </div>
+
+      <ProPanel kind="client" listingId={c.id} plan={plan} billingOn={billingEnabled()} removed={c.status === 'REMOVED'} />
 
       {c.status !== 'REMOVED' && <DangerZone serverId={c.id} name={c.name} kind="client" />}
     </div>

@@ -5,6 +5,8 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowUpRight, PartyPopper } from 'lucide-react';
 import { canManageBot } from '@/lib/bots';
+import { grandfather, isPro, limitsFor, planState } from '@/lib/pro';
+import { billingEnabled } from '@/lib/env';
 import { db } from '@/lib/db';
 import { compact } from '@/lib/format';
 import { getUser } from '@/lib/session';
@@ -16,6 +18,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { BotListingForm } from '@/components/manage/BotListingForm';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 import { DangerZone } from '@/components/manage/DangerZone';
+import { ProPanel } from '@/components/manage/ProPanel';
 
 export const metadata: Metadata = { title: 'Manage bot listing' };
 
@@ -29,6 +32,11 @@ export default async function ManageBot({ params, searchParams }: Props) {
 
   const b = await db.botListing.findUnique({ where: { id: botId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } } } });
   if (!b || !canManageBot(user, b)) notFound();
+
+  // Raised to cover whatever the listing already holds, so a lapsed plan can't make the form unsaveable.
+  const plan = await planState(b.ownerId);
+  const pro = await isPro('bot', b.id, b.ownerId);
+  const limits = grandfather(limitsFor('bot', pro), { description: b.description.length, tags: b.tags.length });
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-10">
@@ -105,6 +113,7 @@ export default async function ManageBot({ params, searchParams }: Props) {
 
       <div className="mt-10">
         <BotListingForm
+          limits={limits}
           mode="edit"
           devMode={false}
           initial={{
@@ -128,6 +137,8 @@ export default async function ManageBot({ params, searchParams }: Props) {
           }}
         />
       </div>
+
+      <ProPanel kind="bot" listingId={b.id} plan={plan} billingOn={billingEnabled()} removed={b.status === 'REMOVED'} />
 
       {b.status !== 'REMOVED' && <DangerZone serverId={b.id} name={b.name} kind="bot" />}
     </div>

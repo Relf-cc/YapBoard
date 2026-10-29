@@ -12,6 +12,7 @@ import { LANGUAGES } from '@/lib/languages';
 import { Dropdown } from '../Dropdown';
 import { BotCard } from '../BotCard';
 import { TagInput } from './TagInput';
+import type { Limits } from '@/lib/pro-fields';
 import { ACCENTS } from './ListingForm';
 
 const LANGUAGE_OPTIONS = Object.entries(LANGUAGES).map(([value, label]) => ({ value, label }));
@@ -40,7 +41,7 @@ export type BotListingValues = {
 
 type Errors = Partial<Record<keyof BotListingValues, string[]>>;
 
-export function BotListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit'; initial: BotListingValues; devMode: boolean }) {
+export function BotListingForm({ mode, initial, devMode, limits }: { mode: 'create' | 'edit'; initial: BotListingValues; devMode: boolean; limits: Limits }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState<Errors>({});
@@ -119,11 +120,11 @@ export function BotListingForm({ mode, initial, devMode }: { mode: 'create' | 'e
           <Field label="One-liner" error={errors.summary} count={[v.summary.length, 140]}>
             <input className="field" value={v.summary} maxLength={140} onChange={(e) => set('summary', e.target.value)} placeholder="Music, polls and a terrible sense of humour." />
           </Field>
-          <Field label="Description" error={errors.description} count={[v.description.length, 2000]} help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers, and \`\`\`code blocks\`\`\`.">
+          <Field label="Description" error={errors.description} count={[v.description.length, limits.description]} help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers, and \`\`\`code blocks\`\`\`.">
             <textarea
               className="field"
               rows={9}
-              maxLength={2000}
+              maxLength={limits.description}
               value={v.description}
               onChange={(e) => set('description', e.target.value)}
               placeholder={'What does your bot do? What are its best commands?\n\n- /play - queue a track\n- /poll - ask the server something\n- Slash commands only, no prefix needed'}
@@ -158,7 +159,7 @@ export function BotListingForm({ mode, initial, devMode }: { mode: 'create' | 'e
 
         <Section title="Tags" hint="Up to five. These drive search, so pick what people would type.">
           <Field error={errors.tags}>
-            <TagInput value={v.tags} onChange={(t) => set('tags', t)} invalid={!!errors.tags} />
+            <TagInput value={v.tags} onChange={(t) => set('tags', t)} invalid={!!errors.tags} max={limits.tags} />
           </Field>
         </Section>
 

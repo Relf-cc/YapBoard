@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { ArrowUpRight, BookOpen, Boxes, Gauge, Scale } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Boxes, Gauge, Scale, ShieldCheck } from 'lucide-react';
 import clsx from 'clsx';
 import { Logo } from '../Logo';
 import { Avatar } from '../Avatar';
@@ -26,6 +26,7 @@ export function PlatformNav({ base, siteUrl, counts, user }: Props) {
     { href: '/', label: 'Overview', icon: Gauge },
     { href: '/apps', label: 'Your apps', icon: Boxes, count: counts.apps },
     { href: '/docs', label: 'Commands & API', icon: BookOpen },
+    { href: '/requirements', label: 'Requirements & code', icon: ShieldCheck },
     { href: '/program', label: 'Platform terms', icon: Scale },
   ];
 

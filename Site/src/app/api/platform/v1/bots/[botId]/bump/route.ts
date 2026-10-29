@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       });
     }
 
-    const result = await bumpBot(botId, user.id);
+    const result = await bumpBot(botId, user.id, app.id);
     return json({
       ...result,
       board: 'bots',

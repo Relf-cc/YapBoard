@@ -7,7 +7,7 @@ import { motion } from 'motion/react';
 import clsx from 'clsx';
 import { ArrowUpRight, ChevronsUp, Users } from 'lucide-react';
 import { Avatar } from './Avatar';
-import { BadgeRow } from './Badge';
+import { BadgeMark, BadgeRow } from './Badge';
 import { SupportFlair } from './SupportFlair';
 import { NsfwMark } from './NsfwMark';
 import { Tooltip } from './Tooltip';
@@ -38,6 +38,8 @@ export function ServerCard({ server, activeTags = [] }: { server: Card; activeTa
               {server.name}
             </Link>
             <BadgeRow kinds={server.badges} seed={server.id} size={17} max={3} />
+            {/* Bought, not granted, so it sits outside BadgeRow and never counts towards its `max`. */}
+            {server.pro && <BadgeMark kind="PRO" size={17} seed={server.id} />}
             {server.nsfw && <NsfwMark />}
           </h3>
           <div className="mt-1.5 flex items-center gap-3 text-[12.5px] text-ink-3">

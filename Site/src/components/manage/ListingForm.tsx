@@ -9,9 +9,11 @@ import { Check, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { sortBadges } from '@/lib/badges';
 import { LANGUAGES } from '@/lib/languages';
+import type { Limits, ListingLink } from '@/lib/pro-fields';
 import { Dropdown } from '../Dropdown';
 import { ServerCard } from '../ServerCard';
 import { TagInput } from './TagInput';
+import { LinksEditor, ProLock, ScreenshotEditor, ThemePicker } from './ProFields';
 
 const LANGUAGE_OPTIONS = Object.entries(LANGUAGES).map(([value, label]) => ({ value, label }));
 
@@ -31,13 +33,22 @@ export type ListingValues = {
   broadcastsOff: boolean;
   accent: string;
   tags: string[];
+  /** Pro perks. Sent whatever the plan says; the route drops them unless the caps allow (lib/servers.ts). */
+  theme: string;
+  screenshots: string[];
+  links: ListingLink[];
   /** Staff-granted badges; shown in the preview, never sent. */
   badges?: string[];
 };
 
 type Errors = Partial<Record<keyof ListingValues, string[]>>;
 
-export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit'; initial: ListingValues; devMode: boolean }) {
+/**
+ * `limits` is what this listing may contain, which depends on whether a Pro plan covers it, and `pro`
+ * draws the mark in the preview. Both are worked out on the server (src/lib/pro.ts) - the form only ever
+ * reads them, so a tampered page buys nobody anything: the route works the caps out again for itself.
+ */
+export function ListingForm({ mode, initial, devMode, limits, pro }: { mode: 'create' | 'edit'; initial: ListingValues; devMode: boolean; limits: Limits; pro: boolean }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState<Errors>({});
@@ -87,6 +98,9 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
     accent: v.accent,
     badges: sortBadges(v.badges ?? []),
     tags: v.tags.length ? v.tags : ['your-tags'],
+    // Only read by the card's Pro mark; a preview has no owner to look up.
+    ownerId: '',
+    pro,
   };
 
   return (
@@ -111,11 +125,11 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
           <Field label="One-liner" error={errors.summary} count={[v.summary.length, 140]}>
             <input className="field" value={v.summary} maxLength={140} onChange={(e) => set('summary', e.target.value)} placeholder="Chill late-night gaming crew. Mostly Valorant, sometimes chaos." />
           </Field>
-          <Field label="Description" error={errors.description} count={[v.description.length, 2000]} help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers, and \`\`\`code blocks\`\`\`.">
+          <Field label="Description" error={errors.description} count={[v.description.length, limits.description]} help="Markdown: **bold**, *italic*, `code`, [text](url), - lists, 1. numbered, # headings, --- dividers, and \`\`\`code blocks\`\`\`.">
             <textarea
               className="field"
               rows={9}
-              maxLength={2000}
+              maxLength={limits.description}
               value={v.description}
               onChange={(e) => set('description', e.target.value)}
               placeholder={'What happens in your server? Who is it for?\n\n- Weekly game nights\n- Friendly mods\n- No drama'}
@@ -129,11 +143,41 @@ export function ListingForm({ mode, initial, devMode }: { mode: 'create' | 'edit
           </Field>
         </Section>
 
-        <Section title="Tags" hint="Up to five. These drive search, so pick what people would type.">
+        <Section title="Tags" hint={`Up to ${limits.tags}. These drive search, so pick what people would type.`}>
           <Field error={errors.tags}>
-            <TagInput value={v.tags} onChange={(t) => set('tags', t)} invalid={!!errors.tags} />
+            <TagInput value={v.tags} onChange={(t) => set('tags', t)} invalid={!!errors.tags} max={limits.tags} />
           </Field>
         </Section>
+
+        {mode === 'edit' && (
+          <Section title="Your page" hint="How /view looks when somebody lands on it.">
+            {limits.themes ? (
+              <Field label="Header style" help="How the top of your page is drawn when your server has no banner - and over it when it does.">
+                <ThemePicker value={v.theme} onChange={(t) => set('theme', t)} accent={v.accent} idPrefix="server" />
+              </Field>
+            ) : (
+              <ProLock title="Header style" body="Four ways to draw the top of your page, built from your accent colour, instead of the default." />
+            )}
+
+            {limits.screenshots > 0 ? (
+              <ScreenshotEditor
+                urls={v.screenshots}
+                onChange={(u) => set('screenshots', u)}
+                error={errors.screenshots}
+                max={limits.screenshots}
+                hint="A gallery on your page. Show the channels, the events, the bots - whatever makes it worth joining."
+              />
+            ) : (
+              <ProLock title="Screenshots" body="A gallery on your server page, up to six images. People decide from pictures long before they read a description." />
+            )}
+
+            {limits.links > 0 ? (
+              <LinksEditor links={v.links} onChange={(l) => set('links', l)} error={errors.links} max={limits.links} />
+            ) : (
+              <ProLock title="Extra buttons" body="Up to three of your own buttons beside Join - a website, a wiki, a shop." />
+            )}
+          </Section>
+        )}
 
         <Section title="Details">
           <div className="grid gap-5 sm:grid-cols-2">

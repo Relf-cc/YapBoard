@@ -6,7 +6,7 @@ import {
   approvedClientStatus,
   canManageClient,
   checkReleaseSetup,
-  clientListingSchema,
+  clientListingSchemaFor,
   isClientOwnerEditable,
   setClientTags,
   setManualFiles,
@@ -15,6 +15,7 @@ import {
 import { db } from '@/lib/db';
 import { parseRepo } from '@/lib/github';
 import { fail, json, readJson, requireUser } from '@/lib/http';
+import { grandfather, limitsOf } from '@/lib/pro';
 import { isStaff } from '@/lib/session';
 
 type Ctx = { params: Promise<{ clientId: string }> };
@@ -25,7 +26,8 @@ async function loadManaged(req: NextRequest, ctx: Ctx) {
   const { clientId } = await ctx.params;
   const client = await db.clientListing.findUnique({
     where: { id: clientId },
-    select: { id: true, slug: true, ownerId: true, status: true, repo: true, releaseSource: true },
+    // description and the tag count come along for `grandfather`: a lapsed listing must still be editable.
+    select: { id: true, slug: true, ownerId: true, status: true, repo: true, releaseSource: true, description: true, _count: { select: { tags: true } } },
   });
   if (!client) return { error: fail('Not found', 404) };
   if (!canManageClient(g.user, client)) return { error: fail('You can’t edit this listing', 403) };
@@ -35,7 +37,12 @@ async function loadManaged(req: NextRequest, ctx: Ctx) {
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const m = await loadManaged(req, ctx);
   if (m.error) return m.error;
-  const parsed = clientListingSchema.safeParse(await readJson(req));
+  // What this listing may contain depends on whether a Pro plan covers it (src/lib/pro.ts).
+  const limits = grandfather(await limitsOf('client', m.client.id, m.client.ownerId), {
+    description: m.client.description.length,
+    tags: m.client._count.tags,
+  });
+  const parsed = clientListingSchemaFor(limits).safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
   const { tags, unlisted, files, screenshots, platforms, repo, ...data } = parsed.data;
 

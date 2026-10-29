@@ -41,7 +41,7 @@ export function ProCard() {
           </h3>
           <span className="text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink-3">Ad</span>
         </div>
-        <p className="mt-2 text-[14px] leading-relaxed text-ink-2 line-clamp-2">A purple check, stronger bumps and deeper stats for your listing.</p>
+        <p className="mt-2 text-[14px] leading-relaxed text-ink-2 line-clamp-2">Screenshots, a header style, more tags and a longer description - on your server, bot and client.</p>
 
         <div className="mt-auto pt-4">
           <Link href="/pro" className="btn btn-secondary btn-sm w-full">

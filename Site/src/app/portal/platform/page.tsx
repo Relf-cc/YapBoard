@@ -6,7 +6,7 @@ import clsx from 'clsx';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { compact, timeAgo } from '@/lib/format';
-import { APP_STATUS, inviteOpen, platformLink, readScopes } from '@/lib/platform';
+import { APP_STATUS, busiestApps, inviteOpen, platformLink, platformOutcomes, platformSeries, readScopes } from '@/lib/platform';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { isAdmin } from '@/lib/session';
 import { Reveal } from '@/components/Reveal';
@@ -14,6 +14,14 @@ import { PageHead } from '@/components/portal/PageHead';
 import { InviteActions, InviteComposer, MemberControls, PlatformAppActions } from '@/components/portal/PlatformAdmin';
 
 export const metadata: Metadata = { title: 'Developer platform' };
+
+/** Outcomes worth a second look on a staff page, with why. */
+const WATCH: Record<string, string> = {
+  wrong_server: 'bumping listings that aren\u2019t theirs',
+  banned: 'banned accounts still bumping',
+  http_429: 'over the rate limit',
+  http_403: 'calling without the scope',
+};
 
 const TONE: Record<string, string> = {
   ACTIVE: 'text-ok bg-ok/10 border-ok/30',
@@ -33,7 +41,7 @@ export default async function PortalPlatform() {
   since.setUTCHours(0, 0, 0, 0);
   since.setUTCDate(since.getUTCDate() - 13);
 
-  const [members, apps, invites, window] = await Promise.all([
+  const [members, apps, invites, window, series, outcomes, busiest] = await Promise.all([
     db.platformMember.findMany({
       orderBy: { joinedAt: 'desc' },
       include: {
@@ -48,17 +56,22 @@ export default async function PortalPlatform() {
       include: { owner: { select: { userId: true, status: true, user: { select: { username: true } } } }, _count: { select: { keys: { where: { revokedAt: null } } } } },
     }),
     db.platformInvite.findMany({ orderBy: { createdAt: 'desc' }, take: 30, include: { invitedBy: { select: { username: true } }, redeemedBy: { select: { username: true } } } }),
-    db.platformUsage.aggregate({ where: { day: { gte: since } }, _sum: { calls: true, errors: true } }),
+    db.platformUsage.aggregate({ where: { day: { gte: since } }, _sum: { calls: true, errors: true, refused: true } }),
+    platformSeries(),
+    platformOutcomes(),
+    busiestApps(),
   ]);
 
   const open = invites.filter(inviteOpen).length;
+  const peak = Math.max(1, ...series.map((d) => d.calls));
   const suspended = members.filter((m) => m.status !== 'ACTIVE').length;
   const tiles: [string, string, boolean?][] = [
     ['Members', String(members.length)],
     ['Suspended', String(suspended), suspended > 0],
     ['Active apps', String(apps.filter((a) => a.status === 'ACTIVE').length)],
     ['Calls, last 14 days', compact(window._sum.calls ?? 0)],
-    ['Errors, last 14 days', compact(window._sum.errors ?? 0), (window._sum.errors ?? 0) > 0],
+    ['Refused', compact(window._sum.refused ?? 0)],
+    ['Errors', compact(window._sum.errors ?? 0), (window._sum.errors ?? 0) > 0],
     ['Open invites', String(open)],
   ];
 
@@ -70,7 +83,7 @@ export default async function PortalPlatform() {
         </a>
       </PageHead>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         {tiles.map(([label, value, warn], i) => (
           <Reveal key={label} delay={i * 0.03} y={8}>
             <div className="card px-4 py-4">
@@ -80,6 +93,97 @@ export default async function PortalPlatform() {
           </Reveal>
         ))}
       </div>
+
+      <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+        <section className="card p-5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-bold">The programme, last 14 days</h2>
+            <span className="text-xs text-ink-3">{compact(series.reduce((n, d) => n + d.calls, 0))} calls</span>
+          </div>
+          <ol className="mt-5 flex h-24 items-end gap-1.5">
+            {series.map((d) => {
+              const served = Math.max(0, d.calls - d.refused - d.errors);
+              const band = (n: number) => (d.calls ? `${Math.max(2, (n / peak) * 100)}%` : '2px');
+              return (
+                <li key={d.day} className="flex h-full flex-1 flex-col justify-end gap-0.5" title={`${d.day}: ${d.calls} calls, ${d.refused} refused, ${d.errors} errors`}>
+                  {d.errors > 0 && <span className="block rounded-t-sm bg-warn" style={{ height: band(d.errors) }} />}
+                  {d.refused > 0 && <span className="block bg-surface-3" style={{ height: band(d.refused) }} />}
+                  <span className={clsx('block rounded-sm', served ? 'bg-accent' : 'bg-surface-2')} style={{ height: served ? band(served) : '2px' }} />
+                </li>
+              );
+            })}
+          </ol>
+          <div className="mt-2 flex justify-between text-[11px] text-ink-3">
+            <span>{series[0]?.day}</span>
+            <span>served / refused / errors</span>
+            <span>today</span>
+          </div>
+        </section>
+
+        <section className="card overflow-hidden">
+          <header className="flex h-14 items-center justify-between border-b border-line px-5">
+            <h2 className="font-bold">Outcomes</h2>
+            <span className="text-xs text-ink-3">what the API answered</span>
+          </header>
+          {outcomes.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-ink-3">No calls in the window.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {outcomes.slice(0, 8).map((o) => (
+                <li key={o.outcome} className="flex items-center gap-3 px-5 py-2.5">
+                  <code className={clsx('flex-1 font-mono text-[13px]', WATCH[o.outcome] ? 'text-warn' : o.outcome === 'ok' ? 'text-ok' : 'text-ink-2')}>{o.outcome}</code>
+                  {WATCH[o.outcome] && <span className="text-[11px] text-ink-3">{WATCH[o.outcome]}</span>}
+                  <span className="text-sm font-semibold tabular-nums">{compact(o.count)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Who is actually using it, and how well. `wrong_server` is the column to read twice: an app that
+          keeps trying to bump bots from servers they don't belong to is probing, not integrating. */}
+      <section className="card mt-8 overflow-x-auto">
+        <header className="flex h-14 items-center justify-between border-b border-line px-5">
+          <h2 className="font-bold">Busiest apps</h2>
+          <span className="text-xs text-ink-3">last 14 days</span>
+        </header>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-xs text-ink-3">
+              <th className="h-11 px-5 font-medium">App</th>
+              <th className="px-3 font-medium">Developer</th>
+              <th className="px-3 font-medium">Calls</th>
+              <th className="px-3 font-medium">Refused</th>
+              <th className="px-3 font-medium">Errors</th>
+              <th className="px-3 font-medium">wrong_server</th>
+              <th className="px-5 text-right font-medium">Avg</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {busiest.map((a) => (
+              <tr key={a.appId} className="hover:bg-surface-2/60">
+                <td className="px-5 py-3">
+                  <a href={platformLink(`/apps/${a.appId}`)} target="_blank" rel="noreferrer" className="group inline-flex flex-col">
+                    <span className="font-semibold group-hover:text-accent">{a.name}</span>
+                    <span className="font-mono text-[11px] text-ink-3">{a.botId}</span>
+                  </a>
+                </td>
+                <td className="px-3 py-3 text-ink-2">@{a.username}</td>
+                <td className="px-3 py-3 font-semibold tabular-nums text-ink-2">{compact(a.calls)}</td>
+                <td className="px-3 py-3 tabular-nums text-ink-3">
+                  {compact(a.refused)}
+                  {a.calls > 0 && <span className="ml-1 text-[11px]">{Math.round((a.refused / a.calls) * 100)}%</span>}
+                </td>
+                <td className={clsx('px-3 py-3 tabular-nums', a.errors ? 'font-semibold text-warn' : 'text-ink-3')}>{compact(a.errors)}</td>
+                <td className={clsx('px-3 py-3 tabular-nums', a.wrongServer ? 'font-semibold text-warn' : 'text-ink-3')}>{compact(a.wrongServer)}</td>
+                <td className="px-5 py-3 text-right tabular-nums text-ink-3">{a.avgMs}ms</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {busiest.length === 0 && <p className="px-5 py-14 text-center text-sm text-ink-3">Nobody has called the API in the window.</p>}
+      </section>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         <InviteComposer canGrantScopes={isAdmin(me)} />

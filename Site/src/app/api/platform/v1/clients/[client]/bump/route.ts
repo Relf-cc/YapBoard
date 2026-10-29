@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       });
     }
 
-    const result = await bumpClient(client.id, user.id);
+    const result = await bumpClient(client.id, user.id, app.id);
     return json({
       ...result,
       board: 'clients',

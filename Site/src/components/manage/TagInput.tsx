@@ -8,13 +8,14 @@ import { Hash, X } from 'lucide-react';
 import clsx from 'clsx';
 import { MAX_TAGS, normalizeTag } from '@/lib/tags';
 
-export function TagInput({ value, onChange, invalid }: { value: string[]; onChange: (tags: string[]) => void; invalid?: boolean }) {
+/** `max` is the listing's own cap, which YapBoard Pro raises (src/lib/pro-fields.ts). */
+export function TagInput({ value, onChange, invalid, max = MAX_TAGS }: { value: string[]; onChange: (tags: string[]) => void; invalid?: boolean; max?: number }) {
   const [text, setText] = useState('');
   const [suggestions, setSuggestions] = useState<{ name: string; count: number }[]>([]);
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
-  const full = value.length >= MAX_TAGS;
+  const full = value.length >= max;
 
   useEffect(() => {
     const t = normalizeTag(text);
@@ -111,7 +112,7 @@ export function TagInput({ value, onChange, invalid }: { value: string[]; onChan
           aria-label="Add a tag"
         />
         <span className="ml-auto pr-0.5 text-xs text-ink-3 tabular-nums">
-          {value.length}/{MAX_TAGS}
+          {value.length}/{max}
         </span>
       </div>
 

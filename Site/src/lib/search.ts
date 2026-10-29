@@ -4,7 +4,7 @@ import 'server-only';
 import type { Prisma } from '@prisma/client';
 import { BADGE_ORDER, sortBadges, topBadge } from './badges';
 import { db } from './db';
-import { cardSelect, toCard, type ServerCard } from './servers';
+import { cardSelect, markPro, toCard, toCards, type ServerCard } from './servers';
 import { normalizeTag } from './tags';
 import { LANGUAGES } from './languages';
 
@@ -173,7 +173,8 @@ export async function search(p: SearchParams): Promise<SearchResult> {
       return { card, score: score({ ...card, description }, tokens, phrase, now) };
     });
     ranked.sort((a, b) => b.score - a.score);
-    items = ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r) => r.card);
+    // Marked after slicing: the pool is up to RELEVANCE_POOL rows, and only this page gets shown.
+    items = await markPro(ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r) => r.card));
   } else {
     const rows = await db.server.findMany({
       where,
@@ -182,7 +183,7 @@ export async function search(p: SearchParams): Promise<SearchResult> {
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     });
-    items = rows.map(toCard);
+    items = await toCards(rows);
   }
 
   // Tags common among the results, to narrow the search further.
