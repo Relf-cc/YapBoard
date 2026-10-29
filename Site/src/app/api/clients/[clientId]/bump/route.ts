@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cli
   const g = await requireUser(req);
   if (g.error) return g.error;
   const { clientId } = await params;
-  const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { ownerId: true } });
+  const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { ownerId: true, managers: { select: { userId: true } } } });
   if (!client || !canManageClient(g.user, client)) return fail('Not found', 404);
   const r = await bumpClient(clientId, g.user.id);
   return r.ok ? json(r) : fail(r.reason === 'cooldown' ? 'Still cooling down' : 'Can’t bump this client', 429, r);

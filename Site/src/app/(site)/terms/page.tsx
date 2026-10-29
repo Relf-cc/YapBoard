@@ -3,17 +3,21 @@
 import type { Metadata } from 'next';
 import { ProseLink as A, ProsePage } from '@/components/Prose';
 import { LEGAL } from '@/lib/legal';
+// The numbers Pro actually runs on, so the terms can't promise something the billing code doesn't do.
+import { GRACE_DAYS, MAX_MANAGERS, PRICING } from '@/lib/pro';
 
 export const metadata: Metadata = { title: 'Terms' };
 
 const mail = <A href={`mailto:${LEGAL.email}`}>{LEGAL.email}</A>;
+const billingMail = <A href={`mailto:${LEGAL.billingEmail}`}>{LEGAL.billingEmail}</A>;
 
 // Placeholder copy: have someone qualified review before launch.
 export default function Terms() {
   return (
     <ProsePage
-      title="Terms"
+      title="Terms & Service"
       updated={LEGAL.updated}
+      version={LEGAL.termsVersion}
       intro={
         <>
           These terms are the agreement between you and YapBoard whenever you use yapboard.dev, portal.yapboard.dev, the YapBoard bot or anything else we run (together, “YapBoard”). Please read them. If you don’t agree, don’t use YapBoard.
@@ -24,6 +28,7 @@ export default function Terms() {
         'You keep ownership of what you write. You let us show it on YapBoard.',
         'Only list servers you run. Keep listings honest, and follow the listing guidelines.',
         'We can hide or remove listings and ban accounts that break the rules.',
+        'YapBoard Pro is an optional paid plan. It adds things to a listing. It never buys a better position or an easier ride.',
         'We don’t run the servers listed here. Join them at your own risk.',
         'YapBoard comes as is, and our liability is limited as far as the law allows.',
       ]}
@@ -81,6 +86,96 @@ export default function Terms() {
           ],
         },
         {
+          id: 'pro',
+          h: 'YapBoard Pro',
+          p: [
+            <>
+              YapBoard Pro is an optional paid subscription. Listing is free and stays free; Pro adds extra fields and tools to a listing you already
+              have. What&rsquo;s included, and what it costs, is set out on the <A href="/pro">Pro page</A>, which forms part of these terms.
+            </>,
+            <>
+              <b>What Pro does not do.</b> Pro has no effect on where a listing appears. Position on a board is decided by bumps and votes, and anyone
+              in a server can bump it on the same cooldown whether you pay or not. Pro also buys no leniency: a Pro listing is held to the same{' '}
+              <A href="/guidelines">listing guidelines</A> as a free one, and can be hidden or removed on exactly the same terms. The one queue Pro
+              moves you up is the staff review queue for new bot and client listings, which affects how long you wait for a decision, not what the
+              decision is.
+            </>,
+            <>
+              <b>What a plan covers.</b> One plan covers one server listing, one bot listing and one client listing at a time. You choose which, and
+              you can move a slot to a different listing whenever you like. Extra listings can be added to the plan at the price shown on the Pro
+              page. A listing has Pro only while a slot is pointed at it.
+            </>,
+            <>
+              <b>Paying.</b> Prices are in {PRICING.currency} and are shown before you buy. Payment is handled by Stripe, not by us: you enter your
+              card details on Stripe&rsquo;s own checkout, and we never see or store them. Stripe&rsquo;s terms and privacy policy apply to the payment
+              itself. You confirm that the payment method is yours and that you&rsquo;re allowed to use it.
+            </>,
+            <>
+              <b>Renewal and cancelling.</b> There is no free trial: the first period is charged when you buy, and Pro starts straight away. The plan
+              then renews automatically on the cycle you chose, monthly or yearly, and your card is charged until you cancel. You can cancel at any
+              time from &ldquo;Manage billing&rdquo;.
+              Cancelling stops the next charge; the plan keeps working to the end of the period you&rsquo;ve already paid for, and we don&rsquo;t
+              refund part of a period you&rsquo;ve used, subject to the {LEGAL.withdrawalDays}-day right below. Adding or dropping an extra listing part-way through a period is charged or credited pro rata.
+            </>,
+            <>
+              <b>If a payment fails.</b> Stripe will retry it. Your plan keeps working while it does, and for {GRACE_DAYS} days after the period you
+              last paid for, so an expired card doesn&rsquo;t take anything away over a weekend. If it still hasn&rsquo;t gone through after that, the
+              plan lapses.
+            </>,
+            <>
+              <b>What happens when a plan ends.</b> Nothing you wrote is deleted, ever. Where Pro raised a limit &mdash; tags, how long a description
+              can be, how many people can help manage a listing &mdash; whatever you already have stays on the page and stays editable, and what you
+              lose is the ability to add more. Where Pro added a feature outright, such as the screenshot gallery, the header style, the extra buttons
+              or an event, it stops being shown and sits waiting. Subscribe again and the listing is as you left it.
+            </>,
+            <>
+              <b>Co-managers.</b> Anyone you add as a co-manager can edit and bump that listing. They cannot delete it, cannot add or remove other
+              co-managers, and cannot see or change your billing. You stay responsible for the listing and for what they do to it, and you can remove
+              them at any time. A listing can have up to {MAX_MANAGERS}. People you have already added keep their access if the plan lapses.
+            </>,
+            <>
+              <b>If we remove a listing you&rsquo;re paying for.</b> Pro doesn&rsquo;t change what we moderate. If we hide or remove a Pro listing
+              because it breaks these terms or the guidelines, your subscription carries on, and you can point the slot at another listing or cancel;
+              we won&rsquo;t refund the period in progress. If we remove a listing by mistake and can&rsquo;t put it back, tell us and we&rsquo;ll
+              refund you pro rata.
+            </>,
+            <>
+              <b>Changes to Pro and to prices.</b> We can add to, change or withdraw parts of Pro. If we take away something you&rsquo;re paying for
+              and the plan becomes materially worse for you, you can cancel and we&rsquo;ll refund the rest of the period. We&rsquo;ll give at least 30
+              days&rsquo; notice before a price change affects you, and you can cancel before it takes effect. We won&rsquo;t change the price of a
+              period you&rsquo;ve already paid for.
+            </>,
+            <>
+              <b>Cancelling within {LEGAL.withdrawalDays} days.</b> If you&rsquo;re a consumer in the UK or the EEA, the law gives you{' '}
+              {LEGAL.withdrawalDays} days from buying to change your mind. To use it, email {mail} and say you want to cancel. You don&rsquo;t need a
+              reason and there&rsquo;s no form to fill in: the email is enough, and we&rsquo;ll refund you.
+            </>,
+            <>
+              <b>Starting straight away.</b> Pro is only worth buying if it works immediately, so at checkout we ask you to confirm two things: that
+              you want it to start now rather than after the {LEGAL.withdrawalDays} days, and that once a billing period has been supplied to you,
+              you&rsquo;ve had what you paid for and won&rsquo;t be refunded for it. If you tick that box, that&rsquo;s the arrangement. If you
+              don&rsquo;t want it, don&rsquo;t tick it &mdash; but we can&rsquo;t start the plan until you do.
+            </>,
+            <>
+              <b>After the {LEGAL.withdrawalDays} days.</b> There&rsquo;s no automatic refund once the window has passed, and cancelling simply stops
+              the next charge. We&rsquo;d still rather hear from you than not: email {mail}, tell us what happened, and we&rsquo;ll look at it. We
+              often refund when something was our fault or you plainly never used what you paid for. That&rsquo;s a decision we make case by case, not
+              a right you have.
+            </>,
+            <>
+              <b>Your statutory rights, and getting hold of us.</b> Everything above sits alongside the rights the law gives you, and never replaces
+              them. Where this section and the law disagree, the law wins. If you think you&rsquo;ve been charged wrongly, email {mail} before you
+              raise it with your bank &mdash; we can almost always fix it faster than a chargeback can. If you don&rsquo;t hear back, or the answer
+              doesn&rsquo;t resolve it, write to {billingMail}, which goes straight to whoever handles billing.
+            </>,
+            <>
+              <b>Abuse of billing.</b> Don&rsquo;t use someone else&rsquo;s card, don&rsquo;t charge back a plan you used instead of contacting us,
+              and don&rsquo;t make new accounts to claim the {LEGAL.withdrawalDays}-day cancellation right over and over on the same listings. We can
+              end a plan, refuse future purchases and ban the account for any of those.
+            </>,
+          ],
+        },
+        {
           id: 'content',
           h: 'Your content',
           p: [
@@ -132,6 +227,7 @@ export default function Terms() {
                 'report what we find to Yapin’ or to law enforcement, where we think that’s needed or the law requires it.',
               ],
             },
+            'Paying for YapBoard Pro makes no difference to any of this. A Pro listing is reviewed, hidden and removed on exactly the same terms as a free one.',
             'We try to be fair and consistent. We usually leave a note explaining a decision, but we don’t have to give reasons where that could put someone at risk, help people abuse YapBoard, or break the law. We can act without warning for serious harm, such as scams, malware, threats or anything involving the exploitation of children.',
             <>
               If you think we got it wrong, see <A href="/guidelines#appeals">appeals</A> in the listing guidelines. A ban applies to you as a person: new accounts made to get around it will be banned too.
@@ -227,7 +323,11 @@ export default function Terms() {
             <>
               You can stop using YapBoard at any time. Delete your listings, remove the bot from your servers, revoke YapBoard in Yapin’ under Settings → Authorized Apps, and if you want your data gone, ask us to delete your account as the <A href="/privacy#rights">privacy policy</A> explains.
             </>,
-            'We can suspend or end your access at any time if you break these terms, if we must for legal reasons, if your use puts others at risk, or if we shut YapBoard down.',
+            <>
+              If you have a YapBoard Pro plan, cancel it from &ldquo;Manage billing&rdquo; before you go. Deleting a listing, or your account,
+              does not cancel the subscription: a plan belongs to your account rather than to any one listing.
+            </>,
+            'We can suspend or end your access at any time if you break these terms, if we must for legal reasons, if your use puts others at risk, or if we shut YapBoard down. If we end your access because you broke these terms, any plan you have ends with it and we won\u2019t refund the period in progress. If we end it for our own reasons, such as shutting YapBoard down, we\u2019ll refund the rest of the period you have paid for.',
             'When this agreement ends, your right to use YapBoard ends with it. The parts of these terms that are meant to last, including the content licence for backups and retained records, disclaimers, liability, claims caused by you, and legal terms, keep applying.',
           ],
         },
@@ -269,7 +369,10 @@ export default function Terms() {
         {
           id: 'contact',
           h: 'Contact',
-          p: [<>Questions about these terms? Email {mail}.</>],
+          p: [
+            <>Questions about these terms? Email {mail}.</>,
+            <>For anything to do with a payment, a refund or a subscription, {billingMail} is the faster inbox.</>,
+          ],
         },
       ]}
     />

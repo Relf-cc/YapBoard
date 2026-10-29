@@ -49,6 +49,7 @@ const load = (slug: string) =>
     where: { slug },
     include: {
       tags: { include: { tag: true } },
+      managers: { select: { userId: true } },
       badges: { select: { kind: true } },
       owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
       files: { select: { id: true, platform: true, kind: true, arch: true, label: true, url: true, size: true, managed: true } },

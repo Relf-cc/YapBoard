@@ -86,6 +86,9 @@ const tokenWhere = (t: string): Prisma.ServerWhereInput => ({
     { name: { contains: t } },
     { summary: { contains: t } },
     { description: { contains: t } },
+    // A Pro listing's second language, so searching in those words finds it (src/lib/pro-fields.ts).
+    { altSummary: { contains: t } },
+    { altDescription: { contains: t } },
     { tags: { some: { tag: { name: { contains: normalizeTag(t) || t } } } } },
   ],
 });
@@ -93,7 +96,9 @@ const tokenWhere = (t: string): Prisma.ServerWhereInput => ({
 function buildWhere(p: SearchParams, tokens: string[], mode: 'all' | 'any'): Prisma.ServerWhereInput {
   const and: Prisma.ServerWhereInput[] = [{ status: 'PUBLIC' }, sizeWhere[p.size]];
   if (!p.nsfw) and.push({ nsfw: false });
-  if (p.lang) and.push({ language: p.lang });
+  // Either language counts: a listing written in two turns up in both, which is the whole perk. It only
+  // ever adds coverage, so it can't push anybody down a list they were already on.
+  if (p.lang) and.push({ OR: [{ language: p.lang }, { altLanguage: p.lang }] });
   if (p.verified) and.push({ badges: { some: { kind: { in: ['OFFICIAL', 'VERIFIED'] } } } });
   for (const t of p.tags) and.push({ tags: { some: { tag: { name: t } } } });
   if (tokens.length) and.push(mode === 'all' ? { AND: tokens.map(tokenWhere) } : { OR: tokens.map(tokenWhere) });

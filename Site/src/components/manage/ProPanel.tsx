@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ArrowUpRight, Check, CreditCard, Loader2, Minus, Plus } from 'lucide-react';
 import { BadgeMark } from '../Badge';
 import type { PlanState } from '@/lib/pro';
-import type { ListingKind } from '@/lib/pro-fields';
+import { money, PRICING, type Cycle, type ListingKind } from '@/lib/pro-fields';
 
 /**
  * Whether this one listing is on the owner's Pro plan, and the two buttons that change that.
@@ -46,6 +46,10 @@ export function ProPanel({
 
   const covered = plan.covered.find((c) => c.kind === kind && c.listingId === listingId);
   const overflowed = plan.overflow.some((o) => o.kind === kind && o.listingId === listingId);
+
+  /** Quoted at the cycle they're actually on, so an annual plan isn't told a monthly figure. */
+  const cycle: Cycle = plan.cycle === 'annual' ? 'annual' : 'monthly';
+  const slotPrice = money(PRICING.slot[cycle], cycle);
 
   async function call(what: 'assign' | 'remove' | 'buy' | 'portal') {
     setError('');
@@ -146,7 +150,10 @@ export function ProPanel({
             </button>
           </Body>
         ) : (
-          <Body title="Your plan is full" body={`Every slot is pointed at another listing. An extra listing slot covers this ${NOUN[kind]} for $1 a month more, charged pro rata for the rest of this period.`}>
+          <Body
+            title="Your plan is full"
+            body={`Every slot is pointed at another listing. An extra listing slot covers this ${NOUN[kind]} for ${slotPrice} more, charged pro rata for the rest of this period.`}
+          >
             <BuyButton busy={busy} onClick={() => call('buy')} />
           </Body>
         )}

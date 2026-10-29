@@ -7,11 +7,12 @@ import { AppWindow, Bot, ChevronsUp, Download, Eye, MousePointerClick, Plus, Ser
 import { db } from '@/lib/db';
 import { botEnabled } from '@/lib/env';
 import { getUser } from '@/lib/session';
+import { planState } from '@/lib/pro';
 import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { Reveal } from '@/components/Reveal';
 import { StatusBadge } from '@/components/StatusBadge';
-import { BadgeRow } from '@/components/Badge';
+import { BadgeMark, BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 
@@ -37,6 +38,11 @@ export default async function Dashboard() {
       select: { id: true, slug: true, name: true, iconUrl: true, status: true, badges: { select: { kind: true } }, nsfw: true, version: true, views: true, downloads: true, bumpCount: true, bumpedAt: true },
     }),
   ]);
+
+  // Which of these are under their Pro plan. One query for the lot, and the same answer the manage pages
+  // and the listing pages give (src/lib/pro.ts).
+  const plan = await planState(user.id);
+  const onPro = (kind: 'server' | 'bot' | 'client', id: string) => plan.covered.some((c) => c.kind === kind && c.listingId === id);
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-10">
@@ -92,6 +98,7 @@ export default async function Dashboard() {
                         {s.name}
                       </Link>
                       <BadgeRow kinds={s.badges.map((b) => b.kind)} seed={s.id} size={17} max={3} />
+                      {onPro('server', s.id) && <BadgeMark kind="PRO" size={17} seed={s.id} />}
                       {s.nsfw && <NsfwMark />}
                       <StatusBadge status={s.status} />
                     </div>
@@ -132,6 +139,7 @@ export default async function Dashboard() {
                           {b.name}
                         </Link>
                         <BadgeRow kinds={b.badges.map((x) => x.kind)} seed={b.id} size={17} max={3} />
+                        {onPro('bot', b.id) && <BadgeMark kind="PRO" size={17} seed={b.id} />}
                         {b.nsfw && <NsfwMark />}
                         <StatusBadge status={b.status} />
                       </div>
@@ -173,6 +181,7 @@ export default async function Dashboard() {
                           {c.name}
                         </Link>
                         <BadgeRow kinds={c.badges.map((x) => x.kind)} seed={c.id} size={17} max={3} />
+                        {onPro('client', c.id) && <BadgeMark kind="PRO" size={17} seed={c.id} />}
                         {c.nsfw && <NsfwMark />}
                         <StatusBadge status={c.status} />
                       </div>

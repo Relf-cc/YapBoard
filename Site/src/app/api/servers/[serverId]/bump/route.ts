@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ser
   const g = await requireUser(req);
   if (g.error) return g.error;
   const { serverId } = await params;
-  const server = await db.server.findUnique({ where: { id: serverId }, select: { ownerId: true } });
+  const server = await db.server.findUnique({ where: { id: serverId }, select: { ownerId: true, managers: { select: { userId: true } } } });
   if (!server || !canManageListing(g.user, server)) return fail('Not found', 404);
   const r = await bumpServer(serverId, g.user.id, 'web');
   return r.ok ? json(r) : fail(r.reason === 'cooldown' ? 'Still cooling down' : 'Can’t bump this server', 429, r);

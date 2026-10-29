@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bot
   const g = await requireUser(req);
   if (g.error) return g.error;
   const { botId } = await params;
-  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { ownerId: true } });
+  const bot = await db.botListing.findUnique({ where: { id: botId }, select: { ownerId: true, managers: { select: { userId: true } } } });
   if (!bot || !canManageBot(g.user, bot)) return fail('Not found', 404);
   const r = await bumpBot(botId, g.user.id);
   return r.ok ? json(r) : fail(r.reason === 'cooldown' ? 'Still cooling down' : 'Can’t bump this bot', 429, r);

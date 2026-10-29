@@ -16,6 +16,7 @@ export default function Privacy() {
     <ProsePage
       title="Privacy"
       updated={LEGAL.updated}
+      version={LEGAL.privacyVersion}
       intro="This policy explains what YapBoard collects, why, who sees it, how long we keep it, and what you can do about it. It covers yapboard.dev, portal.yapboard.dev and the YapBoard bot."
       summary={[
         'From Yapin’ we get your user ID, username, display name and avatar. Never your email, password or messages.',
@@ -55,6 +56,13 @@ export default function Privacy() {
               <B>Records of what happens on YapBoard.</B> Bumps (who, which server and when), when your profile was created and when you last logged in, your role, and if you’re banned, when and why. When staff take an action, we log which staff member did what, to which listing or account, and their note.
             </>,
             <>
+              <B>If you buy YapBoard Pro.</B> We store the Stripe customer and subscription IDs for your account, the plan&rsquo;s status, billing
+              cycle and renewal date, how many extra listings it covers, and which of your listings it&rsquo;s pointed at. We keep a record when a
+              payment is disputed or refunded, or when Stripe flags a charge as likely fraud, so we can look into it and keep our accounts straight.
+              We don&rsquo;t receive your card number, billing address or bank details &mdash; see <A href="#not-collect">what we don&rsquo;t
+              collect</A>.
+            </>,
+            <>
               <B>Collected automatically.</B> Page views and join clicks are kept as running totals per server. We don’t record who viewed or clicked. To limit abuse, we briefly count actions like reports against your user ID in server memory. Those counts are never written to disk and are gone within an hour. Our hosting provider keeps standard request logs (IP address, browser, the page requested and the time) for security and troubleshooting.
             </>,
           ],
@@ -65,7 +73,11 @@ export default function Privacy() {
           p: [
             {
               ul: [
-                'Your email address, password, phone number or payment details.',
+                'Your email address, password or phone number.',
+                <>
+                  Card numbers, billing addresses or bank details. If you buy YapBoard Pro, Stripe takes the payment on its own checkout and
+                  holds those details; they never reach YapBoard.
+                </>,
                 'Your messages, or anything said inside servers. The bot doesn’t read messages.',
                 'Your friends list, DMs or the other servers you’re in.',
                 'Analytics, advertising pixels, social media trackers or device fingerprints. Our fonts are served from our own domain, not from Google.',
@@ -120,6 +132,11 @@ export default function Privacy() {
                   <B>Yapin’.</B> To check ownership or record a bump, we call Yapin’s API, which tells Yapin’ which server and user we’re asking about. Server icons, banners and avatars load straight from Yapin’s servers, so Yapin’ receives your IP address and browser details when you view them, as with any image. Yapin’ handles that under its own privacy policy.
                 </>,
                 <>
+                  <B>Stripe.</B> If you buy YapBoard Pro, Stripe takes the payment and is the processor for it. We send Stripe your YapBoard user ID
+                  so a subscription can be matched to your account; Stripe collects your card and billing details directly from you, under its own
+                  privacy policy, and tells us only whether the plan is paid up. Stripe also uses that information to prevent fraud.
+                </>,
+                <>
                   <B>YapBoard staff.</B> Our volunteer moderators can see reports, profiles, listings and the audit log in the staff portal. They may only use it to moderate YapBoard.
                 </>,
                 <>
@@ -159,6 +176,11 @@ export default function Privacy() {
                 </>,
                 <>
                   <B>Bans and the staff audit log:</B> as long as needed to enforce bans and handle appeals. If a banned account is deleted, we keep its user ID, the ban date and the reason, to stop ban evasion.
+                </>,
+                <>
+                  <B>Billing records:</B> for six years after the last payment, which is how long UK tax law requires us to keep records of a sale.
+                  Cancelling a plan or deleting your account doesn&rsquo;t remove them, because we&rsquo;re required to keep them; they&rsquo;re kept
+                  for accounting and nothing else.
                 </>,
                 <>
                   <B>Cookies:</B> the login cookie lasts 30 days, or until you log out. The login-check cookie lasts 10 minutes.

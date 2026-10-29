@@ -32,6 +32,7 @@ const load = (id: string) =>
     where: { id },
     include: {
       tags: { include: { tag: true } },
+      managers: { select: { userId: true } },
       badges: { select: { kind: true } },
       owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
       supportServer: { select: { id: true, name: true, iconUrl: true, status: true, memberCount: true } },

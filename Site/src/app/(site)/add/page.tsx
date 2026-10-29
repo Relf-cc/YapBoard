@@ -42,6 +42,12 @@ export default async function AddServer({ searchParams }: { searchParams: Promis
     theme: 'GLOW',
     screenshots: [],
     links: [],
+    eventTitle: null,
+    eventAt: null,
+    eventUrl: null,
+    altLanguage: null,
+    altSummary: null,
+    altDescription: null,
   };
 
   return (

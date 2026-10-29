@@ -4,7 +4,9 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { billingEnabled, env } from '@/lib/env';
 import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
+import { db } from '@/lib/db';
 import { planState } from '@/lib/pro';
+import { buyerCountry, needsWithdrawalWaiver, WAIVER_VERSION } from '@/lib/region';
 import { customerFor, INTEGRATION_ID, isCycle, MAX_EXTRA_SLOTS, PRICES, stripe } from '@/lib/stripe';
 
 /** The Stripe SDK needs Node, not the edge runtime. */
@@ -14,14 +16,24 @@ const schema = z.object({
   cycle: z.string().refine(isCycle, 'Pick monthly or annual'),
   /** Extra listings beyond the one server, one bot and one client the base plan covers. */
   extraSlots: z.number().int().min(0).max(MAX_EXTRA_SLOTS).optional(),
+  /**
+   * The buyer ticked the box asking for Pro to start immediately, giving up their 14-day right to
+   * cancel each period once it's been supplied (src/lib/region.ts). Required for buyers in the UK and
+   * the EEA, and for anyone whose country we can't establish.
+   */
+  waiveWithdrawal: z.boolean().optional(),
 });
 
 /**
  * Starts a Stripe Checkout Session for YapBoard Pro and hands back the URL to send them to.
  *
- * Checkout rather than a payment form of our own: it handles the card, 3-D Secure, the trial, the
- * tax (once registrations exist - see the note in the Pro plan), and every payment method enabled in
- * the dashboard, none of which is work worth repeating here.
+ * Checkout rather than a payment form of our own: it handles the card, 3-D Secure, the tax (once
+ * registrations exist - see the note in the Pro plan), and every payment method enabled in the
+ * dashboard, none of which is work worth repeating here.
+ *
+ * There is **no free trial**: the first period is charged at checkout and Pro starts there and then.
+ * That is why the cancellation-right waiver below is not a formality - a UK or EEA consumer is paying
+ * for a service that begins immediately, which is exactly the case the law wants asked about.
  */
 export async function POST(req: NextRequest) {
   if (!billingEnabled()) return fail('Pro isn’t on sale yet.', 503);
@@ -43,6 +55,16 @@ export async function POST(req: NextRequest) {
   const plan = await planState(g.user.id);
   if (plan.active && !plan.grace) return fail('You’re already on Pro. Use "Manage billing" to change your plan or add listings.', 409, { alreadyPro: true });
 
+  /**
+   * Consumers in the UK and the EEA have 14 days to cancel. They can ask for the service to begin
+   * immediately and give that up, but only expressly - so if we believe they're in one of those
+   * countries, the checkbox is not optional and this refuses to take their money without it.
+   */
+  const country = buyerCountry(req.headers);
+  if (needsWithdrawalWaiver(req.headers) && !parsed.data.waiveWithdrawal) {
+    return fail('Tick the box to confirm you want Pro to start straight away.', 422, { needsWaiver: true, country });
+  }
+
   const customer = await customerFor(g.user);
   const prices = PRICES[cycle]();
 
@@ -54,10 +76,14 @@ export async function POST(req: NextRequest) {
     // Two lines, so the invoice reads "YapBoard Pro" and "YapBoard Pro extra listing x2".
     line_items: [{ price: prices.base, quantity: 1 }, ...(extraSlots > 0 ? [{ price: prices.slot, quantity: extraSlots }] : [])],
     subscription_data: {
-      trial_period_days: 14,
-      metadata: { yapboard_user_id: g.user.id, yapboard_cycle: cycle },
-      // A trial that can't charge at the end should end, not silently lapse into an unpaid listing.
-      trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+      metadata: {
+        yapboard_user_id: g.user.id,
+        yapboard_cycle: cycle,
+        // Stored twice on purpose: this copy survives even if our own row is lost, and the
+        // webhook reads it to notice an EEA customer who somehow has no consent on file.
+        ...(parsed.data.waiveWithdrawal ? { yapboard_waiver: WAIVER_VERSION } : {}),
+        yapboard_country: country ?? '',
+      },
     },
     // Yapin' doesn't give us an email address, so Checkout collects one. It's also where the receipt goes.
     customer_update: { name: 'auto', address: 'auto' },
@@ -71,5 +97,20 @@ export async function POST(req: NextRequest) {
   });
 
   if (!session.url) return fail('Couldn’t start checkout. Try again in a minute.', 502);
+
+  /**
+   * The evidence, written now rather than when the webhook lands: what matters is that they agreed
+   * before being charged, and this is the only moment that proves it. Recorded for every buyer who
+   * ticked it, not just the ones we required it of, since a US buyer's tick is still a fact about
+   * what was on their screen.
+   */
+  if (parsed.data.waiveWithdrawal) {
+    await db.billingConsent
+      .create({ data: { userId: g.user.id, kind: 'withdrawal_waiver', version: WAIVER_VERSION, country: country ?? '', sessionId: session.id } })
+      // A lost consent row must not lose them the checkout they've just paid for; the Stripe metadata
+      // carries the same fact, and the webhook raises an alert if neither is there.
+      .catch(() => {});
+  }
+
   return json({ url: session.url });
 }

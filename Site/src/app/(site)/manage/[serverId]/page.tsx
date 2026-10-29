@@ -19,7 +19,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ListingForm } from '@/components/manage/ListingForm';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 import { DangerZone } from '@/components/manage/DangerZone';
+import { Managers } from '@/components/manage/Managers';
 import { ProPanel } from '@/components/manage/ProPanel';
+import { isOwner } from '@/lib/manage';
 import { SyncButton } from '@/components/manage/SyncButton';
 
 export const metadata: Metadata = { title: 'Manage listing' };
@@ -32,7 +34,7 @@ export default async function Manage({ params, searchParams }: Props) {
   const user = await getUser();
   if (!user) redirect(`/login?next=/manage/${serverId}`);
 
-  const s = await db.server.findUnique({ where: { id: serverId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } } } });
+  const s = await db.server.findUnique({ where: { id: serverId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } }, managers: { select: { userId: true, user: { select: { username: true, displayName: true, avatarUrl: true } } } } } });
   if (!s || !canManageListing(user, s)) notFound();
 
   // What this listing may contain, raised to cover whatever it already holds so a lapsed plan can't make
@@ -40,6 +42,8 @@ export default async function Manage({ params, searchParams }: Props) {
   const plan = await planState(s.ownerId);
   const pro = await isPro('server', s.id, s.ownerId);
   const limits = grandfather(limitsFor('server', pro), { description: s.description.length, tags: s.tags.length });
+  const owner = isOwner(user, s);
+  const managers = s.managers.map((m) => ({ userId: m.userId, username: m.user.username, displayName: m.user.displayName, avatarUrl: m.user.avatarUrl }));
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-10">
@@ -122,6 +126,12 @@ export default async function Manage({ params, searchParams }: Props) {
             theme: s.theme,
             screenshots: readScreenshots(s.screenshots, limits.screenshots),
             links: readLinks(s.links, limits.links),
+            eventTitle: s.eventTitle,
+            eventAt: s.eventAt ? s.eventAt.toISOString() : null,
+            eventUrl: s.eventUrl,
+            altLanguage: s.altLanguage,
+            altSummary: s.altSummary,
+            altDescription: s.altDescription,
             badges: s.badges.map((b) => b.kind),
           }}
           limits={limits}
@@ -131,7 +141,9 @@ export default async function Manage({ params, searchParams }: Props) {
 
       <ProPanel kind="server" listingId={s.id} plan={plan} billingOn={billingEnabled()} removed={s.status === 'REMOVED'} />
 
-      {s.status !== 'REMOVED' && <DangerZone serverId={s.id} name={s.name} />}
+      <Managers kind="server" listingId={s.id} managers={managers} max={limits.managers} isOwner={owner} />
+
+      {owner && s.status !== 'REMOVED' && <DangerZone serverId={s.id} name={s.name} />}
     </div>
   );
 }

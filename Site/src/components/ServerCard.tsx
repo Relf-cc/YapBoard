@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import clsx from 'clsx';
-import { ArrowUpRight, ChevronsUp, Users } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, ChevronsUp, Users } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { BadgeMark, BadgeRow } from './Badge';
 import { SupportFlair } from './SupportFlair';
@@ -14,10 +14,18 @@ import { Tooltip } from './Tooltip';
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { hasSupport } from '@/lib/badges';
+import { eventPhase } from '@/lib/pro-fields';
 import type { ServerCard as Card } from '@/lib/servers';
 
 export function ServerCard({ server, activeTags = [] }: { server: Card; activeTags?: string[] }) {
   const support = hasSupport(server.badges);
+  /**
+   * "What's on", for a Pro listing with an event that hasn't passed. Deliberately a quiet line in the
+   * same type size as the rest of the meta rather than anything that makes the card louder - Pro buys
+   * information on a card, never attention in the list.
+   */
+  const phase = server.pro ? eventPhase(server.eventAt) : null;
+  const event = phase === 'upcoming' || phase === 'on' ? server.eventTitle : null;
   return (
     <motion.article
       whileHover={{ y: -3 }}
@@ -61,6 +69,17 @@ export function ServerCard({ server, activeTags = [] }: { server: Card; activeTa
       </div>
 
       <p className="relative mt-3.5 text-[14px] leading-relaxed text-ink-2 line-clamp-2 min-h-[2lh]">{server.summary}</p>
+
+      {event && (
+        <p className="relative mt-2.5 flex items-center gap-1.5 text-[12.5px] text-ink-3">
+          <CalendarClock size={13} className="shrink-0 text-accent" />
+          <span className="truncate">
+            {phase === 'on' ? <span className="font-semibold text-ink-2">On now</span> : <time dateTime={server.eventAt ?? undefined}>{new Date(server.eventAt!).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</time>}
+            {' · '}
+            {event}
+          </span>
+        </p>
+      )}
 
       <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
         {server.tags.slice(0, 4).map((t) => (

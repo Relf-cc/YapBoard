@@ -12,8 +12,7 @@ import { MAX_MANUAL_FILES, MAX_SCREENSHOTS, isTheme, RESERVED_SLUGS, slugify } f
 import { isUploadPath } from './upload-fields';
 import { normalizeTags } from './tags';
 import { limitsFor, type Limits } from './pro-fields';
-import type { SessionUser } from './session';
-import { isStaff } from './session';
+import { canManage } from './manage';
 
 /** The form's own shape - themes, release sources, limits - lives in a module the browser can import too. */
 export * from './client-fields';
@@ -73,9 +72,8 @@ export const approvedClientStatus = (requestedUnlisted: boolean) => (requestedUn
 export const isClientOwnerEditable = (status: string) =>
   status === 'PUBLIC' || status === 'UNLISTED' || status === 'PENDING' || status === 'DENIED';
 
-export function canManageClient(user: SessionUser | null, client: { ownerId: string }) {
-  return !!user && !user.bannedAt && (user.id === client.ownerId || isStaff(user));
-}
+/** Owner, co-manager or staff. See src/lib/manage.ts - the `managers` select is required by the type. */
+export const canManageClient = canManage;
 
 /* ---------------- the form ---------------- */
 

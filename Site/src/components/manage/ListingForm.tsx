@@ -13,7 +13,7 @@ import type { Limits, ListingLink } from '@/lib/pro-fields';
 import { Dropdown } from '../Dropdown';
 import { ServerCard } from '../ServerCard';
 import { TagInput } from './TagInput';
-import { LinksEditor, ProLock, ScreenshotEditor, ThemePicker } from './ProFields';
+import { AltLanguageEditor, EventEditor, LinksEditor, ProLock, ScreenshotEditor, ThemePicker } from './ProFields';
 
 const LANGUAGE_OPTIONS = Object.entries(LANGUAGES).map(([value, label]) => ({ value, label }));
 
@@ -37,6 +37,12 @@ export type ListingValues = {
   theme: string;
   screenshots: string[];
   links: ListingLink[];
+  eventTitle: string | null;
+  eventAt: string | null;
+  eventUrl: string | null;
+  altLanguage: string | null;
+  altSummary: string | null;
+  altDescription: string | null;
   /** Staff-granted badges; shown in the preview, never sent. */
   badges?: string[];
 };
@@ -101,6 +107,8 @@ export function ListingForm({ mode, initial, devMode, limits, pro }: { mode: 'cr
     // Only read by the card's Pro mark; a preview has no owner to look up.
     ownerId: '',
     pro,
+    eventTitle: v.eventTitle,
+    eventAt: v.eventAt,
   };
 
   return (
@@ -175,6 +183,39 @@ export function ListingForm({ mode, initial, devMode, limits, pro }: { mode: 'cr
               <LinksEditor links={v.links} onChange={(l) => set('links', l)} error={errors.links} max={limits.links} />
             ) : (
               <ProLock title="Extra buttons" body="Up to three of your own buttons beside Join - a website, a wiki, a shop." />
+            )}
+          </Section>
+        )}
+
+        {mode === 'edit' && (
+          <Section title="Reach" hint="Two ways to be found by people who'd otherwise scroll past.">
+            {limits.events ? (
+              <EventEditor
+                value={{ eventTitle: v.eventTitle, eventAt: v.eventAt, eventUrl: v.eventUrl }}
+                onChange={(patch) => setV((x) => ({ ...x, ...patch }))}
+                errors={errors}
+              />
+            ) : (
+              <ProLock
+                title="What’s on"
+                body="Put your next event on your page and your card, in each reader’s own timezone. It takes itself down once it’s over."
+              />
+            )}
+
+            {limits.altLanguage ? (
+              <AltLanguageEditor
+                value={{ altLanguage: v.altLanguage, altSummary: v.altSummary, altDescription: v.altDescription }}
+                onChange={(patch) => setV((x) => ({ ...x, ...patch }))}
+                errors={errors}
+                languages={LANGUAGE_OPTIONS}
+                mainLanguage={v.language}
+                descriptionMax={limits.description}
+              />
+            ) : (
+              <ProLock
+                title="Second language"
+                body="Write your pitch in one more language and the listing turns up in that language’s results too, in those words."
+              />
             )}
           </Section>
         )}

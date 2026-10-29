@@ -8,13 +8,14 @@ import { AlertTriangle, ExternalLink } from 'lucide-react';
 import { BADGES, BADGE_ORDER, isBadge } from '@/lib/badges';
 import { readPlatforms } from '@/lib/clients';
 import { db } from '@/lib/db';
+import { proListingIds, reviewOrder } from '@/lib/pro';
 import { env } from '@/lib/env';
 import { repoUrl } from '@/lib/github';
 import { compact, timeAgo } from '@/lib/format';
 import { PLATFORMS } from '@/lib/platforms';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { Avatar } from '@/components/Avatar';
-import { BadgeRow } from '@/components/Badge';
+import { BadgeMark, BadgeRow } from '@/components/Badge';
 import { Dropdown } from '@/components/Dropdown';
 import { NsfwMark } from '@/components/NsfwMark';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -34,6 +35,7 @@ const BADGE_FILTERS = [
   ...BADGE_ORDER.map((k) => ({ value: k, label: BADGES[k].label })),
 ];
 const SORT_OPTIONS = [
+  { value: 'queue', label: 'Review queue' },
   { value: 'reports', label: 'Most reported' },
   { value: 'new', label: 'Newest' },
   { value: 'downloads', label: 'Most downloaded' },
@@ -55,7 +57,7 @@ export default async function PortalClients({ searchParams }: Props) {
   const base = await portalBase();
   const q = (sp.q || '').trim().slice(0, 80);
   const status = STATUSES.includes(sp.status as (typeof STATUSES)[number]) ? sp.status! : 'ALL';
-  const sort = sp.sort === 'new' ? 'new' : sp.sort === 'downloads' ? 'downloads' : 'reports';
+  const sort = sp.sort === 'new' ? 'new' : sp.sort === 'downloads' ? 'downloads' : sp.sort === 'reports' ? 'reports' : status === 'PENDING' ? 'queue' : 'reports';
   const badge = isBadge(sp.badge) || sp.badge === 'ANY' || sp.badge === 'NONE' ? sp.badge : '';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
 
@@ -67,12 +69,22 @@ export default async function PortalClients({ searchParams }: Props) {
   const orderBy: Prisma.ClientListingOrderByWithRelationInput =
     sort === 'new' ? { createdAt: 'desc' } : sort === 'downloads' ? { downloads: 'desc' } : { reports: { _count: 'desc' } };
 
+  /**
+   * Priority review: Pro listings go to the front of the PENDING queue, oldest first within each group.
+   * It can't be an `orderBy` - ProAssignment has no relation to the listing tables - so the ids are
+   * ordered in memory and the page is fetched by id. Only ids are read, and a backlog is small.
+   */
+  let queueIds: string[] | null = null;
+  if (sort === 'queue') {
+    const all = await db.clientListing.findMany({ where, select: { id: true, createdAt: true } });
+    queueIds = (await reviewOrder('client', all)).slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  }
+
   const [rows, total] = await Promise.all([
     db.clientListing.findMany({
-      where,
+      where: queueIds ? { id: { in: queueIds } } : where,
       orderBy,
-      skip: (page - 1) * PER_PAGE,
-      take: PER_PAGE,
+      ...(queueIds ? {} : { skip: (page - 1) * PER_PAGE, take: PER_PAGE }),
       select: {
         id: true,
         slug: true,
@@ -97,6 +109,11 @@ export default async function PortalClients({ searchParams }: Props) {
     }),
     db.clientListing.count({ where }),
   ]);
+
+  // `id: { in: [...] }` comes back in whatever order the database likes, so the queue order is
+  // reapplied here. Staff also see which rows are on Pro, so the ordering explains itself.
+  const ordered = queueIds ? queueIds.map((id) => rows.find((r) => r.id === id)).filter((r): r is (typeof rows)[number] => !!r) : rows;
+  const proIds = await proListingIds('client');
 
   const href = (o: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
@@ -126,10 +143,10 @@ export default async function PortalClients({ searchParams }: Props) {
       </div>
 
       <div className="mt-5 space-y-3">
-        {rows.map((c) => (
-          <ClientRow key={c.id} c={c} base={base} />
+        {ordered.map((c) => (
+          <ClientRow key={c.id} c={c} base={base} pro={proIds.has(c.id)} />
         ))}
-        {rows.length === 0 && <p className="card px-5 py-14 text-center text-sm text-ink-3">No clients match.</p>}
+        {ordered.length === 0 && <p className="card px-5 py-14 text-center text-sm text-ink-3">No clients match.</p>}
       </div>
 
       {pages > 1 && (
@@ -172,7 +189,7 @@ type Row = {
   _count: { reports: number };
 };
 
-function ClientRow({ c, base }: { c: Row; base: string }) {
+function ClientRow({ c, base, pro }: { c: Row; base: string; pro: boolean }) {
   const platforms = readPlatforms(c.platforms);
   // The host each download really goes to. A client whose files aren't where its repo is deserves a second look.
   const hosts = [...new Set(c.files.map((f) => hostOf(f.url)))];
@@ -190,6 +207,7 @@ function ClientRow({ c, base }: { c: Row; base: string }) {
                 {c.name}
               </a>
               <BadgeRow kinds={c.badges.map((x) => x.kind)} seed={c.id} size={15} max={3} />
+              {pro && <BadgeMark kind="PRO" size={15} seed={c.id} />}
               {c.nsfw && <NsfwMark />}
               <StatusBadge status={c.status} />
               {!c.termsAgreedAt && (

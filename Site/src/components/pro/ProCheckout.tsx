@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Loader2, Minus, Plus } from 'lucide-react';
 import clsx from 'clsx';
-import { annualSaving, money, planTotal, PRICING, type Cycle } from '@/lib/pro-fields';
+import { amount, annualSavingPct, money, planTotal, PRICING, type Cycle } from '@/lib/pro-fields';
+import { WAIVER_TEXT } from '@/lib/region';
 import type { PlanState } from '@/lib/pro';
 
 /**
@@ -21,11 +22,27 @@ import type { PlanState } from '@/lib/pro';
  * Nothing here is trusted. The cycle and the slot count are sent as a request and worked out again by
  * /api/billing/checkout against Stripe's own Prices; this component can only ask.
  */
-export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; loggedIn: boolean; onSale: boolean }) {
+export function ProCheckout({
+  plan,
+  loggedIn,
+  onSale,
+  needsWaiver,
+}: {
+  plan: PlanState;
+  loggedIn: boolean;
+  onSale: boolean;
+  /**
+   * The buyer looks to be in the UK or the EEA (or we can't tell), so the 14-day cancellation right
+   * has to be asked about before they're charged. Worked out from the request on the server, and
+   * checked again by /api/billing/checkout - this only decides whether to draw the box.
+   */
+  needsWaiver: boolean;
+}) {
   const router = useRouter();
   const [cycle, setCycle] = useState<Cycle>('monthly');
   const [slots, setSlots] = useState(0);
   const [busy, setBusy] = useState<'checkout' | 'slots' | 'portal' | null>(null);
+  const [waived, setWaived] = useState(false);
   const [error, setError] = useState('');
   const [, startTransition] = useTransition();
 
@@ -41,7 +58,7 @@ export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; logge
     const res = await fetch('/api/billing/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ cycle, extraSlots: slots }),
+      body: JSON.stringify({ cycle, extraSlots: slots, waiveWithdrawal: waived }),
     }).catch(() => null);
     const out = res ? await res.json().catch(() => ({})) : {};
     if (!res?.ok || !out.url) {
@@ -105,7 +122,7 @@ export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; logge
                 {cycle === c && <motion.span layoutId="cycle-pill" className="absolute inset-0 rounded-lg bg-accent" transition={{ type: 'spring', stiffness: 500, damping: 34 }} />}
                 <span className="relative">
                   {c === 'monthly' ? 'Monthly' : 'Annual'}
-                  {c === 'annual' && <span className={clsx('ml-1.5 text-[11px] font-bold', cycle === c ? 'opacity-80' : 'text-accent')}>{annualSaving()} months free</span>}
+                  {c === 'annual' && <span className={clsx('ml-1.5 text-[11px] font-bold', cycle === c ? 'opacity-80' : 'text-accent')}>Save {annualSavingPct()}%</span>}
                 </span>
               </button>
             ))}
@@ -116,8 +133,7 @@ export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; logge
           {/* ---- price ---- */}
           <div className="flex items-baseline gap-1.5">
             <span className="font-display text-[44px] font-extrabold leading-none tracking-[-0.02em] tabular-nums">
-              {PRICING.symbol}
-              {planTotal(effective, shown)}
+              {amount(planTotal(effective, shown))}
             </span>
             <span className="text-sm text-ink-3">/{effective === 'annual' ? 'year' : 'month'}</span>
             <span className="ml-auto text-xs text-ink-3">{PRICING.currency}</span>
@@ -130,7 +146,7 @@ export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; logge
             <Line>
               Each extra listing, any kind - <b>{money(PRICING.slot[effective], effective)}</b>
             </Line>
-            {!live && <Line>14 days free, and you can cancel in a click</Line>}
+            {!live && <Line>Cancel in a click - Pro runs to the end of the period you&rsquo;ve paid for</Line>}
           </ul>
 
           {/* ---- slots ---- */}
@@ -200,11 +216,30 @@ export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; logge
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
             </Link>
           ) : (
-            <button type="button" onClick={checkout} disabled={!!busy} className="btn btn-primary btn-lg mt-6 w-full group">
-              {busy === 'checkout' ? <Loader2 size={17} className="animate-spin" /> : null}
-              Start 14 days free
-              {busy !== 'checkout' && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
-            </button>
+            <>
+              {needsWaiver && (
+                <label className="mt-6 flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-raised p-4 text-[12.5px] leading-relaxed text-ink-2 transition-colors hover:border-line-strong">
+                  <input
+                    type="checkbox"
+                    checked={waived}
+                    onChange={(e) => setWaived(e.target.checked)}
+                    className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
+                    aria-describedby="waiver-text"
+                  />
+                  <span id="waiver-text">{WAIVER_TEXT}</span>
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={checkout}
+                disabled={!!busy || (needsWaiver && !waived)}
+                className="btn btn-primary btn-lg mt-4 w-full group"
+              >
+                {busy === 'checkout' ? <Loader2 size={17} className="animate-spin" /> : null}
+                Upgrade to Pro
+                {busy !== 'checkout' && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
+              </button>
+            </>
           )}
 
           <AnimatePresence>
@@ -217,7 +252,15 @@ export function ProCheckout({ plan, loggedIn, onSale }: { plan: PlanState; logge
         </div>
       </div>
 
-      {!live && onSale && <p className="mt-3 text-center text-xs leading-relaxed text-ink-3">Card details are handled by Stripe. YapBoard never sees them.</p>}
+      {!live && onSale && (
+        <p className="mt-3 text-center text-xs leading-relaxed text-ink-3">
+          Card details are handled by Stripe. YapBoard never sees them. By subscribing you agree to the{' '}
+          <Link href="/terms#pro" className="underline underline-offset-2 hover:text-ink-2">
+            subscription terms
+          </Link>
+          , including automatic renewal until you cancel.
+        </p>
+      )}
     </div>
   );
 }

@@ -49,19 +49,21 @@ if (!E.STRIPE_SECRET_KEY) {
 const { default: Stripe } = await import(join(root, 'node_modules', 'stripe', 'esm', 'stripe.esm.node.js')).catch(() => import('stripe'));
 const stripe = new Stripe(E.STRIPE_SECRET_KEY);
 
-// Must match PRICING in src/lib/pro-fields.ts. Kept as plain literals so this script needs no bundler.
+// Must match PRICING in src/lib/pro-fields.ts, in cents. Plain literals so this script needs no bundler.
 const EXPECTED = {
   currency: 'usd',
-  base: { monthly: 4, annual: 40 },
-  slot: { monthly: 1, annual: 10 },
+  base: { monthly: 299, annual: 2999 },
+  slot: { monthly: 100, annual: 1000 },
 };
 
 const TARGETS = [
-  { env: 'STRIPE_PRICE_PRO_MONTHLY', role: 'base', amount: EXPECTED.base.monthly, interval: 'month' },
-  { env: 'STRIPE_PRICE_PRO_ANNUAL', role: 'base', amount: EXPECTED.base.annual, interval: 'year' },
-  { env: 'STRIPE_PRICE_SLOT_MONTHLY', role: 'slot', amount: EXPECTED.slot.monthly, interval: 'month' },
-  { env: 'STRIPE_PRICE_SLOT_ANNUAL', role: 'slot', amount: EXPECTED.slot.annual, interval: 'year' },
+  { env: 'STRIPE_PRICE_PRO_MONTHLY', role: 'base', cents: EXPECTED.base.monthly, interval: 'month', cycle: 'monthly' },
+  { env: 'STRIPE_PRICE_PRO_ANNUAL', role: 'base', cents: EXPECTED.base.annual, interval: 'year', cycle: 'annual' },
+  { env: 'STRIPE_PRICE_SLOT_MONTHLY', role: 'slot', cents: EXPECTED.slot.monthly, interval: 'month', cycle: 'monthly' },
+  { env: 'STRIPE_PRICE_SLOT_ANNUAL', role: 'slot', cents: EXPECTED.slot.annual, interval: 'year', cycle: 'annual' },
 ];
+
+const show = (cents) => '$' + (cents / 100).toFixed(2);
 
 let bad = 0;
 const problem = (msg) => {
@@ -85,21 +87,33 @@ for (const t of TARGETS) {
   }
 
   const name = `${t.env} (${id})`;
-  const major = price.unit_amount == null ? null : price.unit_amount / 100;
+  const before = bad;
 
   if (!price.active) problem(`${name} is not active`);
   if (price.currency !== EXPECTED.currency) problem(`${name} is in ${price.currency}, the page says ${EXPECTED.currency}`);
-  if (major !== t.amount) problem(`${name} charges ${major}, the page says ${t.amount}`);
+  if (price.unit_amount !== t.cents) problem(`${name} charges ${price.unit_amount == null ? 'nothing fixed' : show(price.unit_amount)}, the page says ${show(t.cents)}`);
   if (price.recurring?.interval !== t.interval) problem(`${name} bills per ${price.recurring?.interval ?? 'nothing'}, expected per ${t.interval}`);
+  if (price.recurring?.interval_count !== 1) problem(`${name} bills every ${price.recurring?.interval_count} ${t.interval}s, expected every one`);
   if (price.metadata?.yapboard_role !== t.role) problem(`${name} has yapboard_role="${price.metadata?.yapboard_role ?? ''}", expected "${t.role}"`);
+  // Not fatal: the webhook falls back to the Price's interval when this is missing (src/lib/stripe.ts).
+  if (price.metadata?.yapboard_cycle !== t.cycle) console.log(`  warn  ${name} has no yapboard_cycle="${t.cycle}"; the webhook will infer it from the interval`);
   if (!price.product?.tax_code) problem(`${name}: product "${price.product?.name ?? '?'}" has no tax_code, so Managed Payments will refuse checkout`);
 
-  if (!bad) console.log(`  ok    ${t.env}: ${EXPECTED.currency.toUpperCase()} ${major}/${t.interval}, role=${price.metadata?.yapboard_role}`);
+  if (bad === before) console.log(`  ok    ${t.env}: ${EXPECTED.currency.toUpperCase()} ${show(price.unit_amount)}/${t.interval}, role=${price.metadata?.yapboard_role}`);
 }
 
-// The slot price must divide evenly into the annual discount story, or the copy lies about the saving.
-const monthsFree = (EXPECTED.base.monthly * 12 - EXPECTED.base.annual) / EXPECTED.base.monthly;
-if (!Number.isInteger(monthsFree)) problem(`the annual saving is ${monthsFree} months, and /pro rounds it - pick an annual price that divides evenly`);
+/**
+ * The annual plan has to be worth buying. /pro quotes the saving as a rounded percentage computed from
+ * these same numbers (`annualSavingPct`), so the figure can't disagree with itself - what can go wrong is
+ * an annual price that saves nothing, or so little that rounding makes the claim bigger than the discount.
+ * A percentage is used rather than "N months free" because at $2.99/$29.99 the saving is 1.97 months, and
+ * rounding that to "two months free" would quote nine cents more off than is actually on offer.
+ */
+const yearOfMonths = EXPECTED.base.monthly * 12;
+const savedPct = (1 - EXPECTED.base.annual / yearOfMonths) * 100;
+if (EXPECTED.base.annual >= yearOfMonths) problem(`the annual plan costs ${show(EXPECTED.base.annual)}, which is no cheaper than ${show(yearOfMonths)} of monthly - /pro says it saves ${Math.round(savedPct)}%`);
+else if (Math.round(savedPct) - savedPct > 0.5) problem(`/pro rounds the annual saving up to ${Math.round(savedPct)}%, but it is only ${savedPct.toFixed(2)}%`);
+else console.log(`  ok    annual costs ${show(EXPECTED.base.annual)} against ${show(yearOfMonths)} monthly: saves ${savedPct.toFixed(2)}%, /pro says ${Math.round(savedPct)}%`);
 
 console.log(bad ? `\n${bad} problem(s). /pro is quoting prices Stripe would not charge.` : '\nAll four prices match what /pro says.');
 process.exit(bad ? 1 : 0);

@@ -3,6 +3,7 @@
 import type { NextRequest } from 'next/server';
 import type Stripe from 'stripe';
 import { db } from '@/lib/db';
+import { WITHDRAWAL_COUNTRIES } from '@/lib/region';
 import { env } from '@/lib/env';
 import { fail, json } from '@/lib/http';
 import { baseItemOf, extraSlotsOf, stripe, userForCustomer } from '@/lib/stripe';
@@ -216,6 +217,46 @@ async function syncSubscription(sub: Stripe.Subscription) {
   };
 
   await db.proSubscription.upsert({ where: { id: sub.id }, create: { id: sub.id, ...data }, update: data });
+
+  await checkWithdrawalConsent(sub, user.id);
+}
+
+/**
+ * Notice a UK or EEA customer who is being charged without a cancellation-right waiver on file.
+ *
+ * The checkbox on /pro and the guard in /api/billing/checkout are what stop this happening. This is the
+ * backstop for the ways round them: a subscription created by hand in the Stripe Dashboard, one made
+ * before the checkbox existed, or a buyer whose country looked like Ohio on the way in and like Ireland
+ * on the card. None of those are errors in themselves - they just mean the 14-day right still stands,
+ * and somebody should know that before refusing a refund.
+ *
+ * Only ever records an alert. It never blocks a payment: the money has already moved by the time this
+ * runs, and a webhook that throws is a webhook Stripe retries forever.
+ */
+async function checkWithdrawalConsent(sub: Stripe.Subscription, userId: string) {
+  if (sub.metadata?.yapboard_waiver) return;
+
+  // Where Stripe thinks they are, which is the stronger signal: it comes off the card and the billing
+  // address rather than off an IP.
+  const customer = typeof sub.customer === 'string' ? await stripe.customers.retrieve(sub.customer).catch(() => null) : sub.customer;
+  const country = (customer && !customer.deleted ? customer.address?.country : null) || sub.metadata?.yapboard_country || '';
+  if (!country || !WITHDRAWAL_COUNTRIES.has(country.toUpperCase())) return;
+
+  // Our own record, in case the metadata was lost rather than never set.
+  const consent = await db.billingConsent.findFirst({ where: { userId, kind: 'withdrawal_waiver' }, select: { id: true } });
+  if (consent) return;
+
+  const existing = await db.billingAlert.findFirst({ where: { stripeId: sub.id, kind: 'missing_waiver', resolvedAt: null }, select: { id: true } });
+  if (existing) return;
+
+  await db.billingAlert.create({
+    data: {
+      userId,
+      kind: 'missing_waiver',
+      stripeId: sub.id,
+      detail: `Customer appears to be in ${country.toUpperCase()} but has no cancellation-right waiver on file, so their 14-day right to cancel still stands. Don't refuse a refund on this one without checking.`,
+    },
+  });
 }
 
 /** Record something a person should look at. Never throws the request away if the lookup fails. */

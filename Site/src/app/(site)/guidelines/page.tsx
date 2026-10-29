@@ -5,7 +5,7 @@ import { ProseLink as A, ProsePage } from '@/components/Prose';
 import { BadgeMark } from '@/components/Badge';
 import { BADGES, BADGE_ORDER } from '@/lib/badges';
 import { LEGAL } from '@/lib/legal';
-import { MAX_TAGS } from '@/lib/tags';
+import { MAX_TAGS, MAX_TAGS_PRO } from '@/lib/tags';
 
 export const metadata: Metadata = { title: 'Listing guidelines' };
 
@@ -37,7 +37,9 @@ export default function Guidelines() {
             {
               ul: [
                 'The name should be the server’s name. The one-liner and description should describe what the server is actually like now.',
-                <>Only use tags that really apply, up to {MAX_TAGS}. No stuffing tags or keywords to show up in more searches.</>,
+                <>
+                  Only use tags that really apply, up to {MAX_TAGS} ({MAX_TAGS_PRO} on YapBoard Pro). No stuffing tags or keywords to show up in more searches.
+                </>,
                 'Set the language to the one most members use.',
                 'The invite must lead to the listed server and keep working. Listings with dead invites are removed.',
                 'Don’t claim to be official, partnered or verified unless you have the badge. Don’t fake a badge with emoji or images.',

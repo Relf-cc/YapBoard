@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cli
   const g = await requireUser(req);
   if (g.error) return g.error;
   const { clientId } = await params;
-  const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { ownerId: true, releaseSource: true, repo: true } });
+  const client = await db.clientListing.findUnique({ where: { id: clientId }, select: { ownerId: true, releaseSource: true, repo: true, managers: { select: { userId: true } } } });
   if (!client || !canManageClient(g.user, client)) return fail('Not found', 404);
   if (client.releaseSource !== 'GITHUB' || !client.repo) return fail('This listing keeps its own download links, so there’s nothing to sync.', 400);
   // GitHub rate-limits us, not them, so the button is limited before it reaches GitHub.

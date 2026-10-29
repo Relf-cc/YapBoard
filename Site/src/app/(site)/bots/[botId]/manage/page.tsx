@@ -18,7 +18,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { BotListingForm } from '@/components/manage/BotListingForm';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 import { DangerZone } from '@/components/manage/DangerZone';
+import { Managers } from '@/components/manage/Managers';
 import { ProPanel } from '@/components/manage/ProPanel';
+import { isOwner } from '@/lib/manage';
 
 export const metadata: Metadata = { title: 'Manage bot listing' };
 
@@ -30,13 +32,15 @@ export default async function ManageBot({ params, searchParams }: Props) {
   const user = await getUser();
   if (!user) redirect(`/login?next=/bots/${botId}/manage`);
 
-  const b = await db.botListing.findUnique({ where: { id: botId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } } } });
+  const b = await db.botListing.findUnique({ where: { id: botId }, include: { tags: { include: { tag: true } }, badges: { select: { kind: true } }, managers: { select: { userId: true, user: { select: { username: true, displayName: true, avatarUrl: true } } } } } });
   if (!b || !canManageBot(user, b)) notFound();
 
   // Raised to cover whatever the listing already holds, so a lapsed plan can't make the form unsaveable.
   const plan = await planState(b.ownerId);
   const pro = await isPro('bot', b.id, b.ownerId);
   const limits = grandfather(limitsFor('bot', pro), { description: b.description.length, tags: b.tags.length });
+  const owner = isOwner(user, b);
+  const managers = b.managers.map((m) => ({ userId: m.userId, username: m.user.username, displayName: m.user.displayName, avatarUrl: m.user.avatarUrl }));
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-10">
@@ -140,7 +144,9 @@ export default async function ManageBot({ params, searchParams }: Props) {
 
       <ProPanel kind="bot" listingId={b.id} plan={plan} billingOn={billingEnabled()} removed={b.status === 'REMOVED'} />
 
-      {b.status !== 'REMOVED' && <DangerZone serverId={b.id} name={b.name} kind="bot" />}
+      <Managers kind="bot" listingId={b.id} managers={managers} max={limits.managers} isOwner={owner} />
+
+      {owner && b.status !== 'REMOVED' && <DangerZone serverId={b.id} name={b.name} kind="bot" />}
     </div>
   );
 }

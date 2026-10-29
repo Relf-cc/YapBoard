@@ -19,7 +19,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { BumpStatus } from '@/components/manage/BumpStatus';
 import { ClientListingForm } from '@/components/manage/ClientListingForm';
 import { DangerZone } from '@/components/manage/DangerZone';
+import { Managers } from '@/components/manage/Managers';
 import { ProPanel } from '@/components/manage/ProPanel';
+import { isOwner } from '@/lib/manage';
 
 export const metadata: Metadata = { title: 'Manage client listing' };
 
@@ -35,6 +37,7 @@ export default async function ManageClient({ params, searchParams }: Props) {
     where: { slug },
     include: {
       tags: { include: { tag: true } },
+      managers: { select: { userId: true, user: { select: { username: true, displayName: true, avatarUrl: true } } } },
       badges: { select: { kind: true } },
       files: { select: { id: true, platform: true, kind: true, label: true, url: true, managed: true }, orderBy: { position: 'asc' } },
     },
@@ -45,6 +48,8 @@ export default async function ManageClient({ params, searchParams }: Props) {
   const plan = await planState(c.ownerId);
   const pro = await isPro('client', c.id, c.ownerId);
   const limits = grandfather(limitsFor('client', pro), { description: c.description.length, tags: c.tags.length });
+  const owner = isOwner(user, c);
+  const managers = c.managers.map((m) => ({ userId: m.userId, username: m.user.username, displayName: m.user.displayName, avatarUrl: m.user.avatarUrl }));
 
   const manual = c.files.filter((f) => !f.managed);
   const managedCount = c.files.length - manual.length;
@@ -171,7 +176,9 @@ export default async function ManageClient({ params, searchParams }: Props) {
 
       <ProPanel kind="client" listingId={c.id} plan={plan} billingOn={billingEnabled()} removed={c.status === 'REMOVED'} />
 
-      {c.status !== 'REMOVED' && <DangerZone serverId={c.id} name={c.name} kind="client" />}
+      <Managers kind="client" listingId={c.id} managers={managers} max={limits.managers} isOwner={owner} />
+
+      {owner && c.status !== 'REMOVED' && <DangerZone serverId={c.id} name={c.name} kind="client" />}
     </div>
   );
 }

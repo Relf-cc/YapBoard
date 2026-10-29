@@ -5,6 +5,7 @@ import { getUser } from '@/lib/session';
 import { Announcements } from '@/components/Announcements';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { LegalUpdate } from '@/components/LegalUpdate';
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const user = await getUser();
@@ -15,6 +16,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <Navbar />
       <main>{children}</main>
       <Footer />
+      <LegalUpdate />
     </>
   );
 }

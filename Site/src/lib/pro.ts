@@ -11,16 +11,21 @@ export {
   readLinks,
   freeLimits,
   proLimits,
-  maxEver,
+  amount,
   money,
   planTotal,
-  annualSaving,
+  eventPhase,
+  eventIsLive,
+  EVENT_GRACE_MS,
+  MAX_MANAGERS,
+  annualSavingPct,
   MAX_LINK_LABEL,
   PRICING,
   type Limits,
   type ListingLink,
   type ListingKind,
   type Cycle,
+  type EventPhase,
 } from './pro-fields';
 
 /**
@@ -74,7 +79,14 @@ export const GRACE_DAYS = 7;
 export const KINDS = LISTING_KINDS;
 export const isListingKind = (v: unknown): v is ListingKind => (KINDS as readonly string[]).includes(v as string);
 
-/** Stripe statuses that are Pro outright. A scheduled cancellation stays `active` until it ends. */
+/**
+ * Stripe statuses that are Pro outright. A scheduled cancellation stays `active` until it ends.
+ *
+ * `trialing` is honoured even though checkout never asks for a trial - the first period is charged up
+ * front. It stays because a trial can still arrive from outside this code: a subscription set up by hand
+ * in the Dashboard, or a comped period for somebody we've put right. Treating it as not-Pro would mean
+ * taking the money (or the goodwill) and granting nothing.
+ */
 const LIVE = new Set(['active', 'trialing']);
 /** Stripe is still retrying the invoice. Pro survives until the grace window runs out. */
 const FAILING = new Set(['past_due', 'unpaid']);
@@ -288,4 +300,67 @@ export async function limitsOf(kind: ListingKind, listingId: string, ownerId: st
  */
 export function grandfather(limits: Limits, held: { description: number; tags: number }): Limits {
   return { ...limits, description: Math.max(limits.description, held.description), tags: Math.max(limits.tags, held.tags) };
+}
+
+/**
+ * Let go of the slot a listing was holding, because the listing is gone.
+ *
+ * `ProAssignment` can't carry a foreign key - one column points at three different tables - so nothing
+ * in the database cleans this up. Without it a deleted listing keeps its slot forever: the owner is
+ * billed for capacity they can't use, and `canAssign` tells them their plan is full while pointing at a
+ * row that no longer exists. Every DELETE of a listing calls this.
+ *
+ * It deliberately does **not** change the bill. Dropping a paid slot is always an explicit choice
+ * (PATCH /api/billing/slots), the same way taking a listing off Pro by hand is.
+ */
+export async function releaseSlot(kind: ListingKind, listingId: string): Promise<void> {
+  await db.proAssignment.deleteMany({ where: { kind, listingId } });
+}
+
+/**
+ * Every listing of this kind that a live plan currently covers.
+ *
+ * Unlike `proSet` this takes no ids: it answers "who is on Pro?" rather than "are these on Pro?", which
+ * is what the staff review queue needs before it can order anything. It loads all honoured subscriptions,
+ * which is the paying customer list - bounded by revenue, so small by definition - and never the listings
+ * themselves.
+ */
+export async function proListingIds(kind: ListingKind): Promise<Set<string>> {
+  const subs = await db.proSubscription.findMany({
+    where: { status: { in: [...LIVE, ...FAILING] } },
+    select: {
+      status: true,
+      currentPeriodEnd: true,
+      extraSlots: true,
+      assignments: { select: { kind: true, listingId: true }, orderBy: { assignedAt: 'asc' } },
+    },
+  });
+
+  const now = Date.now();
+  const out = new Set<string>();
+  for (const sub of subs) {
+    if (!honoured(sub, now).ok) continue;
+    for (const c of allocate(sub).covered) if (c.kind === kind) out.add(c.listingId);
+  }
+  return out;
+}
+
+/**
+ * The staff review order: Pro listings first, then oldest first within each group.
+ *
+ * Priority review is a real perk on the bot and client boards, which genuinely have a queue
+ * (`@@index([status, createdAt])` - "oldest PENDING first"). It is also the only Pro perk that costs
+ * somebody else something, since a free listing waits a little longer, so it is deliberately the only
+ * one: it reorders a queue, and never a board people browse.
+ *
+ * Sorted here rather than in SQL because `ProAssignment` has no relation to the listing tables - one
+ * column points at three of them - so Prisma has nothing to `orderBy`. A review backlog is small, and
+ * only ids are read, so sorting in memory costs nothing and is exact.
+ */
+export async function reviewOrder(kind: ListingKind, rows: readonly { id: string; createdAt: Date }[]): Promise<string[]> {
+  if (rows.length < 2) return rows.map((r) => r.id);
+  const pro = await proListingIds(kind);
+  return [...rows]
+    .sort((a, b) => Number(pro.has(b.id)) - Number(pro.has(a.id)) || a.createdAt.getTime() - b.createdAt.getTime())
+    .map((r) => r.id);
 }

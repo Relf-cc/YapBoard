@@ -8,8 +8,7 @@ import { db } from './db';
 import { LANGUAGES } from './languages';
 import { normalizeTags } from './tags';
 import { limitsFor, type Limits } from './pro-fields';
-import type { SessionUser } from './session';
-import { isStaff } from './session';
+import { canManage } from './manage';
 
 /**
  * Bot listings: the same idea as a server listing, for the bots people run on Yapin'.
@@ -66,9 +65,8 @@ export const approvedStatus = (requestedUnlisted: boolean) => (requestedUnlisted
 /** Statuses a lister can still edit their way out of. HIDDEN and REMOVED are staff decisions that stay put. */
 export const isOwnerEditable = (status: string) => status === 'PUBLIC' || status === 'UNLISTED' || status === 'PENDING' || status === 'DENIED';
 
-export function canManageBot(user: SessionUser | null, bot: { ownerId: string }) {
-  return !!user && !user.bannedAt && (user.id === bot.ownerId || isStaff(user));
-}
+/** Owner, co-manager or staff. See src/lib/manage.ts - the `managers` select is required by the type. */
+export const canManageBot = canManage;
 
 /** An optional text field: missing, empty and null all mean "not set". */
 const optional = (max: number) =>

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { botEnabled, env } from '@/lib/env';
 import { fail, json, rateLimit, readJson, requireUser } from '@/lib/http';
-import { listingData, listingSchema, setTags } from '@/lib/servers';
+import { checkListingExtras, listingData, listingSchema, setTags } from '@/lib/servers';
 import { limitsFor } from '@/lib/pro';
 import { checkManager, MANAGE_ERRORS } from '@/lib/yapin';
 
@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
 
   const parsed = createSchema.safeParse(await readJson(req));
   if (!parsed.success) return fail('Check the form', 422, { fields: z.flattenError(parsed.error).fieldErrors });
+  const problem = checkListingExtras(parsed.data);
+  if (problem) return fail('Check the form', 422, { fields: { [problem.field]: [problem.message] } });
+
   // serverId and name are columns this route sets itself, below, so they're kept out of `listingData`.
   const { serverId, name: devName, ...listing } = parsed.data;
   const { tags, unlisted } = listing;

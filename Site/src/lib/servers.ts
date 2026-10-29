@@ -11,8 +11,7 @@ import { isTheme, MAX_SCREENSHOTS } from './client-fields';
 import { limitsFor, MAX_LINK_LABEL, readLinks, type Limits } from './pro-fields';
 import { proSet } from './pro';
 import { isUploadPath } from './upload-fields';
-import type { SessionUser } from './session';
-import { isStaff } from './session';
+import { canManage } from './manage';
 
 export const BUMP_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
@@ -31,13 +30,17 @@ export const cardSelect = {
   tags: { select: { tag: { select: { name: true } } } },
   // Not drawn anywhere. It's what `toCards` needs to work out which cards are on Pro in one query.
   ownerId: true,
+  // "What's on", drawn as a quiet line on the card when the listing is on Pro and the event hasn't passed.
+  eventTitle: true,
+  eventAt: true,
 } satisfies Prisma.ServerSelect;
 
 type CardRow = Prisma.ServerGetPayload<{ select: typeof cardSelect }>;
 
-export type ServerCard = Omit<CardRow, 'tags' | 'bumpedAt' | 'badges'> & {
+export type ServerCard = Omit<CardRow, 'tags' | 'bumpedAt' | 'badges' | 'eventAt'> & {
   tags: string[];
   bumpedAt: string | null;
+  eventAt: string | null;
   badges: BadgeKind[];
   /** Covered by a Pro plan right now. `toCard` says no; only `toCards` goes and looks. */
   pro: boolean;
@@ -46,6 +49,7 @@ export type ServerCard = Omit<CardRow, 'tags' | 'bumpedAt' | 'badges'> & {
 export const toCard = (s: CardRow): ServerCard => ({
   ...s,
   bumpedAt: s.bumpedAt ? s.bumpedAt.toISOString() : null,
+  eventAt: s.eventAt ? s.eventAt.toISOString() : null,
   tags: s.tags.map((t) => t.tag.name),
   badges: sortBadges(s.badges.map((b) => b.kind)),
   pro: false,
@@ -90,9 +94,8 @@ export { readLinks };
 /** Listing is visible to the public on /view (unlisted ones too, via direct link). */
 export const isViewable = (status: string) => status === 'PUBLIC' || status === 'UNLISTED';
 
-export function canManageListing(user: SessionUser | null, server: { ownerId: string }) {
-  return !!user && !user.bannedAt && (user.id === server.ownerId || isStaff(user));
-}
+/** Owner, co-manager or staff. See src/lib/manage.ts - the `managers` select is required by the type. */
+export const canManageListing = canManage;
 
 export const inviteRe = /^https:\/\/(www\.)?(yapin\.gg|yapper\.website)\/(invite|i)\/[A-Za-z0-9_-]{2,64}\/?$/;
 
@@ -154,7 +157,75 @@ export const listingSchemaFor = (limits: Limits) =>
       .refine((list) => list.every((l) => /^https:\/\/\S+\.\S+/.test(l.url)), 'Links need a full https address')
       .refine((list) => list.length <= limits.links, capMessage(limits.links, 'Extra links'))
       .optional(),
+    /// "What's on". The pair is checked together by `checkListingExtras`, since a time without a name is
+    /// as useless as a name without a time.
+    eventTitle: blank(80, 'Keep it under 80 characters'),
+    eventAt: z
+      .string()
+      .trim()
+      .max(40)
+      .nullish()
+      .transform((v) => v || null)
+      .refine((v) => v === null || !Number.isNaN(Date.parse(v)), 'That isn’t a date we can read')
+      .refine((v) => v === null || Date.parse(v) < Date.now() + 400 * 864e5, 'Pick a date within the next year'),
+    eventUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .nullish()
+      .transform((v) => (v && !/^https?:\/\//.test(v) ? `https://${v}` : v))
+      .transform((v) => v || null)
+      .refine((v) => v === null || /^https:\/\/\S+\.\S+/.test(v), 'Use a full https link, or leave it empty'),
+    /// A second language the listing is also written in.
+    altLanguage: z
+      .string()
+      .trim()
+      .max(16)
+      .nullish()
+      .transform((v) => v || null)
+      .refine((v) => v === null || v in LANGUAGES, 'Pick a language'),
+    altSummary: blank(140, 'Keep it under 140 characters'),
+    altDescription: z
+      .string()
+      .trim()
+      .max(limits.description, `Max ${limits.description} characters`)
+      .nullish()
+      .transform((v) => v || null),
   });
+
+/** An optional text field where blank, missing and null all mean "not set". */
+function blank(max: number, message: string) {
+  return z
+    .string()
+    .trim()
+    .max(max, message)
+    .nullish()
+    .transform((v) => v || null);
+}
+
+/**
+ * The cross-field rules for the Pro extras, as one check the route runs after parsing.
+ *
+ * Separate from the schema because `listingSchema` is `.extend`ed by POST /api/servers, and a zod object
+ * with a `.refine` on it is no longer extendable. clients.ts solves the same problem the same way with
+ * `checkReleaseSetup`, so this follows it rather than inventing a second shape.
+ *
+ * Returns the field to blame and what to say, or null when everything hangs together.
+ */
+export function checkListingExtras(input: Pick<ListingInput, 'eventTitle' | 'eventAt' | 'eventUrl' | 'altLanguage' | 'altSummary' | 'language'>):
+  | { field: string; message: string }
+  | null {
+  if (input.eventTitle && !input.eventAt) return { field: 'eventAt', message: 'Say when it’s happening' };
+  if (input.eventAt && !input.eventTitle) return { field: 'eventTitle', message: 'Give the event a name' };
+  if (input.eventUrl && !input.eventTitle) return { field: 'eventTitle', message: 'Give the event a name' };
+
+  if (input.altLanguage && input.altLanguage === input.language) return { field: 'altLanguage', message: 'Pick a different language from the main one' };
+  if (input.altLanguage && !input.altSummary) return { field: 'altSummary', message: 'Write the one-liner in that language too' };
+  // A translation with nothing to translate would put the listing in a language's results with the wrong
+  // words showing, which is worse for the reader than not being there at all.
+  if (input.altSummary && !input.altLanguage) return { field: 'altLanguage', message: 'Say which language this is in' };
+  return null;
+}
 
 /** Free-listing shape. A server that doesn't exist yet can't be on Pro, so this is what `POST` accepts. */
 export const listingSchema = listingSchemaFor(limitsFor('server', false));
@@ -169,12 +240,14 @@ export type ListingInput = z.infer<typeof listingSchema>;
  * the page stops drawing them.
  */
 export function listingData(input: ListingInput, limits: Limits) {
-  const { tags, unlisted, theme, screenshots, links, ...rest } = input;
+  const { tags, unlisted, theme, screenshots, links, eventTitle, eventAt, eventUrl, altLanguage, altSummary, altDescription, ...rest } = input;
   return {
     ...rest,
     ...(limits.themes && theme !== undefined && { theme }),
     ...(limits.screenshots > 0 && screenshots !== undefined && { screenshots: JSON.stringify(screenshots) }),
     ...(limits.links > 0 && links !== undefined && { links: JSON.stringify(links) }),
+    ...(limits.events && { eventTitle, eventAt: eventAt ? new Date(eventAt) : null, eventUrl }),
+    ...(limits.altLanguage && { altLanguage, altSummary, altDescription }),
   };
 }
 
@@ -211,4 +284,35 @@ export async function bumpServer(serverId: string, userId: string, source: 'bot'
   });
   if (!updated) return { ok: false, reason: 'cooldown' };
   return { ok: true, bumpCount: updated.bumpCount, nextAt: new Date(now + BUMP_COOLDOWN_MS).toISOString() };
+}
+
+/**
+ * Which of a listing's two languages to show this reader first.
+ *
+ * Reads `Accept-Language`, which every browser sends, rather than asking - somebody who reads Portuguese
+ * should land on the Portuguese pitch without having to find a switch. The switch is still there, and a
+ * `?lang=` on the URL always wins, so a shared link shows what the sharer was looking at.
+ *
+ * Only ever picks `alt` when there is one, so the caller can hand the stored value straight in.
+ */
+export function preferredLanguage(accept: string | null | undefined, main: string, alt: string | null | undefined): 'main' | 'alt' {
+  if (!alt) return 'main';
+  if (!accept) return 'main';
+
+  const wanted = accept
+    .split(',')
+    .map((part) => {
+      const [tag, ...params] = part.trim().split(';');
+      const q = params.find((p) => p.trim().startsWith('q='));
+      return { base: tag.trim().toLowerCase().split('-')[0], q: q ? parseFloat(q.split('=')[1]) || 0 : 1 };
+    })
+    .filter((x) => x.base && x.base !== '*')
+    .sort((a, b) => b.q - a.q);
+
+  // Whichever of the two the reader asks for first. Equal preference keeps the main one.
+  for (const { base } of wanted) {
+    if (base === main.toLowerCase()) return 'main';
+    if (base === alt.toLowerCase()) return 'alt';
+  }
+  return 'main';
 }

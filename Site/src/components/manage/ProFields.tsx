@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { THEMES } from '@/lib/client-fields';
 import { MAX_LINK_LABEL, type ListingLink } from '@/lib/pro-fields';
 import { ScreenshotPickerRow } from './ImagePicker';
+import { Dropdown } from '../Dropdown';
 
 /**
  * The editors for the fields YapBoard Pro unlocks: the header style, the screenshot gallery and the extra
@@ -178,6 +179,166 @@ export function LinksEditor({ links, onChange, error, max }: { links: ListingLin
         </button>
       )}
       {error?.length ? <p className="mt-2 text-[13px] text-danger">{error[0]}</p> : null}
+    </div>
+  );
+}
+
+/* ---------------- what's on ---------------- */
+
+/**
+ * A `datetime-local` input wants "YYYY-MM-DDTHH:mm" in the viewer's own time; the column is a UTC
+ * instant. These two convert, and they are the only place that conversion happens.
+ */
+const toLocalInput = (iso: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = (local: string) => {
+  if (!local) return null;
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
+
+export type EventValue = { eventTitle: string | null; eventAt: string | null; eventUrl: string | null };
+
+/**
+ * "What's on": the next thing happening in the server.
+ *
+ * The date is stored as an instant and shown in each reader's own time, so an owner in London and a
+ * member in Chicago both see when it starts for them. It takes itself off the page once it's over, which
+ * is the point - a listing that advertises last month's event reads as abandoned.
+ */
+export function EventEditor({ value, onChange, errors }: { value: EventValue; onChange: (v: Partial<EventValue>) => void; errors?: Partial<Record<keyof EventValue, string[]>> }) {
+  const set = <K extends keyof EventValue>(k: K, v: EventValue[K]) => onChange({ [k]: v } as Partial<EventValue>);
+  const clear = () => onChange({ eventTitle: null, eventAt: null, eventUrl: null });
+  const any = !!(value.eventTitle || value.eventAt || value.eventUrl);
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="label">What&rsquo;s on</span>
+        {any && (
+          <button type="button" onClick={clear} className="text-xs text-ink-3 underline-offset-2 hover:text-danger hover:underline">
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="mb-3 text-[13px] text-ink-3">
+        One line about the next thing happening. It shows on your page and your card, in each reader&rsquo;s own timezone, and disappears by itself once it&rsquo;s been and gone.
+      </p>
+      <div className="space-y-2">
+        <input
+          className="field"
+          value={value.eventTitle ?? ''}
+          maxLength={80}
+          onChange={(e) => set('eventTitle', e.target.value || null)}
+          placeholder="Movie night, Friday"
+          aria-label="Event name"
+        />
+        {errors?.eventTitle?.length ? <p className="text-[13px] text-danger">{errors.eventTitle[0]}</p> : null}
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="datetime-local"
+            className="field w-auto min-w-[14rem] flex-1"
+            value={toLocalInput(value.eventAt)}
+            onChange={(e) => set('eventAt', fromLocalInput(e.target.value))}
+            aria-label="Event date and time"
+          />
+          <input
+            className="field min-w-0 flex-1"
+            value={value.eventUrl ?? ''}
+            onChange={(e) => set('eventUrl', e.target.value.trim() || null)}
+            placeholder="https://… (optional)"
+            inputMode="url"
+            aria-label="Event link"
+          />
+        </div>
+        {errors?.eventAt?.length ? <p className="text-[13px] text-danger">{errors.eventAt[0]}</p> : null}
+        {errors?.eventUrl?.length ? <p className="text-[13px] text-danger">{errors.eventUrl[0]}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- second language ---------------- */
+
+export type AltValue = { altLanguage: string | null; altSummary: string | null; altDescription: string | null };
+
+/**
+ * A second language for the listing.
+ *
+ * It isn't machine translation and it isn't a duplicate listing: the owner writes it, and the one listing
+ * then turns up in both languages' results with the right words showing. That makes it a discovery perk
+ * that only ever adds coverage - it can't push anybody down a list they were already on.
+ */
+export function AltLanguageEditor({
+  value,
+  onChange,
+  errors,
+  languages,
+  mainLanguage,
+  descriptionMax,
+}: {
+  value: AltValue;
+  onChange: (v: Partial<AltValue>) => void;
+  errors?: Partial<Record<keyof AltValue, string[]>>;
+  languages: { value: string; label: string }[];
+  mainLanguage: string;
+  descriptionMax: number;
+}) {
+  const on = !!value.altLanguage;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="label">Second language</span>
+        {on && (
+          <button
+            type="button"
+            onClick={() => onChange({ altLanguage: null, altSummary: null, altDescription: null })}
+            className="text-xs text-ink-3 underline-offset-2 hover:text-danger hover:underline"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      <p className="mb-3 text-[13px] text-ink-3">
+        Write your pitch in one more language and the listing shows up in that language&rsquo;s results too, in those words. Readers can switch either way.
+      </p>
+
+      <Dropdown
+        label="Second language"
+        value={value.altLanguage ?? ''}
+        onChange={(l) => onChange({ altLanguage: l || null })}
+        options={[{ value: '', label: 'None' }, ...languages.filter((l) => l.value !== mainLanguage)]}
+      />
+      {errors?.altLanguage?.length ? <p className="mt-1.5 text-[13px] text-danger">{errors.altLanguage[0]}</p> : null}
+
+      {on && (
+        <div className="mt-3 space-y-2">
+          <input
+            className="field"
+            value={value.altSummary ?? ''}
+            maxLength={140}
+            onChange={(e) => onChange({ altSummary: e.target.value || null })}
+            placeholder="The one-liner, in that language"
+            aria-label="One-liner in the second language"
+          />
+          {errors?.altSummary?.length ? <p className="text-[13px] text-danger">{errors.altSummary[0]}</p> : null}
+          <textarea
+            className="field"
+            rows={5}
+            maxLength={descriptionMax}
+            value={value.altDescription ?? ''}
+            onChange={(e) => onChange({ altDescription: e.target.value || null })}
+            placeholder="The description, in that language (optional - the main one is shown if you leave this empty)"
+            aria-label="Description in the second language"
+          />
+          {errors?.altDescription?.length ? <p className="text-[13px] text-danger">{errors.altDescription[0]}</p> : null}
+        </div>
+      )}
     </div>
   );
 }

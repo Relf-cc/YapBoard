@@ -46,9 +46,12 @@ model User {
   uploads           Upload[]
   proSubscriptions  ProSubscription[]
   billingAlerts     BillingAlert[]
+  billingConsents   BillingConsent[]
   platformMember    PlatformMember?
   platformInvitesSent     PlatformInvite[]   @relation("platformInviter")
   platformInvitesRedeemed PlatformInvite[]   @relation("platformRedeemer")
+  manages                 ListingManager[]   @relation("listingManager")
+  managersInvited         ListingManager[]   @relation("listingManagerInviter")
 }
 
 /// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
@@ -84,6 +87,15 @@ model Server {
   screenshots   String?
   /// Extra buttons beside Join, as a JSON array of {label, url} (src/lib/pro-fields.ts). Pro only.
   links         String?
+  /// "What's on": the next thing happening in the server. Pro only, and it hides itself once it's over.
+  eventTitle    String?
+  eventAt       DateTime?
+  eventUrl      String?
+  /// A second language the listing is written in, so it turns up in that language's results too, with its
+  /// own summary and description. Pro only. Must differ from `language` (src/lib/servers.ts).
+  altLanguage   String?
+  altSummary    String?
+  altDescription String?
   /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
   status        String    @default("PUBLIC")
   statusNote    String?
@@ -108,6 +120,7 @@ model Server {
 
   tags       ServerTag[]
   badges     ServerBadge[]
+  managers   ListingManager[]
   bumps      Bump[]
   votes      Vote[]
   reports    Report[]
@@ -404,10 +417,11 @@ model BotListing {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tags    BotTag[]
-  badges  BotBadge[]
-  bumps   BotBump[]
-  reports Report[]
+  tags     BotTag[]
+  badges   BotBadge[]
+  bumps    BotBump[]
+  reports  Report[]
+  managers ListingManager[]
 
   @@index([status, bumpedAt])
   @@index([status, serverCount])
@@ -523,8 +537,9 @@ model ClientListing {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tags    ClientTag[]
-  badges  ClientBadge[]
+  tags     ClientTag[]
+  badges   ClientBadge[]
+  managers ListingManager[]
   bumps   ClientBump[]
   files   ClientDownload[]
   reports Report[]
@@ -696,6 +711,68 @@ model ProAssignment {
 
 /// Every Stripe webhook we've already handled. Stripe retries until it gets a 2xx and can deliver
 /// the same event twice, so the handler claims an id here first and does nothing if it's taken.
+/**
+ * Somebody besides the owner who may edit a listing.
+ *
+ * A YapBoard Pro perk, and the answer to the support ticket that starts "the person who listed our server
+ * has left". A co-manager can edit the listing and bump it. They deliberately cannot delete it, cannot add
+ * or remove other managers, and cannot touch billing - those stay with the owner, because a co-manager is
+ * help with the listing, not a claim on it.
+ *
+ * Exactly one of serverId / botId / clientId is set, the same shape Report uses. Real relations rather than
+ * the loose (kind, listingId) pair ProAssignment carries, because every permission check needs to load
+ * these alongside the listing, and a cascade delete is exactly the behaviour wanted when a listing goes.
+ */
+model ListingManager {
+  id          String         @id @default(cuid())
+  serverId    String?
+  server      Server?        @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  botId       String?
+  bot         BotListing?    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      ClientListing? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User           @relation("listingManager", fields: [userId], references: [id], onDelete: Cascade)
+  /// Who added them. Kept for the audit trail when an owner asks who let somebody in.
+  invitedById String
+  invitedBy   User           @relation("listingManagerInviter", fields: [invitedById], references: [id])
+  createdAt   DateTime       @default(now())
+
+  @@unique([serverId, userId])
+  @@unique([botId, userId])
+  @@unique([clientId, userId])
+  @@index([userId])
+}
+
+/**
+ * A record that somebody agreed to give up their statutory cancellation right before being charged.
+ *
+ * Written the moment the Checkout Session is created, not when the webhook lands, because the point of
+ * it is evidence: if a buyer in the EEA later asks for the 14 days back, this is what says they asked for
+ * the plan to start immediately, which wording was on screen when they did, and where we believed they
+ * were. The same values ride along in the Stripe subscription's metadata, so the record exists twice.
+ *
+ * Kept even after a plan ends, and after the account is deleted, for as long as the sale record itself.
+ */
+model BillingConsent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// withdrawal_waiver. A column rather than the only possible value, since consent to anything else
+  /// (a price change, new terms) belongs in the same place.
+  kind      String
+  /// Which wording they agreed to: src/lib/region.ts WAIVER_VERSION.
+  version   String
+  /// The two-letter country Cloudflare reported. '' when it couldn't tell, which is its own fact.
+  country   String   @default("")
+  /// The Stripe Checkout Session it was given for, so a charge can be traced back to it.
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([sessionId])
+}
+
 model StripeEvent {
   /// Stripe's event id (evt_…).
   id         String    @id

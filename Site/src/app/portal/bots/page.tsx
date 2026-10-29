@@ -6,11 +6,12 @@ import type { Prisma } from '@prisma/client';
 import clsx from 'clsx';
 import { BADGES, BADGE_ORDER, isBadge } from '@/lib/badges';
 import { db } from '@/lib/db';
+import { proListingIds, reviewOrder } from '@/lib/pro';
 import { env } from '@/lib/env';
 import { compact, timeAgo } from '@/lib/format';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { Avatar } from '@/components/Avatar';
-import { BadgeRow } from '@/components/Badge';
+import { BadgeMark, BadgeRow } from '@/components/Badge';
 import { Dropdown } from '@/components/Dropdown';
 import { NsfwMark } from '@/components/NsfwMark';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -29,6 +30,7 @@ const BADGE_FILTERS = [
   ...BADGE_ORDER.map((k) => ({ value: k, label: BADGES[k].label })),
 ];
 const SORT_OPTIONS = [
+  { value: 'queue', label: 'Review queue' },
   { value: 'reports', label: 'Most reported' },
   { value: 'new', label: 'Newest' },
   { value: 'servers', label: 'Most servers' },
@@ -42,7 +44,7 @@ export default async function PortalBots({ searchParams }: Props) {
   const base = await portalBase();
   const q = (sp.q || '').trim().slice(0, 80);
   const status = STATUSES.includes(sp.status as (typeof STATUSES)[number]) ? sp.status! : 'ALL';
-  const sort = sp.sort === 'new' ? 'new' : sp.sort === 'servers' ? 'servers' : 'reports';
+  const sort = sp.sort === 'new' ? 'new' : sp.sort === 'servers' ? 'servers' : sp.sort === 'reports' ? 'reports' : status === 'PENDING' ? 'queue' : 'reports';
   const badge = isBadge(sp.badge) || sp.badge === 'ANY' || sp.badge === 'NONE' ? sp.badge : '';
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
 
@@ -54,12 +56,22 @@ export default async function PortalBots({ searchParams }: Props) {
   const orderBy: Prisma.BotListingOrderByWithRelationInput =
     sort === 'new' ? { createdAt: 'desc' } : sort === 'servers' ? { serverCount: 'desc' } : { reports: { _count: 'desc' } };
 
+  /**
+   * Priority review: Pro listings go to the front of the PENDING queue, oldest first within each group.
+   * It can't be an `orderBy` - ProAssignment has no relation to the listing tables - so the ids are
+   * ordered in memory and the page is fetched by id. Only ids are read, and a backlog is small.
+   */
+  let queueIds: string[] | null = null;
+  if (sort === 'queue') {
+    const all = await db.botListing.findMany({ where, select: { id: true, createdAt: true } });
+    queueIds = (await reviewOrder('bot', all)).slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  }
+
   const [rows, total] = await Promise.all([
     db.botListing.findMany({
-      where,
+      where: queueIds ? { id: { in: queueIds } } : where,
       orderBy,
-      skip: (page - 1) * PER_PAGE,
-      take: PER_PAGE,
+      ...(queueIds ? {} : { skip: (page - 1) * PER_PAGE, take: PER_PAGE }),
       select: {
         id: true,
         name: true,
@@ -76,6 +88,11 @@ export default async function PortalBots({ searchParams }: Props) {
     }),
     db.botListing.count({ where }),
   ]);
+
+  // `id: { in: [...] }` comes back in whatever order the database likes, so the queue order is
+  // reapplied here. Staff also see which rows are on Pro, so the ordering explains itself.
+  const ordered = queueIds ? queueIds.map((id) => rows.find((r) => r.id === id)).filter((r): r is (typeof rows)[number] => !!r) : rows;
+  const proIds = await proListingIds('bot');
 
   const href = (o: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
@@ -119,7 +136,7 @@ export default async function PortalBots({ searchParams }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {rows.map((b) => (
+            {ordered.map((b) => (
               <tr key={b.id} className="hover:bg-surface-2/60">
                 <td className="px-5 py-3">
                   <a href={`${env.siteUrl}/bots/${b.id}`} target="_blank" rel="noreferrer" className="group flex min-w-0 items-center gap-3">
@@ -128,6 +145,7 @@ export default async function PortalBots({ searchParams }: Props) {
                       <span className="flex items-center gap-2">
                         <span className="max-w-[200px] truncate font-semibold group-hover:text-accent">{b.name}</span>
                         <BadgeRow kinds={b.badges.map((x) => x.kind)} seed={b.id} size={15} max={3} />
+                        {proIds.has(b.id) && <BadgeMark kind="PRO" size={15} seed={b.id} />}
                         {b.nsfw && <NsfwMark />}
                         <StatusBadge status={b.status} />
                       </span>
@@ -166,7 +184,7 @@ export default async function PortalBots({ searchParams }: Props) {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && <p className="px-5 py-14 text-center text-sm text-ink-3">No bots match.</p>}
+        {ordered.length === 0 && <p className="px-5 py-14 text-center text-sm text-ink-3">No bots match.</p>}
       </div>
 
       {pages > 1 && (

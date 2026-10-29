@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import { ArrowBigUp, ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Globe2, Pencil, Users } from 'lucide-react';
+import { ArrowBigUp, ArrowUpRight, CalendarClock, CalendarDays, ChevronsUp, EyeOff, Globe2, Languages, Pencil, Users } from 'lucide-react';
 import { db } from '@/lib/db';
 import { getUser } from '@/lib/session';
 import { countOnce } from '@/lib/http';
-import { canManageListing, cardSelect, isViewable, markPro, readLinks, readScreenshots, toCard } from '@/lib/servers';
-import { isPro, limitsFor } from '@/lib/pro';
+import { canManageListing, cardSelect, isViewable, markPro, preferredLanguage, readLinks, readScreenshots, toCard } from '@/lib/servers';
+import { eventPhase, isPro, limitsFor } from '@/lib/pro';
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
@@ -29,12 +29,17 @@ import { Description } from '@/components/view/Description';
 import { VoteButton } from '@/components/view/VoteButton';
 import { getVotingConfig, nextVoteAt, recentVotes, VOTES_SHOWN_DAYS } from '@/lib/votes';
 
-type Props = { params: Promise<{ serverId: string }> };
+type Props = { params: Promise<{ serverId: string }>; searchParams: Promise<{ lang?: string }> };
 
 const load = (id: string) =>
   db.server.findUnique({
     where: { id },
-    include: { tags: { include: { tag: true } }, badges: { select: { kind: true } }, owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+    include: {
+      tags: { include: { tag: true } },
+      badges: { select: { kind: true } },
+      managers: { select: { userId: true } },
+      owner: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+    },
   });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -48,8 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ViewServer({ params }: Props) {
+export default async function ViewServer({ params, searchParams }: Props) {
   const { serverId } = await params;
+  const { lang: langOverride } = await searchParams;
   const [s, user] = await Promise.all([load(serverId), getUser()]);
   const manager = !!s && canManageListing(user, s);
   // Hidden/removed listings 404 for everyone except their managers and staff.
@@ -67,6 +73,23 @@ export default async function ViewServer({ params }: Props) {
   const limits = limitsFor('server', pro);
   const screenshots = readScreenshots(s.screenshots, limits.screenshots);
   const links = readLinks(s.links, limits.links);
+
+  // "What's on", while it's still on.
+  const phase = limits.events ? eventPhase(s.eventAt) : null;
+  const event = (phase === 'upcoming' || phase === 'on') && s.eventTitle ? { title: s.eventTitle, at: s.eventAt!, url: s.eventUrl, on: phase === 'on' } : null;
+
+  /**
+   * The second language. `?lang=` wins so a shared link shows what the sharer saw; otherwise the
+   * reader's own Accept-Language decides, and the switch below is always there either way.
+   */
+  // Not gated on the plan, unlike the gallery above. A translation is writing the owner did, so it falls
+  // under "a raised cap governs what you can add, not what you keep" - the same side as their tags and
+  // their description. Lapsing stops them editing it; it doesn't hide it. See src/lib/pro.ts.
+  const altLanguage = s.altLanguage;
+  const picked = langOverride === 'alt' || langOverride === 'main' ? langOverride : preferredLanguage((await headers()).get('accept-language'), s.language, altLanguage);
+  const showAlt = picked === 'alt' && !!altLanguage;
+  const summary = showAlt ? s.altSummary || s.summary : s.summary;
+  const description = showAlt ? s.altDescription || s.description : s.description;
 
   const tags = s.tags.map((t) => t.tag.name);
   const badges = s.badges.map((b) => b.kind);
@@ -147,12 +170,42 @@ export default async function ViewServer({ params }: Props) {
             </Reveal>
 
             <Reveal delay={0.05}>
-              <p className="mt-7 text-[19px] leading-relaxed text-ink">{s.summary}</p>
+              <p className="mt-7 text-[19px] leading-relaxed text-ink">{summary}</p>
+              {altLanguage && (
+                <div className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-3">
+                  <Languages size={14} className="shrink-0" />
+                  <span>Also in</span>
+                  <Link href={`/view/${s.id}?lang=${showAlt ? 'main' : 'alt'}`} className="font-semibold text-accent underline-offset-2 hover:underline" scroll={false}>
+                    {languageName(showAlt ? s.language : altLanguage)}
+                  </Link>
+                </div>
+              )}
               <div className="mt-5 flex flex-wrap gap-2">
                 {tags.map((t) => (
                   <TagChip key={t} name={t} />
                 ))}
               </div>
+
+              {event && (
+                <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-5 py-4" style={{ borderColor: `color-mix(in srgb, ${s.accent} 45%, transparent)`, background: `color-mix(in srgb, ${s.accent} 9%, transparent)` }}>
+                  <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl" style={{ background: `color-mix(in srgb, ${s.accent} 22%, transparent)`, color: s.accent }}>
+                    <CalendarClock size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: s.accent }}>{event.on ? 'On now' : 'What’s on'}</div>
+                    <div className="mt-0.5 font-semibold">{event.title}</div>
+                    <time dateTime={event.at.toISOString()} className="text-[13px] text-ink-3">
+                      {event.at.toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}
+                    </time>
+                  </div>
+                  {event.url && (
+                    <a href={event.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="btn btn-secondary btn-sm shrink-0 group">
+                      Details
+                      <ArrowUpRight size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </a>
+                  )}
+                </div>
+              )}
 
               <div className="mt-8 flex flex-wrap gap-2.5">
                 <a
@@ -200,7 +253,7 @@ export default async function ViewServer({ params }: Props) {
             <Reveal delay={0.1}>
               <section className="mt-12">
                 <h2 className="text-lg font-bold mb-4">About</h2>
-                <Description text={s.description} />
+                <Description text={description} />
               </section>
             </Reveal>
           </div>

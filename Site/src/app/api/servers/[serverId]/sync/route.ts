@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ser
   const g = await requireUser(req);
   if (g.error) return g.error;
   const { serverId } = await params;
-  const server = await db.server.findUnique({ where: { id: serverId }, select: { ownerId: true } });
+  const server = await db.server.findUnique({ where: { id: serverId }, select: { ownerId: true, managers: { select: { userId: true } } } });
   if (!server || !canManageListing(g.user, server)) return fail('Not found', 404);
   if (!botEnabled()) return fail('Syncing needs the bot token (YAPPER_BOT_TOKEN)', 400);
   if (!rateLimit(`sync:${serverId}`, 5, 10 * 60_000)) return fail('Synced recently, try again in a few minutes', 429);

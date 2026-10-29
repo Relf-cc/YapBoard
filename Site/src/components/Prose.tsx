@@ -32,9 +32,15 @@ function Blocks({ blocks }: { blocks: ProseBlock[] }) {
   );
 }
 
-export function ProsePage({ title, updated, intro, summary, sections }: { title: string; updated?: string; intro?: ReactNode; summary?: ReactNode[]; sections: ProseSection[] }) {
+export function ProsePage({ title, updated, version, intro, summary, sections }: { title: string; updated?: string; version?: number; intro?: ReactNode; summary?: ReactNode[]; sections: ProseSection[] }) {
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-12">
+      {/* Not shown, but in the markup: which version of this page you're looking at (src/lib/legal.ts). */}
+      {version !== undefined && (
+        <span data-legal-version={version} className="sr-only">
+          Version {version}
+        </span>
+      )}
       <Reveal className="relative">
         <GlyphScatter
           items={[
