@@ -22,9 +22,23 @@ export const API_VERSION = '2026-09-30.endive' as const;
  */
 const globalForStripe = globalThis as unknown as { stripe?: Stripe };
 
+/**
+ * Stands in for the key when there isn't one, so that importing this module never throws.
+ *
+ * The SDK refuses to be constructed without a key, and `next build` imports every route module to
+ * collect its config - including the two that import this one - with no secrets in the environment,
+ * because a secret passed to a build is a secret baked into an image layer. Without this the Docker
+ * build fails at "Collecting page data" with "Neither apiKey nor config.authenticator provided".
+ *
+ * Nothing can reach Stripe with it: `billingEnabled()` (src/lib/env.ts) requires the key, and every
+ * billing route answers 503 before touching this client when it's missing. If a request somehow did
+ * get this far, Stripe rejects the key by name, which is a clearer failure than a crash at import.
+ */
+const NO_KEY = 'sk_live_billing_is_not_configured';
+
 export const stripe: Stripe =
   globalForStripe.stripe ??
-  new Stripe(env.stripeSecret, {
+  new Stripe(env.stripeSecret || NO_KEY, {
     apiVersion: API_VERSION,
     // Named so YapBoard shows up as itself in the Stripe dashboard's request logs.
     appInfo: { name: 'YapBoard', url: 'https://yapboard.dev' },

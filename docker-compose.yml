@@ -32,6 +32,16 @@ services:
       # Optional: only raises GitHub's rate limit when reading client releases.
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       STAFF_IDS: ${STAFF_IDS:-}
+      # YapBoard Pro. All six or none: billingEnabled() (Site/src/lib/env.ts) answers 503 on every
+      # billing route unless the key, the webhook secret and all four price ids are present, so a
+      # half-filled .env refuses to take money rather than taking it and granting nothing.
+      # Runtime only, never build args - a secret passed to a build is baked into an image layer.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_PRO_MONTHLY: ${STRIPE_PRICE_PRO_MONTHLY:-}
+      STRIPE_PRICE_PRO_ANNUAL: ${STRIPE_PRICE_PRO_ANNUAL:-}
+      STRIPE_PRICE_SLOT_MONTHLY: ${STRIPE_PRICE_SLOT_MONTHLY:-}
+      STRIPE_PRICE_SLOT_ANNUAL: ${STRIPE_PRICE_SLOT_ANNUAL:-}
     volumes:
       - site-data:/data
 
