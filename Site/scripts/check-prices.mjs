@@ -26,9 +26,15 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 
-/** Minimal .env reader: this script runs outside Next, which is what normally loads them. */
+/**
+ * Minimal .env reader: this script runs outside Next, which is what normally loads them.
+ *
+ * The file is read first and the real environment overlaid on top, so passing variables on the command
+ * line checks the account you named rather than silently the dev one in Site/.env. Same precedence as
+ * scripts/setup-prices.mjs, which is how either script is pointed at live.
+ */
 function env() {
-  const out = { ...process.env };
+  const out = {};
   try {
     for (const line of readFileSync(join(root, '.env'), 'utf8').split('\n')) {
       const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
@@ -37,6 +43,7 @@ function env() {
   } catch {
     // No .env is fine as long as the variables are already in the environment.
   }
+  for (const [k, v] of Object.entries(process.env)) if (v) out[k] = v;
   return out;
 }
 

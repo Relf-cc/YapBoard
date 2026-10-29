@@ -13,6 +13,7 @@
     "db:seed": "node prisma/seed.mjs",
     "db:reset": "prisma db push --force-reset && node prisma/seed.mjs",
     "check:prices": "node scripts/check-prices.mjs",
+    "setup:prices": "node scripts/setup-prices.mjs",
     "postinstall": "prisma generate"
   },
   "prisma": {

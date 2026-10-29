@@ -10,6 +10,7 @@ const HELP = [
   ['/info', 'This server’s details - name, ID, members - and whether it’s on YapBoard.'],
   ['/addbot', 'Owner and admins: start a bot listing. `/addbot <bot id>` fills the IDs in for you.'],
   ['/invite', 'Gets the link to add YapBoard to another server.'],
+  ['/debug', 'Owner and admins: checks the bot, Yapin’ and the site are healthy, and shows this server’s IDs.'],
   ['/help', 'Lists the commands.'],
 ];
 
