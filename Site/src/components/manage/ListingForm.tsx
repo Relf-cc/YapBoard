@@ -14,6 +14,7 @@ import { Dropdown } from '../Dropdown';
 import { ServerCard } from '../ServerCard';
 import { TagInput } from './TagInput';
 import { AltLanguageEditor, EventEditor, LinksEditor, ProLock, ScreenshotEditor, ThemePicker } from './ProFields';
+import { BannerEditor } from './BannerEditor';
 
 const LANGUAGE_OPTIONS = Object.entries(LANGUAGES).map(([value, label]) => ({ value, label }));
 
@@ -35,6 +36,11 @@ export type ListingValues = {
   tags: string[];
   /** Pro perks. Sent whatever the plan says; the route drops them unless the caps allow (lib/servers.ts). */
   theme: string;
+  /** The owner's own banner, and which part of it the header shows. */
+  customBannerUrl: string;
+  bannerX: number;
+  bannerY: number;
+  bannerScale: number;
   screenshots: string[];
   links: ListingLink[];
   eventTitle: string | null;
@@ -165,6 +171,20 @@ export function ListingForm({ mode, initial, devMode, limits, pro }: { mode: 'cr
               </Field>
             ) : (
               <ProLock title="Header style" body="Four ways to draw the top of your page, built from your accent colour, instead of the default." />
+            )}
+
+            {limits.banner ? (
+              <Field label="Banner" error={errors.customBannerUrl} help="Wide and shallow works best, about 1500×500. Drag it to choose what the header shows.">
+                <BannerEditor
+                  url={v.customBannerUrl}
+                  frame={{ x: v.bannerX, y: v.bannerY, scale: v.bannerScale }}
+                  onUrlChange={(u) => set('customBannerUrl', u)}
+                  onFrameChange={(f) => setV((x) => ({ ...x, bannerX: f.x, bannerY: f.y, bannerScale: f.scale }))}
+                  error={errors.customBannerUrl}
+                />
+              </Field>
+            ) : (
+              <ProLock title="Your own banner" body="Put your own image behind the header, and drag it to frame exactly the part you want people to see." />
             )}
 
             {limits.screenshots > 0 ? (
