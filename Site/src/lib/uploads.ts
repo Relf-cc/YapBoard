@@ -72,13 +72,29 @@ export const uploadIdFromPath = (url: string | null | undefined) => (url && isUp
  *
  * Every id in use is collected first and the rest go in one delete, rather than asking about each upload in
  * turn: there are few enough listings for that to be one small query, and it stays one query as uploads pile
- * up. Client listings are the only place uploads can be used today; add to `referenced` when that changes.
+ * up.
+ *
+ * **Every column that can hold an upload path has to be listed here.** One that isn't looks exactly like an
+ * orphan, and the image is deleted out from under a live listing once the grace period passes - so a new
+ * picker anywhere means another `select` in this function. Server listings earn their query because a Pro
+ * owner's custom banner lives there (`customBannerUrl`); their `bannerUrl` is a Yapin' URL rather than an
+ * upload, but it is read anyway, since `uploadIdFromPath` ignores anything that isn't one of ours and the
+ * column could hold a path the day somebody points the picker at it.
  */
 export async function sweepUploads(): Promise<number> {
-  const listings = await db.clientListing.findMany({ select: { iconUrl: true, bannerUrl: true, screenshots: true } });
+  const [clients, servers] = await Promise.all([
+    db.clientListing.findMany({ select: { iconUrl: true, bannerUrl: true, screenshots: true } }),
+    db.server.findMany({ select: { iconUrl: true, bannerUrl: true, customBannerUrl: true, screenshots: true } }),
+  ]);
   const referenced = new Set<string>();
-  for (const l of listings) {
+  for (const l of clients) {
     for (const url of [l.iconUrl, l.bannerUrl, ...parseScreenshotUrls(l.screenshots)]) {
+      const id = uploadIdFromPath(url);
+      if (id) referenced.add(id);
+    }
+  }
+  for (const s of servers) {
+    for (const url of [s.iconUrl, s.bannerUrl, s.customBannerUrl, ...parseScreenshotUrls(s.screenshots)]) {
       const id = uploadIdFromPath(url);
       if (id) referenced.add(id);
     }

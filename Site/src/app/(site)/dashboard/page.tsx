@@ -12,13 +12,15 @@ import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { Reveal } from '@/components/Reveal';
 import { StatusBadge } from '@/components/StatusBadge';
-import { BadgeMark, BadgeRow } from '@/components/Badge';
+import { BadgeRow, ProMark } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
 import { BumpStatus } from '@/components/manage/BumpStatus';
+import { ProWelcome } from '@/components/pro/ProWelcome';
+import { ProPlanStrip, ProToggle } from '@/components/pro/DashboardPro';
 
 export const metadata: Metadata = { title: 'Your listings' };
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ pro?: string }> }) {
   const user = await getUser();
   if (!user) redirect('/login?next=/dashboard');
   const [servers, bots, clients] = await Promise.all([
@@ -44,8 +46,48 @@ export default async function Dashboard() {
   const plan = await planState(user.id);
   const onPro = (kind: 'server' | 'bot' | 'client', id: string) => plan.covered.some((c) => c.kind === kind && c.listingId === id);
 
+  /**
+   * Is there a slot free for one more listing of this kind? The same rule as `canAssign` in src/lib/pro.ts,
+   * worked out here from the plan we already have rather than by asking three more times: a kind whose base
+   * slot is unused always fits, otherwise it needs one of the floating extras.
+   */
+  const floatingUsed = plan.covered.filter((c) => c.via === 'slot').length;
+  const canAdd = (kind: 'server' | 'bot' | 'client') =>
+    plan.active && (!plan.covered.some((c) => c.kind === kind && c.via === 'base') || floatingUsed < plan.extraSlots);
+
+  /**
+   * Back from Stripe Checkout (src/components/pro/ProWelcome.tsx).
+   *
+   * The query string alone isn't enough to say "payment received": anyone can type it. Somebody who has
+   * never been through a checkout has no Stripe Customer, so that row is the cheap proof - and once the
+   * plan is live the question doesn't arise. Without either, this URL does nothing, which is right.
+   */
+  const welcome = (await searchParams).pro === 'welcome';
+  const customer = welcome && !plan.active ? (await db.user.findUnique({ where: { id: user.id }, select: { stripeCustomerId: true } }))?.stripeCustomerId : null;
+
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-10">
+      {welcome && (plan.active || customer) && (
+        <ProWelcome active={plan.active} spare={plan.spare} hasListings={servers.length + bots.length + clients.length > 0} />
+      )}
+      {plan.active && (
+        <ProPlanStrip
+          plan={{
+            active: plan.active,
+            grace: plan.grace,
+            capacity: plan.capacity,
+            used: plan.covered.length,
+            spare: plan.spare,
+            overflow: plan.overflow.length,
+            extraSlots: plan.extraSlots,
+            cycle: plan.cycle,
+            // Dates cross to the browser as ISO strings and are formatted there in UTC, so the server's
+            // HTML and the hydrated markup agree (src/components/pro/DashboardPro.tsx).
+            until: plan.until?.toISOString() ?? null,
+            endingAt: plan.endingAt?.toISOString() ?? null,
+          }}
+        />
+      )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold">Your listings</h1>
@@ -98,7 +140,7 @@ export default async function Dashboard() {
                         {s.name}
                       </Link>
                       <BadgeRow kinds={s.badges.map((b) => b.kind)} seed={s.id} size={17} max={3} />
-                      {onPro('server', s.id) && <BadgeMark kind="PRO" size={17} seed={s.id} />}
+                      {onPro('server', s.id) && <ProMark size={17} seed={s.id} />}
                       {s.nsfw && <NsfwMark />}
                       <StatusBadge status={s.status} />
                     </div>
@@ -111,6 +153,7 @@ export default async function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 md:justify-end">
+                  <ProToggle kind="server" listingId={s.id} covered={onPro('server', s.id)} canAssign={canAdd('server')} removed={s.status === 'REMOVED'} />
                   <BumpStatus serverId={s.id} bumpedAt={s.bumpedAt?.toISOString() ?? null} canWebBump={!botEnabled() && s.status === 'PUBLIC'} compact />
                   <Link href={`/manage/${s.id}`} className="btn btn-secondary btn-sm">
                     Manage
@@ -139,7 +182,7 @@ export default async function Dashboard() {
                           {b.name}
                         </Link>
                         <BadgeRow kinds={b.badges.map((x) => x.kind)} seed={b.id} size={17} max={3} />
-                        {onPro('bot', b.id) && <BadgeMark kind="PRO" size={17} seed={b.id} />}
+                        {onPro('bot', b.id) && <ProMark size={17} seed={b.id} />}
                         {b.nsfw && <NsfwMark />}
                         <StatusBadge status={b.status} />
                       </div>
@@ -152,6 +195,7 @@ export default async function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 md:justify-end">
+                    <ProToggle kind="bot" listingId={b.id} covered={onPro('bot', b.id)} canAssign={canAdd('bot')} removed={b.status === 'REMOVED'} />
                     <BumpStatus serverId={b.id} kind="bot" bumpedAt={b.bumpedAt?.toISOString() ?? null} canWebBump={b.status === 'PUBLIC'} compact />
                     <Link href={`/bots/${b.id}/manage`} className="btn btn-secondary btn-sm">
                       Manage
@@ -181,7 +225,7 @@ export default async function Dashboard() {
                           {c.name}
                         </Link>
                         <BadgeRow kinds={c.badges.map((x) => x.kind)} seed={c.id} size={17} max={3} />
-                        {onPro('client', c.id) && <BadgeMark kind="PRO" size={17} seed={c.id} />}
+                        {onPro('client', c.id) && <ProMark size={17} seed={c.id} />}
                         {c.nsfw && <NsfwMark />}
                         <StatusBadge status={c.status} />
                       </div>
@@ -194,6 +238,7 @@ export default async function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 md:justify-end">
+                    <ProToggle kind="client" listingId={c.id} covered={onPro('client', c.id)} canAssign={canAdd('client')} removed={c.status === 'REMOVED'} />
                     <BumpStatus serverId={c.id} kind="client" bumpedAt={c.bumpedAt?.toISOString() ?? null} canWebBump={c.status === 'PUBLIC'} compact />
                     <Link href={`/clients/${c.slug}/manage`} className="btn btn-secondary btn-sm">
                       Manage

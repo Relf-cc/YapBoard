@@ -1,5 +1,26 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
+import type { CSSProperties } from 'react';
+import { MIN_BANNER_SCALE, type BannerFrame } from '@/lib/pro-fields';
+
+/**
+ * How a framed banner is drawn, shared by the page and by the editor that sets it.
+ *
+ * `object-position` picks which part of the image survives the crop, and the scale zooms about that same
+ * point - so dragging moves what you chose towards the middle and zooming goes further into it, rather than
+ * into the centre of the file. Both the hero and the editor's preview call this, because a preview that
+ * composes the transform slightly differently is a preview that lies.
+ *
+ * No framing, or framing left at its default, means no style at all: a listing that has never been framed
+ * draws exactly the centred `object-cover` banner it drew before any of this existed.
+ */
+export function bannerStyle(frame: BannerFrame | null | undefined): CSSProperties | undefined {
+  if (!frame) return undefined;
+  const { x, y, scale } = frame;
+  const position = `${x}% ${y}%`;
+  if (scale <= MIN_BANNER_SCALE) return x === 50 && y === 50 ? undefined : { objectPosition: position };
+  return { objectPosition: position, transform: `scale(${scale})`, transformOrigin: position };
+}
 
 /**
  * The header at the top of a listing page.
@@ -12,7 +33,7 @@
  * passes - draws the plain header servers have always had, so a listing that isn't entitled to pick keeps
  * exactly the page it had yesterday.
  */
-export function ListingHero({ accent, theme, bannerUrl }: { accent: string; theme: string; bannerUrl: string | null }) {
+export function ListingHero({ accent, theme, bannerUrl, frame }: { accent: string; theme: string; bannerUrl: string | null; frame?: BannerFrame | null }) {
   const known = theme === 'GLOW' || theme === 'GRID' || theme === 'WAVE' || theme === 'FLAT';
   const dots = theme === 'GRID' || !known;
   const glow = theme === 'GLOW' || !known;
@@ -44,7 +65,7 @@ export function ListingHero({ accent, theme, bannerUrl }: { accent: string; them
       )}
       {bannerUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
+        <img src={bannerUrl} alt="" className="absolute inset-0 size-full object-cover" style={bannerStyle(frame)} />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-bg/80 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/10" />

@@ -9,7 +9,7 @@ import { fetchLatestRelease, parseRepo, type ReleaseFailure } from './github';
 import { LANGUAGES } from './languages';
 import { classifyAsset, isNoise, isPlatform, PLATFORM_ORDER, type Platform } from './platforms';
 import { MAX_MANUAL_FILES, MAX_SCREENSHOTS, isTheme, RESERVED_SLUGS, slugify } from './client-fields';
-import { isUploadPath } from './upload-fields';
+import { imageUrlSchema, isUploadPath } from './upload-fields';
 import { normalizeTags } from './tags';
 import { limitsFor, type Limits } from './pro-fields';
 import { canManage } from './manage';
@@ -98,17 +98,10 @@ const httpsUrl = (message: string) =>
 
 /**
  * A link that may also be a YapBoard upload path like /u/<id>.png, as stored after the picker POSTs
- * to /api/uploads and the form writes the returned path into the field.
+ * to /api/uploads and the form writes the returned path into the field. Shared with the server form's
+ * banner, so the two can't disagree about what an image field accepts (src/lib/upload-fields.ts).
  */
-const imageUrl = (message: string) =>
-  z
-    .string()
-    .trim()
-    .max(500)
-    .nullish()
-    .transform((v) => (v && !v.startsWith('/') && !/^https?:\/\//.test(v) ? `https://${v}` : v))
-    .transform((v) => v || null)
-    .refine((v) => v === null || isUploadPath(v) || /^https:\/\/\S+\.\S+/.test(v), message);
+const imageUrl = imageUrlSchema;
 
 /** One download the lister keeps themselves. Managed rows never come through the form (lib/clients.ts sync). */
 export const manualFileSchema = z.object({

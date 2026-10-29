@@ -83,6 +83,17 @@ model Server {
   /// Hero backdrop on the listing page: GLOW | GRID | WAVE | FLAT (src/lib/client-fields.ts THEMES).
   /// Pro only - a free listing keeps the default header, so this is ignored until the listing is covered.
   theme         String    @default("GLOW")
+  /// The owner's own hero banner. Pro only, and deliberately a separate column from `bannerUrl`: that one
+  /// mirrors the Yapin' server's banner and is overwritten on every sync (api/servers/[serverId]/sync), so
+  /// sharing it would mean a sync silently wiping the owner's choice. Keeping them apart also makes lapsing
+  /// free - the custom image sits untouched and the page falls back to the synced banner until it renews.
+  customBannerUrl String?
+  /// How the banner is framed: the focal point as a percentage of the image, and a zoom factor (1 = fit).
+  /// Pro only, and it applies to whichever banner is being drawn, so a Pro owner can reframe the synced one
+  /// without uploading anything of their own.
+  bannerX       Float     @default(50)
+  bannerY       Float     @default(50)
+  bannerScale   Float     @default(1)
   /// Up to 6 https screenshots, as a JSON array of strings (SQLite has no array type). Pro only.
   screenshots   String?
   /// Extra buttons beside Join, as a JSON array of {label, url} (src/lib/pro-fields.ts). Pro only.

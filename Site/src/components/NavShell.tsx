@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
 import { Avatar } from './Avatar';
+import { ProMark } from './Badge';
 
 type NavUser = { id: string; name: string; username: string; avatarUrl: string | null } | null;
 
@@ -22,7 +23,7 @@ const LINKS = [
   { href: '/bot', label: 'Bot' },
 ];
 
-export function NavShell({ user, staff }: { user: NavUser; staff: boolean }) {
+export function NavShell({ user, staff, pro }: { user: NavUser; staff: boolean; pro: boolean }) {
   const path = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobile, setMobile] = useState(false);
@@ -64,7 +65,7 @@ export function NavShell({ user, staff }: { user: NavUser; staff: boolean }) {
                 <Plus size={15} strokeWidth={2.6} />
                 Add server
               </Link>
-              <UserMenu user={user} staff={staff} />
+              <UserMenu user={user} staff={staff} pro={pro} />
             </>
           ) : (
             <Link href={`/login?next=${encodeURIComponent(path)}`} className="btn btn-primary btn-sm">
@@ -116,7 +117,7 @@ export function NavShell({ user, staff }: { user: NavUser; staff: boolean }) {
   );
 }
 
-function UserMenu({ user, staff }: { user: NonNullable<NavUser>; staff: boolean }) {
+function UserMenu({ user, staff, pro }: { user: NonNullable<NavUser>; staff: boolean; pro: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -147,7 +148,11 @@ function UserMenu({ user, staff }: { user: NonNullable<NavUser>; staff: boolean 
             className="absolute right-0 mt-2 w-60 origin-top-right rounded-xl border border-line-strong bg-surface p-1.5 shadow-[0_16px_40px_-12px_#000c]"
           >
             <div className="px-3 py-2.5 border-b border-line mb-1">
-              <div className="font-semibold text-sm truncate">{user.name}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-sm truncate">{user.name}</span>
+                {/* The plan is the account's; which listings it covers is the dashboard's business. */}
+                {pro && <ProMark size={15} seed={user.id} blurb="You’re on a YapBoard Pro plan. Point it at a listing from your dashboard." />}
+              </div>
               <div className="text-xs text-ink-3 truncate">@{user.username}</div>
             </div>
             <MenuLink href="/dashboard" icon={<LayoutGrid size={15} />}>

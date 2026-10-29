@@ -38,9 +38,31 @@ export * from './platform-scopes';
 /** '' on platform.yapboard.dev (served at the root), '/platform' on the main domain (dev). */
 export async function platformBase() {
   const h = await headers();
-  const host = (h.get('x-forwarded-host') || h.get('host') || '').toLowerCase();
-  return host.startsWith('platform.') ? '' : '/platform';
+  const host = (h.get('x-forwarded-host') || h.get('host') || '').toLowerCase().split(':')[0];
+  // Already there: plain paths, so navigating within the platform stays a client-side route change.
+  if (host.startsWith('platform.')) return '';
+
+  /**
+   * Reached through the main site instead. The platform has its own host in production, and a link that
+   * keeps somebody on yapboard.dev/platform leaves them on a second copy of the same pages - different
+   * URLs, different bookmarks, and an invite link that doesn't match where they're standing. So every
+   * link out of here is absolute, and lands them on platform.yapboard.dev.
+   *
+   * Except in development, where there is no such host and `env.platformUrl` is the site's own /platform:
+   * the path is returned as a path, and nothing changes.
+   */
+  try {
+    const u = new URL(env.platformUrl);
+    if (u.hostname.toLowerCase() === host) return trimSlash(u.pathname);
+  } catch {
+    // A malformed PLATFORM_URL shouldn't take the platform down: fall through to the relative path.
+    return '/platform';
+  }
+  return env.platformUrl;
 }
+
+/** `/platform` from `/platform/`, and `''` from `/` - so `${base}${path}` never doubles a slash. */
+const trimSlash = (path: string) => (path === '/' ? '' : path.replace(/\/$/, ''));
 
 /* ---------------- invites ---------------- */
 

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
+import { z } from 'zod';
 
 /**
  * What an uploaded image may be, and what its URL looks like afterwards.
@@ -50,3 +51,21 @@ export const isUploadPath = (v: string) => /^\/u\/[a-z0-9]{8,40}\.(png|jpg|gif|w
 
 /** "2.4 MB", for the line under a picker and for the message when a file is too big. */
 export const megabytes = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(bytes < 1024 * 1024 * 10 ? 1 : 0).replace(/\.0$/, '')} MB`;
+
+/**
+ * An image field: one of our own upload paths like /u/<id>.png, or an https link someone pasted.
+ *
+ * Shared by every form with a picker on it - client icons and banners, server banners - because they are
+ * the same field with different labels, and a second copy of this is a second place for the rules about
+ * what counts as an image to drift. A bare "example.com/x.png" is given its scheme rather than refused,
+ * since a pasted URL missing https:// is a typo with an obvious fix, and an empty field becomes null.
+ */
+export const imageUrlSchema = (message: string) =>
+  z
+    .string()
+    .trim()
+    .max(500)
+    .nullish()
+    .transform((v) => (v && !v.startsWith('/') && !/^https?:\/\//.test(v) ? `https://${v}` : v))
+    .transform((v) => v || null)
+    .refine((v) => v === null || isUploadPath(v) || /^https:\/\/\S+\.\S+/.test(v), message);

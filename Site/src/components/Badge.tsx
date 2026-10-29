@@ -104,16 +104,34 @@ export function BadgeNames({ kinds, seed = '', className }: { kinds: readonly (s
   );
 }
 
-function BadgeTip({ kind, seed }: { kind: MarkKind; seed?: string }) {
+function BadgeTip({ kind, seed, blurb }: { kind: MarkKind; seed?: string; blurb?: React.ReactNode }) {
   const m = MARKS[kind];
   return (
     <span className="flex items-start gap-2.5">
       <BadgeMark kind={kind} size={18} seed={seed} className="mt-px" />
       <span>
         <span className="block font-semibold text-ink">{m.long}</span>
-        <span className="block mt-0.5 text-ink-3">{m.blurb}</span>
+        <span className="block mt-0.5 text-ink-3">{blurb ?? m.blurb}</span>
       </span>
     </span>
+  );
+}
+
+/**
+ * The Pro seal, with the tooltip the badges beside it have.
+ *
+ * `Badge` can't draw this one: Pro is bought rather than granted, so it isn't in BADGES and isn't a
+ * `BadgeKind` (src/lib/badges.ts). It is drawn as the same seal because to a reader it means the same
+ * kind of thing - something this listing has - and a mark with no explanation is a mark people guess at.
+ *
+ * `blurb` overrides the default for places where the subject isn't a listing: the account menu, where it
+ * is the person who holds the plan.
+ */
+export function ProMark({ size = 17, seed = '', className, blurb }: { size?: number; seed?: string; className?: string; blurb?: React.ReactNode }) {
+  return (
+    <Tooltip className={clsx('relative z-10 align-middle', className)} content={<BadgeTip kind="PRO" seed={seed} blurb={blurb} />}>
+      <BadgeMark kind="PRO" size={size} seed={seed} />
+    </Tooltip>
   );
 }
 

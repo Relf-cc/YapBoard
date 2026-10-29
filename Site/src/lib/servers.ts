@@ -8,9 +8,9 @@ import { db } from './db';
 import { LANGUAGES } from './languages';
 import { normalizeTags } from './tags';
 import { isTheme, MAX_SCREENSHOTS } from './client-fields';
-import { limitsFor, MAX_LINK_LABEL, readLinks, type Limits } from './pro-fields';
+import { limitsFor, MAX_BANNER_SCALE, MAX_LINK_LABEL, MIN_BANNER_SCALE, readLinks, type Limits } from './pro-fields';
 import { proSet } from './pro';
-import { isUploadPath } from './upload-fields';
+import { imageUrlSchema, isUploadPath } from './upload-fields';
 import { canManage } from './manage';
 
 export const BUMP_COOLDOWN_MS = 2 * 60 * 60 * 1000;
@@ -142,6 +142,17 @@ export const listingSchemaFor = (limits: Limits) =>
       .refine((t) => t.length <= limits.tags, `Up to ${limits.tags} tags`),
     /// Pro perks. Validated here, then dropped by the route unless the caps allow them.
     theme: z.string().refine(isTheme, 'Pick a style').optional(),
+    /**
+     * The owner's own banner, and how it's framed.
+     *
+     * Accepts one of our upload paths or an https link, the same as a client listing's banner. The framing
+     * is clamped rather than rejected: these come from a drag and a slider, so a value a pixel outside the
+     * range is a rounding artefact, not something worth refusing a whole save over.
+     */
+    customBannerUrl: imageUrlSchema('Use a full https link or upload an image, or leave it empty'),
+    bannerX: z.number().min(0).max(100).catch(50).optional(),
+    bannerY: z.number().min(0).max(100).catch(50).optional(),
+    bannerScale: z.number().min(MIN_BANNER_SCALE).max(MAX_BANNER_SCALE).catch(1).optional(),
     screenshots: z
       .array(z.string().trim().max(500))
       .max(20)
@@ -240,10 +251,11 @@ export type ListingInput = z.infer<typeof listingSchema>;
  * the page stops drawing them.
  */
 export function listingData(input: ListingInput, limits: Limits) {
-  const { tags, unlisted, theme, screenshots, links, eventTitle, eventAt, eventUrl, altLanguage, altSummary, altDescription, ...rest } = input;
+  const { tags, unlisted, theme, customBannerUrl, bannerX, bannerY, bannerScale, screenshots, links, eventTitle, eventAt, eventUrl, altLanguage, altSummary, altDescription, ...rest } = input;
   return {
     ...rest,
     ...(limits.themes && theme !== undefined && { theme }),
+    ...(limits.banner && { customBannerUrl, bannerX, bannerY, bannerScale }),
     ...(limits.screenshots > 0 && screenshots !== undefined && { screenshots: JSON.stringify(screenshots) }),
     ...(limits.links > 0 && links !== undefined && { links: JSON.stringify(links) }),
     ...(limits.events && { eventTitle, eventAt: eventAt ? new Date(eventAt) : null, eventUrl }),

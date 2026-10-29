@@ -2,11 +2,36 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import 'server-only';
 
+const trim = (s: string) => s.replace(/\/$/, '');
+const site = trim(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000');
+
+/**
+ * Where a service that gets its own host in production actually lives.
+ *
+ * Its own variable when one is set, otherwise worked out from the site: `portal.yapboard.dev` in
+ * production, and the site's own `/portal` in development, where there are no subdomains to point at.
+ * The same rule `apiRoot()` uses for api.<host> (src/lib/platform.ts), for the same reason - an unset
+ * variable in production used to leave every link pointing at `http://localhost:3000`, which is a
+ * dead link for everyone but the person who deployed it, and looks like the site is broken.
+ *
+ * Always absolute, because `safeNext` and the same-origin check both do `new URL(...)` on these.
+ */
+function serviceUrl(name: string, explicit: string | undefined): string {
+  if (explicit) return trim(explicit);
+  try {
+    const u = new URL(site);
+    if (/^(localhost|127\.|\[?::1)/.test(u.hostname)) return `${site}/${name}`;
+    return `${u.protocol}//${name}.${u.hostname.replace(/^www\./, '')}`;
+  } catch {
+    return `${site}/${name}`;
+  }
+}
+
 export const env = {
-  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, ''),
-  portalUrl: (process.env.PORTAL_URL || 'http://localhost:3000/portal').replace(/\/$/, ''),
+  siteUrl: site,
+  portalUrl: serviceUrl('portal', process.env.PORTAL_URL),
   /** The developer platform (src/lib/platform.ts), on its own host in production. */
-  platformUrl: (process.env.PLATFORM_URL || 'http://localhost:3000/platform').replace(/\/$/, ''),
+  platformUrl: serviceUrl('platform', process.env.PLATFORM_URL),
   /**
    * The API's own host: api.yapboard.dev. Only the partner API's docs and copy buttons read it
    * (src/lib/platform.ts apiRoot), since those are the URLs somebody else's bot is pointed at.

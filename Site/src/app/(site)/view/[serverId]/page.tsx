@@ -15,7 +15,7 @@ import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
 import { Avatar } from '@/components/Avatar';
 import { hasSupport } from '@/lib/badges';
-import { BadgeMark, BadgeNames, BadgeRow } from '@/components/Badge';
+import { BadgeNames, BadgeRow, ProMark } from '@/components/Badge';
 import { SupportBanner, SupportNoReport } from '@/components/SupportFlair';
 import { NsfwMark } from '@/components/NsfwMark';
 import { TagChip } from '@/components/TagChip';
@@ -118,7 +118,17 @@ export default async function ViewServer({ params, searchParams }: Props) {
 
   return (
     <div style={{ '--listing-accent': s.accent } as CSSProperties}>
-      <ListingHero accent={s.accent} theme={limits.themes ? s.theme : 'DEFAULT'} bannerUrl={s.bannerUrl} />
+      {/*
+        The custom banner and its framing are Pro, so both fall away on a lapse - back to the banner the
+        Yapin' server itself has, drawn plainly. Nothing is deleted: `customBannerUrl` sits in the row and
+        the page looks like this again the moment the plan renews.
+      */}
+      <ListingHero
+        accent={s.accent}
+        theme={limits.themes ? s.theme : 'DEFAULT'}
+        bannerUrl={(limits.banner && s.customBannerUrl) || s.bannerUrl}
+        frame={limits.banner ? { x: s.bannerX, y: s.bannerY, scale: s.bannerScale } : null}
+      />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {s.status !== 'PUBLIC' && (
@@ -148,7 +158,7 @@ export default async function ViewServer({ params, searchParams }: Props) {
                     {pro && (
                       <>
                         {' '}
-                        <BadgeMark kind="PRO" size={30} seed={s.id} className="-mt-1.5" />
+                        <ProMark size={30} seed={s.id} className="-mt-1.5" />
                       </>
                     )}
                   </h1>

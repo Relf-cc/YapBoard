@@ -44,6 +44,14 @@ export type Limits = {
   links: number;
   /** The lister picks the hero backdrop instead of taking the default. */
   themes: boolean;
+  /**
+   * The lister sets their own hero banner, and frames it by hand - drag to move, zoom to scale.
+   *
+   * Servers only. A client listing has always had a banner field of its own, free, set from its form rather
+   * than through this flag - so this stays false for clients, and taking it away from them to resell is the
+   * one thing Pro must never do. Bots have nowhere to put one: `BotListing` has no banner column.
+   */
+  banner: boolean;
   /** People besides the owner who may edit the listing and bump it. */
   managers: number;
   /** "What's on": the next thing happening, which hides itself once it's over. */
@@ -64,9 +72,9 @@ export type Limits = {
  * free, and taking them away to resell them is the one thing Pro must never do.
  */
 const FREE: Record<ListingKind, Limits> = {
-  server: { tags: MAX_TAGS, description: 2000, screenshots: 0, links: 0, themes: false, managers: 0, events: false, altLanguage: false },
-  bot: { tags: MAX_TAGS, description: 2000, screenshots: 0, links: 0, themes: false, managers: 0, events: false, altLanguage: false },
-  client: { tags: MAX_TAGS, description: 4000, screenshots: 6, links: 0, themes: true, managers: 0, events: false, altLanguage: false },
+  server: { tags: MAX_TAGS, description: 2000, screenshots: 0, links: 0, themes: false, banner: false, managers: 0, events: false, altLanguage: false },
+  bot: { tags: MAX_TAGS, description: 2000, screenshots: 0, links: 0, themes: false, banner: false, managers: 0, events: false, altLanguage: false },
+  client: { tags: MAX_TAGS, description: 4000, screenshots: 6, links: 0, themes: true, banner: false, managers: 0, events: false, altLanguage: false },
 };
 
 /**
@@ -84,9 +92,9 @@ const FREE: Record<ListingKind, Limits> = {
  * person who listed it has left" happens on every board.
  */
 const PRO: Record<ListingKind, Limits> = {
-  server: { tags: MAX_TAGS_PRO, description: 6000, screenshots: 6, links: 3, themes: true, managers: MAX_MANAGERS, events: true, altLanguage: true },
-  bot: { tags: MAX_TAGS_PRO, description: 6000, screenshots: 0, links: 0, themes: false, managers: MAX_MANAGERS, events: false, altLanguage: false },
-  client: { tags: MAX_TAGS_PRO, description: 6000, screenshots: 12, links: 0, themes: true, managers: MAX_MANAGERS, events: false, altLanguage: false },
+  server: { tags: MAX_TAGS_PRO, description: 6000, screenshots: 6, links: 3, themes: true, banner: true, managers: MAX_MANAGERS, events: true, altLanguage: true },
+  bot: { tags: MAX_TAGS_PRO, description: 6000, screenshots: 0, links: 0, themes: false, banner: false, managers: MAX_MANAGERS, events: false, altLanguage: false },
+  client: { tags: MAX_TAGS_PRO, description: 6000, screenshots: 12, links: 0, themes: true, banner: false, managers: MAX_MANAGERS, events: false, altLanguage: false },
 };
 
 export const limitsFor = (kind: ListingKind, pro: boolean): Limits => (pro ? PRO : FREE)[kind];
@@ -94,6 +102,23 @@ export const limitsFor = (kind: ListingKind, pro: boolean): Limits => (pro ? PRO
 /** For copy that compares the two, so the /pro page can't quote a number the code doesn't use. */
 export const freeLimits = (kind: ListingKind) => FREE[kind];
 export const proLimits = (kind: ListingKind) => PRO[kind];
+
+/**
+ * How far a banner may be zoomed in while framing it.
+ *
+ * 1 is the image fitted to the header, which is where every banner starts; 3 is as far in as a 1500px-wide
+ * banner can go before it turns to mush on a wide screen. Here rather than in the editor because the save
+ * validates against the same two numbers (src/lib/servers.ts) - a slider that allows what the route refuses
+ * is a form that throws away the thing you just dragged.
+ */
+export const MIN_BANNER_SCALE = 1;
+export const MAX_BANNER_SCALE = 3;
+
+/** A banner's framing, as stored on the listing and as the editor hands it back. */
+export type BannerFrame = { x: number; y: number; scale: number };
+
+/** The framing a listing starts with: the whole image, centred. */
+export const DEFAULT_BANNER_FRAME: BannerFrame = { x: 50, y: 50, scale: MIN_BANNER_SCALE };
 
 /** A button the lister adds beside Join. Stored as a JSON array (SQLite has no array type). */
 export type ListingLink = { label: string; url: string };
