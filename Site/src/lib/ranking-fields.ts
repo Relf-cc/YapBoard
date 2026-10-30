@@ -183,3 +183,49 @@ export function shouldCount(c: CountableComment): boolean {
   if (c.previousBody && c.previousBody.trim().toLowerCase() === body.toLowerCase()) return false;
   return true;
 }
+
+/** Gap the spacing rule keeps between two promoted cards: at most one in any three consecutive results. */
+const MIN_PRO_GAP = 3;
+
+/**
+ * Stop paid placement bunching up on page one.
+ *
+ * A stable demotion pass over a page that is already sorted, not a re-sort: when a promoted card would land
+ * within two places of the previous one it swaps with the next unpromoted card below it. Order among
+ * promoted cards is kept, order among free cards is kept, and nothing is dropped - so with Pro as sparse as
+ * it is today this is a no-op, and it is insurance against the day it is not.
+ *
+ * It exists because the multiplier is supposed to be doing this work. If this starts firing often, the
+ * honest read is that `proBoost` is too high, not that the board needed a bouncer.
+ */
+export function spacePromoted<T extends { pro: boolean }>(items: readonly T[]): T[] {
+  const out = [...items];
+  let last = -MIN_PRO_GAP;
+  for (let i = 0; i < out.length; i++) {
+    if (!out[i].pro) continue;
+    if (i - last >= MIN_PRO_GAP) {
+      last = i;
+      continue;
+    }
+    // The next free card below it. Without one there is nowhere to go, so it stays where it is.
+    let j = i + 1;
+    while (j < out.length && out[j].pro) j++;
+    if (j >= out.length) {
+      last = i;
+      continue;
+    }
+    const [moved] = out.splice(i, 1);
+    // Everything below shifted left on the removal, so index j is now the slot just past that free card.
+    out.splice(j, 0, moved);
+    i--;
+  }
+  return out;
+}
+
+/** The middle of a list of scores, to centre the relevance tiebreaker on the candidates actually in hand. */
+export function medianOf(values: readonly number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
