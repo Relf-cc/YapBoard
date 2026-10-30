@@ -18,7 +18,7 @@ import {
 } from './comment-fields';
 import { queueBotDm } from './bot-dms';
 import { boardMean, refreshHotQuietly, shouldCount } from './engagement';
-import { env } from './env';
+import { env, isSiteOwner } from './env';
 import { proUsers } from './pro';
 import { syncUserBadgesQuietly } from './profiles';
 import { LISTING_KINDS, type ListingKind } from './pro-fields';
@@ -470,6 +470,7 @@ export async function loadThread(
       avatarUrl: r.user.avatarUrl,
       role: r.user.role,
       pro: pro.has(r.user.id),
+      siteOwner: isSiteOwner(r.user.id),
     },
     hidden: r.hiddenAt ? { as: r.hiddenAs } : null,
     replies,

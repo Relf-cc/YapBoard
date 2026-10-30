@@ -50,6 +50,8 @@ export type ThreadWriter = {
   role: string;
   /** Holds a YapBoard Pro plan. About the person, not about this listing (src/lib/pro.ts `proUsers`). */
   pro: boolean;
+  /** Owns YapBoard itself. Resolved on the server, so the owner id stays off the wire. */
+  siteOwner: boolean;
 };
 
 export type ThreadComment = {

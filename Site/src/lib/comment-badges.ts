@@ -19,7 +19,7 @@
  * No 'server-only': the thread renders on the client, so this has to cross over. It touches no database.
  */
 
-export type CommenterBadgeKind = 'ADMIN' | 'STAFF' | 'OWNER' | 'TEAM' | 'PRO' | 'AUTHOR';
+export type CommenterBadgeKind = 'SITE_OWNER' | 'ADMIN' | 'STAFF' | 'OWNER' | 'TEAM' | 'PRO' | 'AUTHOR';
 
 export type CommenterBadgeDef = {
   label: string;
@@ -30,6 +30,17 @@ export type CommenterBadgeDef = {
 };
 
 export const COMMENTER_BADGES = {
+  /*
+    First in the order, and named "YapBoard Owner" rather than "Owner" on purpose.
+    `OWNER` below already means "owner of the listing you are reading", and two chips both saying Owner in
+    the same thread would be worse than no chip at all - a reader would take the site owner for the person
+    who runs the server. The two are never the same claim, so they never share a word.
+  */
+  SITE_OWNER: {
+    label: 'YapBoard Owner',
+    title: 'Built and runs YapBoard',
+    className: 'border-transparent bg-[#e0a019] text-[#2a1b03] font-bold',
+  },
   ADMIN: {
     label: 'YapBoard Admin',
     title: 'A YapBoard administrator',
@@ -66,7 +77,16 @@ export const COMMENTER_BADGES = {
 export const COMMENTER_BADGE_ORDER = Object.keys(COMMENTER_BADGES) as CommenterBadgeKind[];
 
 /** What `commenterBadges` needs to know about the person who wrote it. */
-export type Commenter = { id: string; role?: string | null; pro?: boolean };
+export type Commenter = {
+  id: string;
+  role?: string | null;
+  pro?: boolean;
+  /**
+   * Owns YapBoard itself. Worked out on the server (`isSiteOwner` in src/lib/env.ts) and passed through as
+   * a plain boolean, so the owner's account id never reaches the browser just to draw a chip.
+   */
+  siteOwner?: boolean;
+};
 
 /** What it needs to know about the listing it was written under. */
 export type CommentedListing = { ownerId: string; managers: { userId: string }[] };
@@ -87,7 +107,13 @@ export function commenterBadges(
   parentAuthorId?: string | null,
 ): CommenterBadgeKind[] {
   const out: CommenterBadgeKind[] = [];
-  if (writer.role === 'ADMIN') out.push('ADMIN');
+  /*
+    Owner supersedes the staff chips rather than stacking with them. The owner is necessarily an admin, so
+    "YapBoard Owner  YapBoard Admin" says one thing twice and makes the row of chips longer than the name
+    it is annotating.
+  */
+  if (writer.siteOwner) out.push('SITE_OWNER');
+  else if (writer.role === 'ADMIN') out.push('ADMIN');
   else if (writer.role === 'STAFF') out.push('STAFF');
 
   if (writer.id === listing.ownerId) out.push('OWNER');

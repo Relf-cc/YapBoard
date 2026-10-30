@@ -65,8 +65,14 @@ export default async function ProfilePage({ params }: Props) {
           <div className="min-w-0 flex-1">
             <h1 className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[28px] font-extrabold leading-tight sm:text-[34px]">
               <span className="break-words">{p.name}</span>
-              {p.role === 'ADMIN' && <CommenterBadge kind="ADMIN" />}
-              {p.role === 'STAFF' && <CommenterBadge kind="STAFF" />}
+              {/* Owner supersedes the staff chips rather than stacking - see commenterBadges(). */}
+              {p.siteOwner ? (
+                <CommenterBadge kind="SITE_OWNER" />
+              ) : p.role === 'ADMIN' ? (
+                <CommenterBadge kind="ADMIN" />
+              ) : p.role === 'STAFF' ? (
+                <CommenterBadge kind="STAFF" />
+              ) : null}
               {p.pro && <ProMark size={22} seed={p.id} />}
             </h1>
             <p className="mt-1 text-[14px] text-ink-3">@{p.username}</p>

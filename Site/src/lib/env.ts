@@ -46,6 +46,15 @@ export const env = {
   /** Optional. Only raises GitHub's rate limit for reading client releases (src/lib/github.ts); nothing is written. */
   githubToken: process.env.GITHUB_TOKEN || '',
   staffIds: (process.env.STAFF_IDS || '').split(',').map((s) => s.trim()).filter(Boolean),
+  /**
+   * The one account that owns YapBoard, for the badge beside their name.
+   *
+   * A setting rather than a constant in the source, because "who owns this" is deployment truth, not a
+   * fact about the code - and a hard-coded id is the kind of thing that outlives the person it names.
+   * Falls back to the first STAFF_IDS entry, which is almost always the same account, so a deployment
+   * that never sets it still gets this right instead of silently getting it wrong.
+   */
+  ownerId: (process.env.OWNER_ID || '').trim() || (process.env.STAFF_IDS || '').split(',')[0]?.trim() || '',
   isProd: process.env.NODE_ENV === 'production',
   /**
    * Stripe, for YapBoard Pro. A restricted key (`rk_…`) is preferred over a secret key (`sk_…`):
@@ -66,6 +75,15 @@ export const env = {
 
 /** Missing, too short, or still the "change-me…" value from .env.example (anyone who has read the repo knows it). */
 export const weakSecret = (s: string | undefined, min: number) => !s || s.length < min || /change-me/i.test(s);
+
+/**
+ * The single account that owns YapBoard.
+ *
+ * Deliberately not a database role. `User.role` is a set of permissions staff grant each other and can
+ * revoke; this is a statement about whose site it is, which is not something the portal should be able to
+ * hand out. Resolved only on the server - the id is never sent to the browser, only the resulting badge.
+ */
+export const isSiteOwner = (id: string | null | undefined) => Boolean(id) && id === env.ownerId;
 
 /** Real "Login with Yapin'" is configured. Otherwise dev login is used (never in production). */
 export const oauthEnabled = () => Boolean(env.clientId && env.clientSecret);

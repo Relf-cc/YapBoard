@@ -4,6 +4,7 @@ import 'server-only';
 import { z } from 'zod';
 import { db } from './db';
 import { sortBadges, type BadgeKind } from './badges';
+import { isSiteOwner } from './env';
 import { proUsers } from './pro';
 import { earnedBy, sortUserBadges, USER_BADGES, type UserBadgeKind } from './user-badges';
 
@@ -68,6 +69,8 @@ export type Profile = {
   name: string;
   avatarUrl: string | null;
   role: string;
+  /** Owns YapBoard itself (src/lib/env.ts). Shown instead of the staff badge, never alongside it. */
+  siteOwner: boolean;
   bio: string | null;
   link: string | null;
   hidden: boolean;
@@ -114,6 +117,7 @@ export async function loadProfile(userId: string, viewerIsStaff = false): Promis
     name: user.displayName || user.username,
     avatarUrl: user.avatarUrl,
     role: user.role,
+    siteOwner: isSiteOwner(user.id),
     bio: hidden ? null : user.bio,
     link: hidden ? null : user.link,
     hidden,

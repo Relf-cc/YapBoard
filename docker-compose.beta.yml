@@ -66,6 +66,9 @@ services:
       YAPIN_CLIENT_SECRET: ${YAPIN_CLIENT_SECRET:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       STAFF_IDS: ${STAFF_IDS:-}
+      # The one account that owns YapBoard, for the badge beside their name. Falls back to the first
+      # STAFF_IDS entry when unset, which is usually the same person (Site/src/lib/env.ts).
+      OWNER_ID: ${OWNER_ID:-}
       # Deliberately absent: every STRIPE_* variable. Billing answers 503 on beta, on purpose.
     volumes:
       - beta-site-data:/data
