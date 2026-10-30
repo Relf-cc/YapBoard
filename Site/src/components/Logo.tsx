@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Christian Relf. All rights reserved.
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import Link from 'next/link';
+import { BetaTag } from './BetaTag';
 
 export function LogoMark({ size = 30 }: { size?: number }) {
   return (
@@ -19,8 +20,12 @@ export function Logo({ href = '/', suffix }: { href?: string; suffix?: string })
       <span className="transition-transform duration-300 ease-out-soft group-hover:-rotate-6 group-hover:scale-105">
         <LogoMark />
       </span>
-      <span>
-        YapBoard{suffix && <span className="ml-1.5 font-semibold text-ink-3">{suffix}</span>}
+      <span className="inline-flex items-center gap-2">
+        <span>
+          YapBoard{suffix && <span className="ml-1.5 font-semibold text-ink-3">{suffix}</span>}
+        </span>
+        {/* In the mark itself rather than in the navbar, so the portal and the platform get it too. */}
+        <BetaTag />
       </span>
     </Link>
   );

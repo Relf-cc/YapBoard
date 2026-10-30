@@ -2,7 +2,9 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import 'server-only';
 import { z } from 'zod';
+import { BETA_DM_STAFF_ONLY, IS_BETA } from './beta';
 import { db } from './db';
+import { env } from './env';
 
 /** How many DMs the bot takes per poll. Small: these trickle in, unlike a broadcast. */
 export const BATCH = 20;
@@ -47,8 +49,22 @@ export async function claimDmBatch(): Promise<ClaimedDm[]> {
     data: { status: 'FAILED', error: 'gave up: undeliverable for 24h' },
   });
 
+  /**
+   * On beta, nothing goes to anybody but staff.
+   *
+   * The recipients here are real Yapin' accounts, copied from the real board along with everything else,
+   * and the beta bot has a token of its own - so without this, a review somebody writes on a snapshot
+   * turns into a message to a stranger about a page they cannot see. Held rather than dropped: the row
+   * stays PENDING, so the portal still shows what *would* have been sent, and the whole path is still
+   * testable by a staff member reviewing their own listing.
+   */
+  if (IS_BETA && BETA_DM_STAFF_ONLY && !env.staffIds.length) return [];
+
   const waiting = await db.botDm.findMany({
-    where: { OR: [{ status: 'PENDING' }, { status: 'CLAIMED', claimedAt: { lt: stale } }] },
+    where: {
+      OR: [{ status: 'PENDING' }, { status: 'CLAIMED', claimedAt: { lt: stale } }],
+      ...(IS_BETA && BETA_DM_STAFF_ONLY ? { userId: { in: env.staffIds } } : {}),
+    },
     orderBy: { id: 'asc' },
     take: BATCH,
     select: { id: true, userId: true, title: true, body: true, linkUrl: true, linkLabel: true },

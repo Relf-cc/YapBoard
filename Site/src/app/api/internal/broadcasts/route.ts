@@ -2,6 +2,7 @@
 // Proprietary and confidential. No copying, modification or redistribution. See LICENSE.
 import type { NextRequest } from 'next/server';
 import { claimBatch, recordResults, resultSchema } from '@/lib/broadcasts';
+import { IS_BETA } from '@/lib/beta';
 import { fail, isInternal, json, readJson } from '@/lib/http';
 
 /**
@@ -11,6 +12,13 @@ import { fail, isInternal, json, readJson } from '@/lib/http';
  */
 export async function GET(req: NextRequest) {
   if (!isInternal(req)) return fail('Unauthorized', 401);
+  /*
+    Never on beta. A broadcast is addressed to channel ids in real servers, so this is the one queue whose
+    rows would land in front of people the moment a bot with a valid token polled for them - and unlike a
+    DM there is no "only staff" version of it that is still worth testing. Staff can still write one and
+    see it queued; it simply never leaves.
+  */
+  if (IS_BETA) return json({ work: false });
   const batch = await claimBatch();
   if (!batch) return json({ work: false });
   return json({

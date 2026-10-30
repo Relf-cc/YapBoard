@@ -1,0 +1,115 @@
+# YapBoard beta: the same app at beta.yapboard.dev, on its own stack, over a COPY of the real database.
+#
+#   cp .env.beta.example .env.beta, fill it in, then:
+#   docker compose -p yapboard-beta --env-file .env.beta -f docker-compose.beta.yml up -d --build
+#
+# The `-p yapboard-beta` is not optional. Without it, Compose reuses the production project's containers
+# and volumes, and the "copy" becomes production with a beta badge on it.
+#
+# ## What keeps this separate from production
+#
+# Everything below is one of four things, and each has a reason it is not just tidiness:
+#
+# 1. **Its own volume** (`beta-site-data`), holding `yapboard-beta.db`. Named differently from production's
+#    so that a stray `docker compose` in the wrong directory cannot mount one onto the other, and so the
+#    snapshot script's "does this path say beta" guard has something to match.
+# 2. **Its own session secret, and no cookie domain.** A cookie scoped to `.yapboard.dev` would be sent to
+#    the real site too - one login across both, with a staff session minted on a copy working against the
+#    real board. The site refuses to start if COOKIE_DOMAIN is set here (src/lib/startup.ts).
+# 3. **No Stripe.** All six variables stay unset, so `billingEnabled()` is false and every billing route
+#    answers 503 rather than half-working (Site/src/lib/env.ts). The copied subscription rows still grant
+#    Pro, which is what makes the ranking boost testable.
+# 4. **Its own bot token.** The beta bot can reach any real account in the copy, so DM delivery is limited
+#    to STAFF_IDS and broadcasts are refused outright (Site/src/lib/beta.ts). Invite it to one server you
+#    own and nothing else.
+#
+# ## Why the portal and platform are paths here, not subdomains
+#
+# PORTAL_URL and PLATFORM_URL point at `https://beta.yapboard.dev/portal` and `/platform` rather than
+# `portal.beta.yapboard.dev`. Cloudflare's universal certificate covers `*.yapboard.dev` but not a second
+# label, so `portal.beta.yapboard.dev` would fail TLS unless you buy an advanced certificate. The app
+# already supports both shapes - `proxy.ts` only redirects to a subdomain when the configured URL actually
+# is one - so paths cost nothing and one tunnel hostname is enough.
+
+x-shared: &shared
+  INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?set INTERNAL_API_SECRET in .env.beta}
+  YAPPER_BOT_TOKEN: ${YAPPER_BOT_TOKEN:-}
+
+services:
+  site:
+    build:
+      context: ./Site
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?set NEXT_PUBLIC_SITE_URL in .env.beta}
+        NEXT_PUBLIC_BOT_ID: ${NEXT_PUBLIC_BOT_ID:-}
+        PORTAL_URL: ${PORTAL_URL:?set PORTAL_URL in .env.beta}
+        PLATFORM_URL: ${PLATFORM_URL:-}
+        NEXT_PUBLIC_BUG_REPORT_URL: ${NEXT_PUBLIC_BUG_REPORT_URL:-}
+        # Baked in, because it decides what the bundle renders: the badge in the navbar and the bar across
+        # the top both read it on the client. Set it and this is the beta; leave it empty and it is not.
+        NEXT_PUBLIC_BETA_VERSION: ${NEXT_PUBLIC_BETA_VERSION:?set NEXT_PUBLIC_BETA_VERSION in .env.beta, e.g. v1.10}
+    restart: unless-stopped
+    environment:
+      <<: *shared
+      # A database of its own. The Dockerfile defaults to /data/yapboard.db; this is what makes the beta
+      # stack open a different file even if a volume were ever mounted in the wrong place.
+      DATABASE_URL: file:/data/yapboard-beta.db
+      NEXT_PUBLIC_BETA_VERSION: ${NEXT_PUBLIC_BETA_VERSION}
+      SESSION_SECRET: ${SESSION_SECRET:?set a SESSION_SECRET in .env.beta that is NOT production's}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      NEXT_PUBLIC_BOT_ID: ${NEXT_PUBLIC_BOT_ID:-}
+      PORTAL_URL: ${PORTAL_URL}
+      PLATFORM_URL: ${PLATFORM_URL:-}
+      API_URL: ${API_URL:-}
+      # Deliberately absent: COOKIE_DOMAIN. See the note at the top - the site refuses to boot with one.
+      YAPIN_CLIENT_ID: ${YAPIN_CLIENT_ID:-}
+      YAPIN_CLIENT_SECRET: ${YAPIN_CLIENT_SECRET:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      STAFF_IDS: ${STAFF_IDS:-}
+      # Deliberately absent: every STRIPE_* variable. Billing answers 503 on beta, on purpose.
+    volumes:
+      - beta-site-data:/data
+
+  bot:
+    build:
+      context: ./Bot
+      additional_contexts:
+        sdk: ./YapinAssets
+    restart: unless-stopped
+    environment:
+      <<: *shared
+      YAPBOARD_URL: ${NEXT_PUBLIC_SITE_URL}
+      YAPBOARD_API_URL: http://site:3000
+    volumes:
+      - beta-bot-data:/app/data
+    depends_on:
+      site:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - beta-caddy-data:/data
+      - beta-caddy-config:/config
+    depends_on:
+      - site
+
+  # Its own tunnel, with beta.yapboard.dev -> http://caddy:80 as the only public hostname on it. A separate
+  # tunnel rather than another hostname on the production one, so that stopping the beta cannot take a
+  # route off the tunnel the real site depends on.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set the BETA tunnel token in .env.beta, not production's}
+    depends_on:
+      - caddy
+
+volumes:
+  beta-site-data:
+  beta-bot-data:
+  beta-caddy-data:
+  beta-caddy-config:

@@ -8,10 +8,12 @@ import { db } from './db';
  * saved role only stands if the portal's Users page set it (every change there is in the audit log as role.*);
  * anything else goes back to USER. STAFF_IDS themselves are applied live by getUser and never saved.
  */
+/** Missing, too short, or still the example value. Shared by both checks below. */
+const weak = (s: string | undefined, min: number) => !s || s.length < min || /change-me/i.test(s);
+
 /** Loud warnings at start for production settings that leave something unsafe or broken. */
 export function checkProductionConfig() {
   if (process.env.NODE_ENV !== 'production') return;
-  const weak = (s: string | undefined, min: number) => !s || s.length < min || /change-me/i.test(s);
   const problems = [
     weak(process.env.SESSION_SECRET, 32) && 'SESSION_SECRET is missing, short or the example value: nobody can log in',
     weak(process.env.INTERNAL_API_SECRET, 16) && 'INTERNAL_API_SECRET is missing, short or the example value: the bot is locked out',
@@ -20,6 +22,46 @@ export function checkProductionConfig() {
     !/^https:\/\//.test(process.env.NEXT_PUBLIC_SITE_URL || '') && 'NEXT_PUBLIC_SITE_URL is not https://',
   ].filter(Boolean);
   for (const p of problems) console.error(`[config] ${p}`);
+}
+
+/**
+ * Beta-only configuration that must be wrong-proof, because getting it wrong is silent.
+ *
+ * Returns the problems rather than logging them, so the caller can decide: the cookie one is fatal and the
+ * rest are warnings. See src/lib/beta.ts for what beta mode is and why.
+ */
+export function checkBetaConfig(): { fatal: string[]; warn: string[] } {
+  const fatal: string[] = [];
+  const warn: string[] = [];
+  if (!process.env.NEXT_PUBLIC_BETA_VERSION) return { fatal, warn };
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL || '';
+  const cookieDomain = (process.env.COOKIE_DOMAIN || '').trim();
+
+  /*
+    The one that has to stop the boot.
+
+    A cookie scoped to `.yapboard.dev` is sent to yapboard.dev as well, so beta and production would share
+    a session: one login, both sites, and a staff cookie minted on a copy of the database working against
+    the real one. That is not a beta with "no connection to production" - it is the same site twice. Beta
+    must set a host-only cookie, which is what an empty COOKIE_DOMAIN does.
+  */
+  if (cookieDomain) {
+    fatal.push(`COOKIE_DOMAIN is set to "${cookieDomain}" - leave it empty on beta, or beta and production share one session cookie`);
+  }
+
+  // A beta pointed at the production database is the other way to join them, and the default path is the
+  // same on both stacks, so this is worth saying out loud even though compose sets the volume.
+  if (!/beta/i.test(process.env.DATABASE_URL || '')) {
+    warn.push(`DATABASE_URL does not look like a beta database ("${process.env.DATABASE_URL || 'unset'}") - make sure it is a copy, not production`);
+  }
+  if (!/beta/i.test(site)) warn.push(`NEXT_PUBLIC_SITE_URL is "${site}" - expected the beta host`);
+  if (process.env.STRIPE_SECRET_KEY) warn.push('STRIPE_SECRET_KEY is set on beta - leave Stripe unconfigured so billing routes answer 503');
+  // Nothing here can see production's secret to compare against it, so this only checks the shape. The
+  // real rule - a *different* secret from production, so copied Session rows and real cookies are both
+  // useless on beta - is in docs/beta.md, because only the person deploying can know it holds.
+  if (weak(process.env.SESSION_SECRET, 32)) warn.push('SESSION_SECRET is missing or short - beta needs its own, different from production');
+  return { fatal, warn };
 }
 
 /** Servers listed before voting existed have no rankedAt yet (lib/votes.ts), and would drop out of "recently bumped". */
