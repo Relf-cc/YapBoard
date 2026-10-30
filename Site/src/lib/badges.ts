@@ -21,6 +21,13 @@ export type MarkDef = {
   to: string;
   glow: string;
   icon: BadgeIcon;
+  /**
+   * Extra sparkles, beyond the one every seal gets.
+   *
+   * Data rather than a component, so a mark that should catch the eye says so here and nothing else
+   * changes - the same reason the colours live in this file. Used once, for the owner.
+   */
+  sparkle?: number;
 };
 
 /** Icons sit inside a circle of radius ~7 around (12, 12) so the seal's lobes never clip them. */
@@ -40,6 +47,11 @@ const LIFEBUOY: BadgeIcon = [
   { d: 'M13.98 10.02 16.67 7.33M10.02 10.02 7.33 7.33M13.98 13.98 16.67 16.67M10.02 13.98 7.33 16.67', w: 1.9 },
 ];
 const BOLT: BadgeIcon = [{ d: 'M12.81 5.34 8.31 12.81h2.7l-.72 5.85 4.5-7.47h-2.7z' }];
+/** Three peaks and a band. Sits inside the lobes like the rest, so it never clips. */
+const CROWN: BadgeIcon = [
+  { d: 'M6.3 9.5 9.2 12.1 12 7.8 14.8 12.1 17.7 9.5 16.7 15.6 7.3 15.6z' },
+  { d: 'M7.6 17.3h8.8', w: 1.5 },
+];
 
 export const BADGES = {
   OFFICIAL: {
@@ -156,7 +168,31 @@ export const PRO_MARK: MarkDef = {
   icon: BOLT,
 };
 
-/** Everything Badge.tsx knows how to draw. */
-export const MARKS = { ...BADGES, PRO: PRO_MARK };
+/**
+ * YapBoard's owner. Not a badge either - there is exactly one, it is not granted and cannot be, so it
+ * lives beside PRO rather than in BADGES (which the portal can hand out).
+ *
+ * Gold, but a brighter and more polished gold than FOUNDER's, because the two would otherwise read as the
+ * same award at a glance. The extra sparkles are the point: this is the one mark on the board that should
+ * catch your eye.
+ */
+export const OWNER_MARK: MarkDef = {
+  label: 'Owner',
+  long: 'YapBoard Owner',
+  blurb: 'Built and runs YapBoard.',
+  from: '#fff0b8',
+  to: '#ef9c0b',
+  glow: '#ffc53d',
+  icon: CROWN,
+  sparkle: 3,
+};
 
-export type MarkKind = keyof typeof MARKS;
+/** Everything Badge.tsx knows how to draw: the grantable badges, plus the two that are not. */
+export type MarkKind = BadgeKind | 'PRO' | 'OWNER';
+
+/**
+ * Annotated rather than inferred, because BADGES is `as const` and its members therefore have literal
+ * types that do not carry the optional fields of MarkDef - so an inferred union would make `sparkle`
+ * invisible on nine of the eleven marks and fail to compile where it is read.
+ */
+export const MARKS: Record<MarkKind, MarkDef> = { ...BADGES, PRO: PRO_MARK, OWNER: OWNER_MARK };

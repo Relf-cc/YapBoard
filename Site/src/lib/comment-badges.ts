@@ -19,7 +19,7 @@
  * No 'server-only': the thread renders on the client, so this has to cross over. It touches no database.
  */
 
-export type CommenterBadgeKind = 'SITE_OWNER' | 'ADMIN' | 'STAFF' | 'OWNER' | 'TEAM' | 'PRO' | 'AUTHOR';
+export type CommenterBadgeKind = 'ADMIN' | 'STAFF' | 'OWNER' | 'TEAM' | 'PRO' | 'AUTHOR';
 
 export type CommenterBadgeDef = {
   label: string;
@@ -30,17 +30,6 @@ export type CommenterBadgeDef = {
 };
 
 export const COMMENTER_BADGES = {
-  /*
-    First in the order, and named "YapBoard Owner" rather than "Owner" on purpose.
-    `OWNER` below already means "owner of the listing you are reading", and two chips both saying Owner in
-    the same thread would be worse than no chip at all - a reader would take the site owner for the person
-    who runs the server. The two are never the same claim, so they never share a word.
-  */
-  SITE_OWNER: {
-    label: 'YapBoard Owner',
-    title: 'Built and runs YapBoard',
-    className: 'border-transparent bg-[#e0a019] text-[#2a1b03] font-bold',
-  },
   ADMIN: {
     label: 'YapBoard Admin',
     title: 'A YapBoard administrator',
@@ -108,12 +97,15 @@ export function commenterBadges(
 ): CommenterBadgeKind[] {
   const out: CommenterBadgeKind[] = [];
   /*
-    Owner supersedes the staff chips rather than stacking with them. The owner is necessarily an admin, so
-    "YapBoard Owner  YapBoard Admin" says one thing twice and makes the row of chips longer than the name
-    it is annotating.
+    The owner gets no chip here at all - they get the sparkling seal instead (`OwnerMark` in
+    src/components/Badge.tsx), drawn outside this row the way ProMark is on a listing page.
+
+    They still suppress the staff chip, though, and that is the whole reason `siteOwner` is still read in
+    here: the owner is necessarily an admin, and a seal followed by "YapBoard Admin" says one thing twice.
   */
-  if (writer.siteOwner) out.push('SITE_OWNER');
-  else if (writer.role === 'ADMIN') out.push('ADMIN');
+  if (writer.siteOwner) {
+    // nothing: the seal says it
+  } else if (writer.role === 'ADMIN') out.push('ADMIN');
   else if (writer.role === 'STAFF') out.push('STAFF');
 
   if (writer.id === listing.ownerId) out.push('OWNER');

@@ -270,7 +270,14 @@ h3 {
   transform-box: fill-box;
   transform-origin: center;
   animation: badge-spark 3.6s ease-in-out infinite;
-  animation-delay: calc(var(--badge-delay, 0s) + 0.45s);
+  /* --spark-offset lets a mark with several sparkles give each one its own beat (src/components/Badge.tsx). */
+  animation-delay: calc(var(--badge-delay, 0s) + var(--spark-offset, 0.45s));
+}
+
+/* A mark that declares `sparkle` (only the owner does) glows harder, so the extra twinkles read as light
+   coming off something polished rather than as stray dots next to it. */
+.badge-mark[data-sparkle] svg {
+  filter: drop-shadow(0 0 4px var(--badge-glow)) drop-shadow(0 0 9px var(--badge-glow));
 }
 @keyframes badge-spark {
   0%,

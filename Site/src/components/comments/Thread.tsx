@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { CornerDownRight, EyeOff, Flag, MessageSquare, Pencil, Undo2 } from 'lucide-react';
 import clsx from 'clsx';
 import { Avatar } from '../Avatar';
+import { OwnerMark } from '../Badge';
 import { Modal, ModalDone } from '../Modal';
 import { CommenterBadges } from './CommenterBadge';
 import { StarPicker, Stars } from './Stars';
@@ -229,6 +230,8 @@ function Body({
             <Link href={`/profile/${comment.writer.id}`} className="truncate text-[14px] font-semibold hover:text-accent transition-colors">
               {comment.writer.name}
             </Link>
+            {/* Outside the chip row, the way ProMark sits outside BadgeRow on a listing page. */}
+            {comment.writer.siteOwner && <OwnerMark size={16} seed={comment.writer.id} />}
             <CommenterBadges kinds={badges} />
             <span className="text-[12px] text-ink-3">
               {timeAgo(comment.createdAt)}

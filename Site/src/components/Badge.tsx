@@ -20,6 +20,19 @@ const SEAL = (() => {
 const STAR = 'M20.6 1.4l.55 1.65 1.65.55-1.65.55-.55 1.65-.55-1.65-1.65-.55 1.65-.55z';
 
 /**
+ * Where the extra sparkles sit on a mark that asks for them, and when each one fires.
+ *
+ * Hand-placed rather than random: they ring the seal at uneven distances so the twinkle reads as light
+ * catching an object, and the offsets are deliberately not evenly spaced - three sparks on a shared rhythm
+ * look like a blinking error light rather than something shining.
+ */
+const SPARKLES: { x: number; y: number; scale: number; offset: string }[] = [
+  { x: -17.4, y: 17.2, scale: 0.72, offset: '1.15s' },
+  { x: -1.2, y: 2.4, scale: 0.5, offset: '1.85s' },
+  { x: -19.8, y: 3.6, scale: 0.42, offset: '2.5s' },
+];
+
+/**
  * One badge: a coloured seal that glistens - a light sweep crosses it every few seconds and a small sparkle
  * twinkles. `seed` (e.g. the server id) offsets the timing so a grid of badges doesn't shine in lockstep.
  */
@@ -135,6 +148,21 @@ export function ProMark({ size = 17, seed = '', className, blurb }: { size?: num
   );
 }
 
+/**
+ * The owner's seal, with the same tooltip treatment the badges beside it have.
+ *
+ * Its own component for the same reason `ProMark` is: `Badge` only draws things in BADGES, and this is not
+ * in BADGES on purpose - there is one owner, it is not granted, and the portal must not be able to grant
+ * it. Like ProMark it sits *outside* the badge row, so it never counts towards a row's `max`.
+ */
+export function OwnerMark({ size = 17, seed = '', className }: { size?: number; seed?: string; className?: string }) {
+  return (
+    <Tooltip className={clsx('relative z-10 align-middle', className)} content={<BadgeTip kind="OWNER" seed={seed} />}>
+      <BadgeMark kind="OWNER" size={size} seed={seed} />
+    </Tooltip>
+  );
+}
+
 function BadgeMore({ n, size }: { n: number; size: number }) {
   return (
     <span
@@ -155,6 +183,7 @@ export function BadgeMark({ kind, size, seed = '', className }: { kind: MarkKind
       role="img"
       aria-label={m.long}
       className={clsx('badge-mark relative inline-flex shrink-0 align-middle', className)}
+      data-sparkle={m.sparkle ? '' : undefined}
       style={{ width: size, height: size, '--badge-delay': delay, '--badge-glow': `${m.glow}66` } as CSSProperties}
     >
       <svg viewBox="0 0 24 24" width={size} height={size} overflow="visible" aria-hidden>
@@ -192,6 +221,12 @@ export function BadgeMark({ kind, size, seed = '', className }: { kind: MarkKind
           />
         ))}
         <path className="badge-spark" d={STAR} fill="#fff" />
+        {/* A mark that declares `sparkle` gets that many more, each on its own beat (src/lib/badges.ts). */}
+        {SPARKLES.slice(0, m.sparkle ?? 0).map((s, i) => (
+          <g key={i} transform={`translate(${s.x} ${s.y}) scale(${s.scale})`}>
+            <path className="badge-spark" style={{ '--spark-offset': s.offset } as CSSProperties} d={STAR} fill="#fff" />
+          </g>
+        ))}
       </svg>
     </span>
   );

@@ -5,7 +5,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ArrowUpRight, CalendarDays, ChevronsUp, EyeOff, Link2, MessageSquare, PenLine, Star } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
-import { BadgeRow, ProMark } from '@/components/Badge';
+import { BadgeRow, OwnerMark, ProMark } from '@/components/Badge';
 import { Reveal } from '@/components/Reveal';
 import { Stars } from '@/components/comments/Stars';
 import { UserBadgeRow } from '@/components/UserBadges';
@@ -65,9 +65,9 @@ export default async function ProfilePage({ params }: Props) {
           <div className="min-w-0 flex-1">
             <h1 className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[28px] font-extrabold leading-tight sm:text-[34px]">
               <span className="break-words">{p.name}</span>
-              {/* Owner supersedes the staff chips rather than stacking - see commenterBadges(). */}
+              {/* The owner's seal supersedes the staff chip rather than stacking - see commenterBadges(). */}
               {p.siteOwner ? (
-                <CommenterBadge kind="SITE_OWNER" />
+                <OwnerMark size={26} seed={p.id} />
               ) : p.role === 'ADMIN' ? (
                 <CommenterBadge kind="ADMIN" />
               ) : p.role === 'STAFF' ? (
