@@ -282,6 +282,29 @@ export async function proSet(kind: ListingKind, ids: readonly string[]): Promise
   return out;
 }
 
+/**
+ * Which of these people hold a plan worth honouring, in one query.
+ *
+ * For the small "Pro" chip beside a name in a comment thread, where a page can hold forty different writers
+ * and `hasPlan` per writer would be forty round trips. It answers a question about the *person*, not about
+ * any listing - so unlike `proSet` it ignores assignments entirely, and a plan with every slot pointed
+ * somewhere still counts.
+ *
+ * Here rather than in the thread code because `status` is read in exactly one file on purpose: the moment a
+ * second place decides what "on Pro" means, the two disagree, and the way they disagree is that somebody
+ * paid and didn't get it.
+ */
+export async function proUsers(ids: readonly string[]): Promise<Set<string>> {
+  const wanted = [...new Set(ids)];
+  if (!wanted.length) return new Set();
+  const subs = await db.proSubscription.findMany({
+    where: { userId: { in: wanted }, status: { in: [...LIVE, ...FAILING] } },
+    select: { userId: true, status: true, currentPeriodEnd: true },
+  });
+  const now = Date.now();
+  return new Set(subs.filter((s) => honoured(s, now).ok).map((s) => s.userId));
+}
+
 /** The caps that apply to one listing right now. The forms and the renderers both go through this. */
 export async function limitsOf(kind: ListingKind, listingId: string, ownerId: string | null | undefined): Promise<Limits> {
   return limitsFor(kind, await isPro(kind, listingId, ownerId));

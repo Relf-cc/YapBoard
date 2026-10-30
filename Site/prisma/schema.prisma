@@ -13,45 +13,55 @@ datasource db {
 
 /// A Yapin' account that has logged in. `id` is the Yapin' user id (stable; usernames can change).
 model User {
-  id          String    @id
-  username    String
-  displayName String?
-  avatarUrl   String?
+  id               String    @id
+  username         String
+  displayName      String?
+  avatarUrl        String?
   /// USER | STAFF | ADMIN
-  role        String    @default("USER")
-  bannedAt    DateTime?
-  banReason   String?
+  role             String    @default("USER")
+  bannedAt         DateTime?
+  banReason        String?
   /// The Stripe Customer (cus_…) for this account, made the first time they open checkout.
   /// Stripe's Customer is the ownership boundary billing webhooks resolve to, so this is the one
   /// link between a Stripe event and a YapBoard account (src/lib/stripe.ts).
-  stripeCustomerId String? @unique
-  createdAt   DateTime  @default(now())
-  lastLoginAt DateTime  @default(now())
+  stripeCustomerId String?   @unique
+  /// A line people write about themselves, shown on /profile/<id>. Reportable like anything else here.
+  bio              String?
+  /// One link on their profile. Rendered rel="ugc nofollow", so it buys nobody any ranking anywhere.
+  link             String?
+  /// They'd rather not have a public page. The profile still exists (listings still name their owner);
+  /// what this hides is the aggregate - the counters, the badges, the list of everything they run.
+  profileHidden    Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  lastLoginAt      DateTime  @default(now())
 
-  servers           Server[]
-  reports           Report[]           @relation("reporter")
-  handled           Report[]           @relation("handler")
-  bumps             Bump[]
-  votes             Vote[]
-  auditEntries      AuditLog[]
-  sessions          Session[]
-  bots              BotListing[]
-  botBumps          BotBump[]
-  clients           ClientListing[]
-  clientBumps       ClientBump[]
-  announcements     Announcement[]
-  announcementsSeen AnnouncementSeen[]
-  broadcasts        Broadcast[]
-  botDms            BotDm[]
-  uploads           Upload[]
-  proSubscriptions  ProSubscription[]
-  billingAlerts     BillingAlert[]
-  billingConsents   BillingConsent[]
-  platformMember    PlatformMember?
+  servers                 Server[]
+  reports                 Report[]           @relation("reporter")
+  handled                 Report[]           @relation("handler")
+  bumps                   Bump[]
+  votes                   Vote[]
+  auditEntries            AuditLog[]
+  sessions                Session[]
+  bots                    BotListing[]
+  botBumps                BotBump[]
+  clients                 ClientListing[]
+  clientBumps             ClientBump[]
+  announcements           Announcement[]
+  announcementsSeen       AnnouncementSeen[]
+  broadcasts              Broadcast[]
+  botDms                  BotDm[]
+  uploads                 Upload[]
+  proSubscriptions        ProSubscription[]
+  billingAlerts           BillingAlert[]
+  billingConsents         BillingConsent[]
+  platformMember          PlatformMember?
   platformInvitesSent     PlatformInvite[]   @relation("platformInviter")
   platformInvitesRedeemed PlatformInvite[]   @relation("platformRedeemer")
   manages                 ListingManager[]   @relation("listingManager")
   managersInvited         ListingManager[]   @relation("listingManagerInviter")
+  comments                Comment[]
+  commentsHidden          Comment[]          @relation("commentHider")
+  userBadges              UserBadge[]
 }
 
 /// One logged-in browser. The cookie carries its id (signed); deleting the row logs that browser out.
@@ -67,22 +77,22 @@ model Session {
 
 /// A listed server. `id` is the Yapin' server id.
 model Server {
-  id            String    @id
-  name          String
-  iconUrl       String?
-  bannerUrl     String?
+  id              String    @id
+  name            String
+  iconUrl         String?
+  bannerUrl       String?
   /// One line shown on cards (max 140)
-  summary       String
+  summary         String
   /// Full description shown on /view (max 2000)
-  description   String
-  inviteUrl     String
-  language      String    @default("en")
-  nsfw          Boolean   @default(false)
+  description     String
+  inviteUrl       String
+  language        String    @default("en")
+  nsfw            Boolean   @default(false)
   /// Accent used on the server page (hex)
-  accent        String    @default("#ff6b4a")
+  accent          String    @default("#ff6b4a")
   /// Hero backdrop on the listing page: GLOW | GRID | WAVE | FLAT (src/lib/client-fields.ts THEMES).
   /// Pro only - a free listing keeps the default header, so this is ignored until the listing is covered.
-  theme         String    @default("GLOW")
+  theme           String    @default("GLOW")
   /// The owner's own hero banner. Pro only, and deliberately a separate column from `bannerUrl`: that one
   /// mirrors the Yapin' server's banner and is overwritten on every sync (api/servers/[serverId]/sync), so
   /// sharing it would mean a sync silently wiping the owner's choice. Keeping them apart also makes lapsing
@@ -91,49 +101,64 @@ model Server {
   /// How the banner is framed: the focal point as a percentage of the image, and a zoom factor (1 = fit).
   /// Pro only, and it applies to whichever banner is being drawn, so a Pro owner can reframe the synced one
   /// without uploading anything of their own.
-  bannerX       Float     @default(50)
-  bannerY       Float     @default(50)
-  bannerScale   Float     @default(1)
+  bannerX         Float     @default(50)
+  bannerY         Float     @default(50)
+  bannerScale     Float     @default(1)
   /// Up to 6 https screenshots, as a JSON array of strings (SQLite has no array type). Pro only.
-  screenshots   String?
+  screenshots     String?
   /// Extra buttons beside Join, as a JSON array of {label, url} (src/lib/pro-fields.ts). Pro only.
-  links         String?
+  links           String?
   /// "What's on": the next thing happening in the server. Pro only, and it hides itself once it's over.
-  eventTitle    String?
-  eventAt       DateTime?
-  eventUrl      String?
+  eventTitle      String?
+  eventAt         DateTime?
+  eventUrl        String?
   /// A second language the listing is written in, so it turns up in that language's results too, with its
   /// own summary and description. Pro only. Must differ from `language` (src/lib/servers.ts).
-  altLanguage   String?
-  altSummary    String?
-  altDescription String?
+  altLanguage     String?
+  altSummary      String?
+  altDescription  String?
   /// PUBLIC | UNLISTED (owner hid it) | HIDDEN (staff hid it) | REMOVED
-  status        String    @default("PUBLIC")
-  statusNote    String?
-  memberCount   Int       @default(0)
-  bumpCount     Int       @default(0)
-  bumpedAt      DateTime?
+  status          String    @default("PUBLIC")
+  statusNote      String?
+  memberCount     Int       @default(0)
+  bumpCount       Int       @default(0)
+  bumpedAt        DateTime?
   /// Sort key for "recently bumped": the last bump, moved forward a little by votes since then (src/lib/votes.ts)
-  rankedAt      DateTime?
+  rankedAt        DateTime?
   /// Staff turned voting off for this server
-  votingOff     Boolean   @default(false)
+  votingOff       Boolean   @default(false)
   /// Where /bump was last used, and when. Broadcasts go to this channel (src/lib/broadcasts.ts).
-  bumpChannelId String?
-  bumpChannelAt DateTime?
+  bumpChannelId   String?
+  bumpChannelAt   DateTime?
   /// Nobody here wants YapBoard's announcements: broadcasts skip this server.
-  broadcastsOff Boolean   @default(false)
-  views         Int       @default(0)
-  joins         Int       @default(0)
-  ownerId       String
-  owner         User      @relation(fields: [ownerId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  broadcastsOff   Boolean   @default(false)
+  views           Int       @default(0)
+  joins           Int       @default(0)
+  /// Reviews and replies, kept as counters so a card never counts rows. Only rows that still show are
+  /// counted, so hiding one takes it off the page and out of the average in the same write.
+  /// `ratingSum` over `reviewCount` is the raw mean; nothing shows that - see shownRating in lib/comments.ts.
+  reviewCount     Int       @default(0)
+  ratingSum       Int       @default(0)
+  commentCount    Int       @default(0)
+  /// The engagement score behind the "Active" sort, in log2 space anchored to RANK_EPOCH, so rows written
+  /// months apart still sort correctly against each other with nothing recomputing them. See lib/engagement.ts
+  /// for the whole of why; the short version is that a decayed score is only comparable to another decayed
+  /// score worked out in the same instant, and this one isn't decayed.
+  hotScore        Float     @default(0)
+  /// When hotScore was last rebuilt. For the portal and the nightly sweep to tell a stale row from a quiet
+  /// one - never read to sort anything, and nothing should start to.
+  hotAt           DateTime?
+  ownerId         String
+  owner           User      @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   tags       ServerTag[]
   badges     ServerBadge[]
   managers   ListingManager[]
   bumps      Bump[]
   votes      Vote[]
+  comments   Comment[]
   reports    Report[]
   deliveries BroadcastDelivery[]
   supportFor BotListing[]        @relation("botSupport")
@@ -141,6 +166,7 @@ model Server {
   @@index([status, bumpedAt])
   @@index([status, rankedAt])
   @@index([status, memberCount])
+  @@index([status, hotScore])
   @@index([ownerId])
 }
 
@@ -223,7 +249,7 @@ model Setting {
 
 /// Abuse reports and removal requests, reviewed on portal.yapboard.dev
 model Report {
-  id          String      @id @default(cuid())
+  id          String         @id @default(cuid())
   /// ABUSE | REMOVAL
   kind        String
   /// spam, scam, nsfw, hate, illegal, impersonation, other  |  owner_request, not_owner, outdated, other
@@ -232,25 +258,117 @@ model Report {
   contact     String?
   /// Exactly one of serverId / botId / clientId is set (src/lib/reports.ts).
   serverId    String?
-  server      Server?     @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  server      Server?        @relation(fields: [serverId], references: [id], onDelete: Cascade)
   botId       String?
-  bot         BotListing? @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot         BotListing?    @relation(fields: [botId], references: [id], onDelete: Cascade)
   clientId    String?
   client      ClientListing? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// A report about something somebody wrote, rather than about a listing. The listing column is set too,
+  /// so the queue can still group by board and a staff member can see what it was written under.
+  commentId   String?
+  comment     Comment?       @relation(fields: [commentId], references: [id], onDelete: Cascade)
   reporterId  String?
-  reporter    User?       @relation("reporter", fields: [reporterId], references: [id])
+  reporter    User?          @relation("reporter", fields: [reporterId], references: [id])
   /// OPEN | ACTIONED | DISMISSED
-  status      String      @default("OPEN")
+  status      String         @default("OPEN")
   resolution  String?
   handledById String?
-  handledBy   User?       @relation("handler", fields: [handledById], references: [id])
+  handledBy   User?          @relation("handler", fields: [handledById], references: [id])
   handledAt   DateTime?
-  createdAt   DateTime    @default(now())
+  createdAt   DateTime       @default(now())
 
   @@index([status, kind, createdAt])
   @@index([serverId])
   @@index([botId])
   @@index([clientId])
+  @@index([commentId])
+}
+
+/// One thing somebody wrote under a listing.
+///
+/// A top-level row with a `rating` is a review; a row with a `parentId` is a reply to one. One table
+/// rather than two because they need the same moderation queue, the same report path, the same rate
+/// limits and the same badges - and because the difference between them really is which fields are set.
+///
+/// Exactly one of serverId / botId / clientId is set, the same shape Report and ListingManager use. Real
+/// relations rather than a loose (kind, listingId) pair, because the cascade is exactly right: a listing
+/// that goes takes its conversation with it.
+///
+/// Replies are one level deep on purpose. A thread under a review is a conversation; a tree is a forum,
+/// and a forum is a moderation commitment this board hasn't made.
+model Comment {
+  id         String         @id @default(cuid())
+  serverId   String?
+  server     Server?        @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  botId      String?
+  bot        BotListing?    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  clientId   String?
+  client     ClientListing? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 1-5 on a review. Null on a reply - a reply has no opinion of its own to record.
+  rating     Int?
+  body       String
+  parentId   String?
+  parent     Comment?       @relation("thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[]      @relation("thread")
+  /// "server:<id>", "bot:<id>" or "client:<id>" on a review; null on a reply. Exists only to carry the
+  /// one-review-per-listing rule into a unique index - see the note on it below.
+  reviewKey  String?
+  /// Keyed hash of the writer's network, exactly as Vote.ipHash: enough to see many accounts on one
+  /// connection, useless for anything else.
+  ipHash     String         @default("")
+  /// Set the first time it's changed outside the grace window, so a reader is told rather than a page
+  /// quietly changing under them.
+  editedAt   DateTime?
+  /// Hidden, never deleted - the rule the rest of this schema keeps. `hiddenBy` is the person, `hiddenAs`
+  /// is which power they used: author | owner | staff. An owner may only ever hide replies under their
+  /// own comment; criticism of their listing is not theirs to remove, only to report.
+  hiddenAt   DateTime?
+  hiddenById String?
+  hiddenBy   User?          @relation("commentHider", fields: [hiddenById], references: [id])
+  hiddenAs   String?
+  hiddenNote String?
+  /// Does this row feed the ranking? Decided once, at write time, by the rules in src/lib/engagement.ts,
+  /// so re-ranking never has to judge old rows again - and so a change to the rules is visible as a
+  /// migration rather than as last month's scores quietly meaning something else.
+  counts     Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  reports Report[]
+
+  /// One review per person per listing, enforced by the database rather than by a check-then-insert that
+  /// two clicks can race through.
+  ///
+  /// It has to be a column rather than `@@unique([serverId, userId, parentId])`, because SQL counts two
+  /// NULLs as different: with parentId null on every review, that constraint would permit any number of
+  /// them. So a review carries "kind:listingId" here and a reply carries null - which also gets the second
+  /// half right for free, since null never collides and replies are deliberately uncapped.
+  @@unique([userId, reviewKey])
+  @@index([serverId, hiddenAt, createdAt])
+  @@index([botId, hiddenAt, createdAt])
+  @@index([clientId, hiddenAt, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentId, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+/// A badge on a person rather than on a listing (ServerBadge, BotBadge, ClientBadge are the others, and
+/// this follows their shape so the portal's grant/revoke control works with only its target changed).
+///
+/// Most are earned: a count crosses a line and the badge appears, worked out in src/lib/user-badges.ts
+/// whenever the count changes. A few are staff grants. `kind` is a key of USER_BADGES.
+model UserBadge {
+  userId      String
+  kind        String
+  grantedAt   DateTime @default(now())
+  /// The staff member who granted it, where one did. Null means the person earned it.
+  grantedById String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, kind])
+  @@index([kind])
 }
 
 model AuditLog {
@@ -388,54 +506,62 @@ model BotDm {
 
 /// A listed bot. `id` is the bot's Yapin' user id, the same one people paste into Server settings → Bots.
 model BotListing {
-  id              String    @id
-  name            String
-  avatarUrl       String?
+  id                String    @id
+  name              String
+  avatarUrl         String?
   /// One line shown on cards (max 140)
-  summary         String
+  summary           String
   /// Full description shown on /bots/<id> (max 2000)
-  description     String
+  description       String
   /// Optional "add me" link, for bots that have their own page
-  inviteUrl       String?
+  inviteUrl         String?
   /// Message prefix, if it has one
-  prefix          String?
-  website         String?
+  prefix            String?
+  website           String?
   /// What it's written with, free text (e.g. "yapper.js")
-  library         String?
-  language        String    @default("en")
-  nsfw            Boolean   @default(false)
-  accent          String    @default("#ff6b4a")
+  library           String?
+  language          String    @default("en")
+  nsfw              Boolean   @default(false)
+  accent            String    @default("#ff6b4a")
   /// PENDING | PUBLIC | UNLISTED | DENIED | HIDDEN | REMOVED. New listings wait for staff (lib/bots.ts).
-  status          String    @default("PENDING")
+  status            String    @default("PENDING")
   /// Why staff denied, hid or removed it. Shown to the lister on their manage page.
-  statusNote      String?
+  statusNote        String?
   /// Did the lister ask for unlisted? Remembered so approving sends it where they wanted.
-  requestedUnlisted Boolean @default(false)
+  requestedUnlisted Boolean   @default(false)
   /// Set when staff approved it, so the queue can show how long a decision took.
-  reviewedAt      DateTime?
-  reviewedById    String?
-  serverCount     Int       @default(0)
-  views           Int       @default(0)
+  reviewedAt        DateTime?
+  reviewedById      String?
+  serverCount       Int       @default(0)
+  views             Int       @default(0)
   /// Clicks on "Add to your server"
-  adds            Int       @default(0)
-  bumpCount       Int       @default(0)
-  bumpedAt        DateTime?
+  adds              Int       @default(0)
+  bumpCount         Int       @default(0)
+  bumpedAt          DateTime?
+  /// As on Server.
+  reviewCount       Int       @default(0)
+  ratingSum         Int       @default(0)
+  commentCount      Int       @default(0)
+  hotScore          Float     @default(0)
+  hotAt             DateTime?
   /// The bot's support server. Set from a Yapin' server its lister manages; linked when that server is listed here.
-  supportServerId String?
-  supportServer   Server?   @relation("botSupport", fields: [supportServerId], references: [id], onDelete: SetNull)
-  ownerId         String
-  owner           User      @relation(fields: [ownerId], references: [id])
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  supportServerId   String?
+  supportServer     Server?   @relation("botSupport", fields: [supportServerId], references: [id], onDelete: SetNull)
+  ownerId           String
+  owner             User      @relation(fields: [ownerId], references: [id])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   tags     BotTag[]
   badges   BotBadge[]
   bumps    BotBump[]
+  comments Comment[]
   reports  Report[]
   managers ListingManager[]
 
   @@index([status, bumpedAt])
   @@index([status, serverCount])
+  @@index([status, hotScore])
   /// The review queue: oldest PENDING first.
   @@index([status, createdAt])
   @@index([ownerId])
@@ -511,17 +637,17 @@ model ClientListing {
   theme       String  @default("GLOW")
 
   /// GITHUB (downloads come from releases/latest) | MANUAL (the lister keeps the links themselves)
-  releaseSource String @default("GITHUB")
+  releaseSource   String    @default("GITHUB")
   /// "owner/repo" when releaseSource is GITHUB. Releases are read from it; nothing is ever written back.
-  repo          String?
+  repo            String?
   /// The tag of the release currently shown, e.g. "v1.4.2".
-  version       String?
+  version         String?
   /// The release's own title, when it has one that isn't just the tag.
-  releaseName   String?
+  releaseName     String?
   /// The release notes, shown as the changelog. Markdown-ish, rendered as plain text with links.
-  changelog     String?
-  releaseUrl    String?
-  releasedAt    DateTime?
+  changelog       String?
+  releaseUrl      String?
+  releasedAt      DateTime?
   /// When the release was last read from GitHub, and what went wrong if it couldn't be.
   releaseSyncedAt DateTime?
   releaseError    String?
@@ -535,11 +661,17 @@ model ClientListing {
   /// When the lister accepted the YapBoard client terms and Yapin's terms in the dialog before submitting.
   termsAgreedAt     DateTime?
 
-  views     Int       @default(0)
+  views        Int       @default(0)
   /// Clicks on a download button, across every file.
-  downloads Int       @default(0)
-  bumpCount Int       @default(0)
-  bumpedAt  DateTime?
+  downloads    Int       @default(0)
+  bumpCount    Int       @default(0)
+  bumpedAt     DateTime?
+  /// As on Server.
+  reviewCount  Int       @default(0)
+  ratingSum    Int       @default(0)
+  commentCount Int       @default(0)
+  hotScore     Float     @default(0)
+  hotAt        DateTime?
 
   /// The client's support or community server, as a Yapin' server id the lister runs.
   supportServerId String?
@@ -551,12 +683,14 @@ model ClientListing {
   tags     ClientTag[]
   badges   ClientBadge[]
   managers ListingManager[]
-  bumps   ClientBump[]
-  files   ClientDownload[]
-  reports Report[]
+  bumps    ClientBump[]
+  comments Comment[]
+  files    ClientDownload[]
+  reports  Report[]
 
   @@index([status, bumpedAt])
   @@index([status, downloads])
+  @@index([status, hotScore])
   /// The review queue: oldest PENDING first.
   @@index([status, createdAt])
   @@index([ownerId])
@@ -654,7 +788,6 @@ model Upload {
 
 /**
  * ---------------- YapBoard Pro billing (src/lib/stripe.ts, src/lib/pro.ts) ----------------
- *
  * Stripe holds the truth about money; these tables hold only what the site needs to answer
  * "is this listing on Pro?" without calling Stripe on every page view. Everything here is
  * written by the webhook (src/app/api/stripe/webhook/route.ts), never by a page.
@@ -688,7 +821,7 @@ model ProSubscription {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  assignments      ProAssignment[]
+  assignments ProAssignment[]
 
   @@index([userId, status])
   @@index([currentPeriodEnd])
@@ -724,12 +857,10 @@ model ProAssignment {
 /// the same event twice, so the handler claims an id here first and does nothing if it's taken.
 /**
  * Somebody besides the owner who may edit a listing.
- *
  * A YapBoard Pro perk, and the answer to the support ticket that starts "the person who listed our server
  * has left". A co-manager can edit the listing and bump it. They deliberately cannot delete it, cannot add
  * or remove other managers, and cannot touch billing - those stay with the owner, because a co-manager is
  * help with the listing, not a claim on it.
- *
  * Exactly one of serverId / botId / clientId is set, the same shape Report uses. Real relations rather than
  * the loose (kind, listingId) pair ProAssignment carries, because every permission check needs to load
  * these alongside the listing, and a cascade delete is exactly the behaviour wanted when a listing goes.
@@ -757,12 +888,10 @@ model ListingManager {
 
 /**
  * A record that somebody agreed to give up their statutory cancellation right before being charged.
- *
  * Written the moment the Checkout Session is created, not when the webhook lands, because the point of
  * it is evidence: if a buyer in the EEA later asks for the 14 days back, this is what says they asked for
  * the plan to start immediately, which wording was on screen when they did, and where we believed they
  * were. The same values ride along in the Stripe subscription's metadata, so the record exists twice.
- *
  * Kept even after a plan ends, and after the account is deleted, for as long as the sale record itself.
  */
 model BillingConsent {
@@ -821,11 +950,9 @@ model BillingAlert {
 
 /**
  * ---------------- Developer platform (src/lib/platform.ts) ----------------
- *
  * platform.yapboard.dev, an invite-only program: a Yapin' bot developer we've admitted can put YapBoard's
  * commands (`/bump`, listing lookups, search) inside their own bot, by calling the partner API with a key
  * they mint there.
- *
  * Invite-only because these calls act on other people's listings, so the bot sending them has to be one we
  * can name and turn off. Three rows carry that: the invite staff wrote, the member it admitted, and the app
  * (one bot) whose keys the API checks.
@@ -864,20 +991,20 @@ model PlatformInvite {
 /// A developer who has been admitted. Without a row here, platform.yapboard.dev shows the invite wall -
 /// that is the whole of "invite only".
 model PlatformMember {
-  userId     String    @id
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String          @id
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// ACTIVE | SUSPENDED. Suspended keeps everything but stops every key at the door.
-  status     String    @default("ACTIVE")
+  status     String          @default("ACTIVE")
   /// Why staff suspended them. Shown to the developer on their overview.
   statusNote String?
   /// How many apps they may register. Raised per member in the portal.
-  appLimit   Int       @default(2)
+  appLimit   Int             @default(2)
   /// The scopes staff allow them, as a JSON array of SCOPE keys. An app can only ask for these.
-  scopes     String    @default("[]")
+  scopes     String          @default("[]")
   /// The invite this came from. Null for members added straight from the portal.
   inviteId   String?         @unique
   invite     PlatformInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
-  joinedAt   DateTime  @default(now())
+  joinedAt   DateTime        @default(now())
 
   apps PlatformApp[]
 
@@ -887,27 +1014,27 @@ model PlatformMember {
 /// One bot putting YapBoard's commands in front of its own users. `botId` is the bot's Yapin' user id, so a
 /// bump made through the API can be traced back to the bot that sent it.
 model PlatformApp {
-  id         String  @id @default(cuid())
+  id         String         @id @default(cuid())
   /// The bot's Yapin' user id. One app per bot, across the whole program.
-  botId      String  @unique
+  botId      String         @unique
   name       String
   /// One line about what it does with the commands, for staff reviewing the program.
-  summary    String  @default("")
+  summary    String         @default("")
   /// Where to reach the developer about this app (a support server invite, an issue tracker).
   contactUrl String?
   /// What it may call, as a JSON array of SCOPE keys. Always a subset of the member's own scopes.
-  scopes     String  @default("[]")
+  scopes     String         @default("[]")
   /// ACTIVE | PAUSED (the developer stopped it) | SUSPENDED (staff did) | REVOKED (gone for good)
-  status     String  @default("ACTIVE")
+  status     String         @default("ACTIVE")
   statusNote String?
   /// Totals, so the overview doesn't have to add up PlatformUsage on every page view.
-  calls      Int     @default(0)
-  errors     Int     @default(0)
+  calls      Int            @default(0)
+  errors     Int            @default(0)
   lastCallAt DateTime?
   ownerId    String
   owner      PlatformMember @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   keys     PlatformKey[]
   usage    PlatformUsage[]
@@ -920,19 +1047,19 @@ model PlatformApp {
 /// One API key for one app. Only the hash is kept, so a key shown once can never be shown again - the
 /// developer mints a new one and revokes the old, which is also how rotation works.
 model PlatformKey {
-  id         String    @id @default(cuid())
+  id         String      @id @default(cuid())
   appId      String
   app        PlatformApp @relation(fields: [appId], references: [id], onDelete: Cascade)
   /// What it's for, in the developer's words ("prod", "my laptop").
-  label      String    @default("")
+  label      String      @default("")
   /// The first few characters, so a key can be told apart in the list: ybp_AbC12345…
   prefix     String
   /// sha256 of the whole key. Unique, so two keys can never collide.
-  hash       String    @unique
+  hash       String      @unique
   lastUsedAt DateTime?
   /// Revoked keys stay: a request that arrives with one should read as "revoked", not "never existed".
   revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime    @default(now())
 
   @@index([appId, createdAt])
 }
@@ -940,22 +1067,22 @@ model PlatformKey {
 /// One app's calls to one endpoint on one UTC day. Written by the API (src/lib/platform.ts), read by the
 /// developer's app page and the portal. Counts only - no request bodies, nothing about who typed the command.
 model PlatformUsage {
-  id       Int      @id @default(autoincrement())
+  id       Int         @id @default(autoincrement())
   appId    String
   app      PlatformApp @relation(fields: [appId], references: [id], onDelete: Cascade)
   /// Midnight UTC of the day being counted.
   day      DateTime
   /// The endpoint key: bump | listing | search | bots (src/lib/platform.ts ENDPOINTS).
   endpoint String
-  calls    Int      @default(0)
+  calls    Int         @default(0)
   /// Calls that answered 4xx or 5xx. A key that only errors is usually a broken integration, not abuse.
-  errors   Int      @default(0)
+  errors   Int         @default(0)
   /// Calls that answered 200 with `ok: false` — a cooldown, an unlisted server, the wrong server. Not
   /// failures: a bot whose bumps are mostly refused is working correctly and asking too often.
-  refused  Int      @default(0)
+  refused  Int         @default(0)
   /// Total handler time in milliseconds, so the average is msTotal/calls. Sum rather than average because
   /// sums add up across days and endpoints and averages don't.
-  msTotal  Int      @default(0)
+  msTotal  Int         @default(0)
 
   @@unique([appId, day, endpoint])
   @@index([appId, day])

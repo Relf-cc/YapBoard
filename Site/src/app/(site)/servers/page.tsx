@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, SearchX, X } from 'lucide-react';
 import clsx from 'clsx';
 import { AD_MIN_RESULTS, parseSearch, search, searchHref, SIZES, SORTS, type SearchParams } from '@/lib/search';
 import { LANGUAGES, languageName } from '@/lib/languages';
+import { getRankingConfig } from '@/lib/engagement';
 import { hasPlan } from '@/lib/pro';
 import { getUser } from '@/lib/session';
 import { ServerGrid } from '@/components/ServerGrid';
@@ -26,7 +27,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function Browse({ searchParams }: Props) {
   const p = parseSearch(await searchParams);
-  const [res, user] = await Promise.all([search(p), getUser()]);
+  const [res, user, cfg] = await Promise.all([search(p), getUser(), getRankingConfig()]);
+  // Offering a sort that is switched off would be a menu item that silently does something else.
+  const ranking = cfg.enabled && cfg.affectsRanking;
   const page = Math.min(p.page, res.pages);
   const filtered = p.q || p.tags.length || p.lang || p.size !== 'any' || p.nsfw || p.verified;
   const title = p.q ? `Results for “${p.q}”` : p.tags.length ? p.tags.map((t) => `#${t}`).join(' + ') : 'All servers';
@@ -96,7 +99,8 @@ export default async function Browse({ searchParams }: Props) {
                 {res.loose && ' matching some of your words'}
               </p>
             </div>
-            <SortSelect value={p.sort} options={Object.entries(SORTS).filter(([k]) => k !== 'relevance' || p.q)} />
+            {/* "Best match" needs a query to mean anything; "Active" needs the ranking to be switched on. */}
+            <SortSelect value={p.sort} options={Object.entries(SORTS).filter(([k]) => (k !== 'relevance' || !!p.q) && (k !== 'hot' || ranking))} />
           </div>
 
           {filtered && (

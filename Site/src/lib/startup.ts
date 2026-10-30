@@ -51,3 +51,29 @@ export async function resetUngrantedRoles() {
     console.log(`[roles] @${u.username} (${u.id}): ${u.role} -> ${granted} (not in STAFF_IDS, not granted in the portal)`);
   }
 }
+
+/**
+ * The nightly rebuild of every engagement score, plus one on start.
+ *
+ * It exists as a backstop rather than as the thing that keeps the ranking alive: `hotScore` is anchored to
+ * a fixed epoch and never decayed in storage, so the ordering stays correct between rebuilds on its own
+ * (src/lib/engagement.ts). What this catches is drift - a call site somebody forgot, a plan that lapsed
+ * quietly, a cap that now bites differently after a settings change. Any of those is gone by morning.
+ *
+ * That a full rebuild is both affordable and always safe is the property worth keeping. It is what makes
+ * the incremental paths safe to be occasionally wrong.
+ */
+export function startRankingSweep() {
+  const DAY = 24 * 60 * 60_000;
+  const run = async () => {
+    const { refreshAllHot } = await import('./engagement');
+    const { listings } = await refreshAllHot();
+    if (listings) console.log(`[ranking] rebuilt ${listings} score${listings === 1 ? '' : 's'}`);
+  };
+  // Once now, so a listing added while the process was down is scored, then once a day.
+  void run().catch((e) => console.error('[ranking] rebuild failed', e));
+  const timer = setInterval(() => void run().catch((e) => console.error('[ranking] rebuild failed', e)), DAY);
+  // Never hold the process open for it.
+  timer.unref?.();
+  return timer;
+}

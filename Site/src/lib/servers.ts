@@ -12,6 +12,8 @@ import { limitsFor, MAX_BANNER_SCALE, MAX_LINK_LABEL, MIN_BANNER_SCALE, readLink
 import { proSet } from './pro';
 import { imageUrlSchema, isUploadPath } from './upload-fields';
 import { canManage } from './manage';
+import { refreshHotQuietly } from './engagement';
+import { syncUserBadgesQuietly } from './profiles';
 
 export const BUMP_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
@@ -295,6 +297,9 @@ export async function bumpServer(serverId: string, userId: string, source: 'bot'
     return tx.server.findUnique({ where: { id: serverId }, select: { bumpCount: true } });
   });
   if (!updated) return { ok: false, reason: 'cooldown' };
+  // Both are nice-to-haves hanging off a bump that has already landed, so neither is allowed to fail it.
+  void refreshHotQuietly('server', serverId);
+  void syncUserBadgesQuietly(userId);
   return { ok: true, bumpCount: updated.bumpCount, nextAt: new Date(now + BUMP_COOLDOWN_MS).toISOString() };
 }
 

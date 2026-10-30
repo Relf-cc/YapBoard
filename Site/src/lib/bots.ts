@@ -5,6 +5,8 @@ import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { sortBadges, type BadgeKind } from './badges';
 import { db } from './db';
+import { getRankingConfig, refreshHotQuietly } from './engagement';
+import { syncUserBadgesQuietly } from './profiles';
 import { LANGUAGES } from './languages';
 import { normalizeTags } from './tags';
 import { limitsFor, type Limits } from './pro-fields';
@@ -149,12 +151,14 @@ export async function bumpBot(botId: string, userId: string, appId?: string | nu
     return tx.botListing.findUnique({ where: { id: botId }, select: { bumpCount: true } });
   });
   if (!updated) return { ok: false, reason: 'cooldown' };
+  void refreshHotQuietly('bot', botId);
+  void syncUserBadgesQuietly(userId);
   return { ok: true, bumpCount: updated.bumpCount, nextAt: new Date(now + BOT_BUMP_COOLDOWN_MS).toISOString() };
 }
 
 /* ---------------- browsing ---------------- */
 
-export const BOT_SORTS = { bumped: 'Recently bumped', servers: 'Most servers', new: 'Newest', name: 'A to Z' } as const;
+export const BOT_SORTS = { hot: 'Active', bumped: 'Recently bumped', servers: 'Most servers', new: 'Newest', name: 'A to Z' } as const;
 export type BotSort = keyof typeof BOT_SORTS;
 
 export const BOTS_PAGE_SIZE = 24;
@@ -169,7 +173,7 @@ export function parseBotSearch(raw: Record<string, string | string[] | undefined
   return {
     q: firstOf(raw.q).trim().slice(0, 100),
     tags: [...new Set(tagParam.map((t) => t.toLowerCase().trim()).filter(Boolean))].slice(0, 5),
-    sort: sort in BOT_SORTS ? sort : 'bumped',
+    sort: sort in BOT_SORTS ? sort : 'hot',
     nsfw: firstOf(raw.nsfw) === '1',
     verified: firstOf(raw.verified) === '1',
     page: Math.min(200, Math.max(1, parseInt(firstOf(raw.page), 10) || 1)),
@@ -180,7 +184,7 @@ export function botSearchHref(p: Partial<BotSearchParams>) {
   const u = new URLSearchParams();
   if (p.q) u.set('q', p.q);
   for (const t of p.tags ?? []) u.append('tag', t);
-  if (p.sort && p.sort !== 'bumped') u.set('sort', p.sort);
+  if (p.sort && p.sort !== 'hot') u.set('sort', p.sort);
   if (p.nsfw) u.set('nsfw', '1');
   if (p.verified) u.set('verified', '1');
   if (p.page && p.page > 1) u.set('page', String(p.page));
@@ -189,6 +193,8 @@ export function botSearchHref(p: Partial<BotSearchParams>) {
 }
 
 const botOrderBy: Record<BotSort, Prisma.BotListingOrderByWithRelationInput[]> = {
+  // Epoch-anchored, so a plain ORDER BY stays correct with nothing refreshing it (src/lib/engagement.ts).
+  hot: [{ hotScore: 'desc' }, { bumpedAt: { sort: 'desc', nulls: 'last' } }],
   bumped: [{ bumpedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   servers: [{ serverCount: 'desc' }, { bumpedAt: { sort: 'desc', nulls: 'last' } }],
   new: [{ createdAt: 'desc' }],
@@ -213,7 +219,7 @@ export async function searchBots(p: BotSearchParams) {
   const rows = await db.botListing.findMany({
     where,
     select: botCardSelect,
-    orderBy: botOrderBy[p.sort],
+    orderBy: await botOrder(p.sort),
     skip: (page - 1) * BOTS_PAGE_SIZE,
     take: BOTS_PAGE_SIZE,
   });
@@ -236,4 +242,17 @@ export async function searchBots(p: BotSearchParams) {
     page,
     facets: grouped.map((g) => ({ name: nameById.get(g.tagId) ?? '', count: g._count.tagId })).filter((f) => f.name),
   };
+}
+
+/**
+ * Which ordering to actually use for "Active".
+ *
+ * `affectsRanking: false` is how the ranking ships (src/lib/engagement.ts), so until somebody turns it on
+ * this serves "recently bumped" instead. The URL keeps working either way, which matters because links to
+ * a sorted board get shared.
+ */
+async function botOrder(sort: BotSort): Promise<Prisma.BotListingOrderByWithRelationInput[]> {
+  if (sort !== 'hot') return botOrderBy[sort];
+  const cfg = await getRankingConfig();
+  return cfg.enabled && cfg.affectsRanking ? botOrderBy.hot : botOrderBy.bumped;
 }

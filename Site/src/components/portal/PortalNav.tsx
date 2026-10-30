@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { AppWindow, ArrowBigUp, ArrowUpRight, Bot, Flag, Gauge, Megaphone, Puzzle, Radio, ScrollText, Server, Trash, Users } from 'lucide-react';
+import { AppWindow, ArrowBigUp, ArrowUpRight, Bot, Flag, Flame, Gauge, Megaphone, Puzzle, Radio, ScrollText, Server, Trash, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { Logo } from '../Logo';
 import { Avatar } from '../Avatar';
@@ -30,6 +30,7 @@ export function PortalNav({ base, siteUrl, counts, user }: Props) {
     { href: '/clients', label: 'Clients', icon: AppWindow, count: counts.pendingClients },
     { href: '/users', label: 'Users', icon: Users },
     { href: '/voting', label: 'Voting', icon: ArrowBigUp },
+    { href: '/ranking', label: 'Ranking', icon: Flame },
     { href: '/announcements', label: 'Announcements', icon: Megaphone },
     { href: '/broadcasts', label: 'Broadcasts', icon: Radio },
     { href: '/platform', label: 'Developer platform', icon: Puzzle },

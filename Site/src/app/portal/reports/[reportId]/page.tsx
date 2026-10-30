@@ -9,6 +9,7 @@ import { env } from '@/lib/env';
 import { portalBase, requireStaffPage } from '@/lib/portal';
 import { timeAgo } from '@/lib/format';
 import { reasonLabel, reportTarget } from '@/lib/reports';
+import { CommentActions } from '@/components/portal/CommentActions';
 import { Avatar } from '@/components/Avatar';
 import { BadgeRow } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
@@ -31,6 +32,8 @@ export default async function ReportDetail({ params }: { params: Promise<{ repor
       server: { include: { owner, tags: { include: { tag: true } }, badges: { select: { kind: true } } } },
       bot: { include: { owner, tags: { include: { tag: true } }, badges: { select: { kind: true } } } },
       client: { include: { owner, tags: { include: { tag: true } }, badges: { select: { kind: true } } } },
+      // A report about something somebody wrote carries the listing too, so everything below still works.
+      comment: { include: { user: { select: { id: true, username: true, displayName: true, avatarUrl: true, createdAt: true } }, parent: { select: { body: true } } } },
     },
   });
   if (!r) notFound();
@@ -81,6 +84,43 @@ export default async function ReportDetail({ params }: { params: Promise<{ repor
               )}
             </div>
           </section>
+
+          {/* what was written, when the report is about a comment rather than the listing itself */}
+          {r.comment && (
+            <section className="card p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-bold">
+                  The {r.comment.rating === null ? 'reply' : 'review'} that was reported
+                  {r.comment.hiddenAt && <span className="ml-2 font-normal text-ink-3">- hidden {r.comment.hiddenAs ? `by the ${r.comment.hiddenAs}` : ''}</span>}
+                </h2>
+                <CommentActions commentId={r.comment.id} hidden={!!r.comment.hiddenAt} />
+              </div>
+
+              {r.comment.parent && (
+                <p className="mt-4 border-l-2 border-line pl-3 text-[13px] italic leading-relaxed text-ink-3 line-clamp-3">
+                  Under: {r.comment.parent.body}
+                </p>
+              )}
+
+              <div className="mt-4 flex items-start gap-3">
+                <Avatar src={r.comment.user.avatarUrl} name={r.comment.user.displayName || r.comment.user.username} id={r.comment.user.id} size={36} round />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 text-[13px]">
+                    <Link href={`${base}/users?q=${r.comment.user.id}`} className="font-semibold hover:text-accent">
+                      @{r.comment.user.username}
+                    </Link>
+                    <span className="text-ink-3">account since {r.comment.user.createdAt.toLocaleDateString('en-GB')}</span>
+                    {r.comment.rating !== null && <span className="text-warn">{'★'.repeat(r.comment.rating)}</span>}
+                    {!r.comment.counts && <span className="text-ink-3">· earns nothing in the ranking</span>}
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap break-words rounded-xl border border-line bg-raised p-4 text-[14px] leading-relaxed text-ink-2">
+                    {r.comment.body}
+                  </p>
+                  {r.comment.hiddenNote && <p className="mt-2 text-[12.5px] text-ink-3">Hidden with the note: {r.comment.hiddenNote}</p>}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* the listing */}
           <section className="card p-6">

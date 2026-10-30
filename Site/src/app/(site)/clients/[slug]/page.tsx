@@ -39,6 +39,7 @@ import { Reveal } from '@/components/Reveal';
 import { SupportBanner, SupportNoReport } from '@/components/SupportFlair';
 import { TagChip } from '@/components/TagChip';
 import { Description } from '@/components/view/Description';
+import { Reviews } from '@/components/comments/Reviews';
 import { ReportButton } from '@/components/view/ReportButton';
 import { ShareButton } from '@/components/view/ShareButton';
 
@@ -269,6 +270,10 @@ export default async function ViewClient({ params }: Props) {
                 </section>
               </Reveal>
             )}
+
+            <Reveal delay={0.16}>
+              <Reviews kind="client" listing={c} accent={c.accent} />
+            </Reveal>
           </div>
 
           {/* sidebar */}

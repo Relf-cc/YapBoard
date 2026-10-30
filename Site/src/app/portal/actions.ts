@@ -16,6 +16,9 @@ import { newInviteCode, readScopes, writeScopes } from '@/lib/platform';
 import { getUser, isAdmin, isStaff } from '@/lib/session';
 import { RELEASE_ERRORS } from '@/lib/github';
 import { getVotingConfig, refreshAllRanks, refreshRank, refreshRanksForUser, saveVotingConfig, votingSchema, type VotingConfig } from '@/lib/votes';
+import { commentsSchema, getCommentsConfig, hideComment, saveCommentsConfig, unhideComment, type CommentsConfig } from '@/lib/comments';
+import { getRankingConfig, rankingSchema, refreshAllHot, saveRankingConfig, type RankingConfig } from '@/lib/engagement';
+import { isUserBadge, USER_BADGES } from '@/lib/user-badges';
 
 type Result = { ok: true; message: string } | { ok: false; error: string };
 
@@ -294,7 +297,141 @@ export async function setServerVoting(input: z.input<typeof serverVoting>): Prom
   return done(off ? 'Voting is off for this server' : 'Voting is back on for this server');
 }
 
+/* ---------------- ranking (lib/engagement.ts) ---------------- */
+
+/**
+ * A change to any of these re-ranks the whole board, so each one ends in `refreshAllHot`.
+ *
+ * That is affordable precisely because `hotScore` is epoch-anchored rather than decayed - a rebuild is a
+ * pure function of the rows, with no "as of when" to get wrong, so running it is always safe and never
+ * urgent. See src/lib/engagement.ts.
+ */
+export async function setRankingEnabled(enabled: boolean): Promise<Result> {
+  const me = await staff();
+  if (typeof enabled !== 'boolean') return { ok: false, error: 'Bad input' };
+  const next = { ...(await getRankingConfig()), enabled };
+  await saveRankingConfig(next);
+  await refreshAllHot(next);
+  await log(me.id, enabled ? 'ranking.resume' : 'ranking.pause', 'setting', 'ranking', null);
+  revalidatePath('/', 'layout');
+  return done(enabled ? 'The Active ranking is on' : 'The Active ranking is off, and every score is back to zero');
+}
+
+/** The watch-only switch on its own, since it is the one staff will reach for most. */
+export async function setRankingAffects(affects: boolean): Promise<Result> {
+  const me = await staff();
+  if (typeof affects !== 'boolean') return { ok: false, error: 'Bad input' };
+  const next = { ...(await getRankingConfig()), affectsRanking: affects };
+  await saveRankingConfig(next);
+  await log(me.id, affects ? 'ranking.live' : 'ranking.watch', 'setting', 'ranking', null);
+  revalidatePath('/', 'layout');
+  return done(affects ? 'Active now sorts the boards' : 'Scores are still worked out, but sort nothing');
+}
+
+export async function saveRankingSettings(input: RankingConfig): Promise<Result> {
+  const me = await staff();
+  if (!isAdmin(me)) return { ok: false, error: 'Admins only' };
+  const parsed = rankingSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'Check the numbers: one is out of range' };
+  const before = await getRankingConfig();
+  await saveRankingConfig(parsed.data);
+  const { listings } = await refreshAllHot(parsed.data);
+  const note = (Object.keys(parsed.data) as (keyof RankingConfig)[])
+    .filter((k) => k !== 'weights' && before[k] !== parsed.data[k])
+    .map((k) => `${k} ${before[k]} -> ${parsed.data[k]}`)
+    .join(', ');
+  await log(me.id, 'ranking.settings', 'setting', 'ranking', note || 'weights');
+  revalidatePath('/', 'layout');
+  return done(`Saved. ${listings} listings re-ranked.`);
+}
+
+/** The nightly rebuild, by hand. Safe at any time and from any state - that is the whole design. */
+export async function rebuildRanking(): Promise<Result> {
+  const me = await staff();
+  const { listings } = await refreshAllHot();
+  await log(me.id, 'ranking.rebuild', 'setting', 'ranking', `${listings} listings`);
+  revalidatePath('/', 'layout');
+  return done(`${listings} listings re-ranked`);
+}
+
+/* ---------------- comments (lib/comments.ts) ---------------- */
+
+export async function setCommentsEnabled(enabled: boolean): Promise<Result> {
+  const me = await staff();
+  if (typeof enabled !== 'boolean') return { ok: false, error: 'Bad input' };
+  await saveCommentsConfig({ ...(await getCommentsConfig()), enabled });
+  await log(me.id, enabled ? 'comments.resume' : 'comments.pause', 'setting', 'comments', null);
+  revalidatePath('/', 'layout');
+  return done(enabled ? 'Reviews are on' : 'Reviews are paused and the section is hidden');
+}
+
+export async function saveCommentSettings(input: CommentsConfig): Promise<Result> {
+  const me = await staff();
+  if (!isAdmin(me)) return { ok: false, error: 'Admins only' };
+  const parsed = commentsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'Check the numbers: one is out of range' };
+  const before = await getCommentsConfig();
+  await saveCommentsConfig(parsed.data);
+  const note = (Object.keys(parsed.data) as (keyof CommentsConfig)[])
+    .filter((k) => before[k] !== parsed.data[k])
+    .map((k) => `${k} ${before[k]} -> ${parsed.data[k]}`)
+    .join(', ');
+  await log(me.id, 'comments.settings', 'setting', 'comments', note || null);
+  revalidatePath('/', 'layout');
+  return done('Review settings saved');
+}
+
+const commentTarget = z.object({ commentId: z.string().min(1).max(64), note });
+
+/**
+ * Hide or restore something somebody wrote, as staff.
+ *
+ * Staff are the only people who can take down a review of a listing, and every one of these leaves an audit
+ * entry - which is the other half of the promise that an owner cannot buy silence (src/lib/comments.ts).
+ */
+export async function hideCommentAsStaff(input: z.input<typeof commentTarget>): Promise<Result> {
+  const me = await staff();
+  const parsed = commentTarget.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'Bad input' };
+  const r = await hideComment(parsed.data.commentId, me, parsed.data.note);
+  if (!r.ok) return { ok: false, error: r.error };
+  await log(me.id, 'comment.hide', 'comment', parsed.data.commentId, parsed.data.note);
+  return done('Hidden. The row is kept, so this is reversible.');
+}
+
+export async function restoreComment(commentId: string): Promise<Result> {
+  const me = await staff();
+  if (typeof commentId !== 'string' || !commentId) return { ok: false, error: 'Bad input' };
+  const r = await unhideComment(commentId, me);
+  if (!r.ok) return { ok: false, error: r.error };
+  await log(me.id, 'comment.restore', 'comment', commentId, null);
+  return done('Put back');
+}
+
+/* ---------------- user badges (lib/user-badges.ts) ---------------- */
+
+const userBadgeSchema = z.object({ userId: z.string().min(1).max(100), kind: z.string().refine(isUserBadge, 'Unknown badge') });
+
+/**
+ * Grant or take back a badge on a person.
+ *
+ * Earned badges are granted automatically and never taken back by a count falling (see `syncUserBadges`),
+ * so removing one here is always a decision somebody made rather than a side effect of moderation.
+ */
+export async function toggleUserBadge(input: z.input<typeof userBadgeSchema>): Promise<Result> {
+  const me = await staff();
+  const parsed = userBadgeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'Bad input' };
+  const { userId, kind } = parsed.data;
+  const had = await db.userBadge.findUnique({ where: { userId_kind: { userId, kind } }, select: { kind: true } });
+  if (had) await db.userBadge.delete({ where: { userId_kind: { userId, kind } } });
+  else await db.userBadge.create({ data: { userId, kind, grantedById: me.id } });
+  await log(me.id, had ? 'userbadge.revoke' : 'userbadge.grant', 'user', userId, USER_BADGES[kind].label);
+  return done(had ? `${USER_BADGES[kind].label} removed` : `${USER_BADGES[kind].label} granted`);
+}
+
 /* ---------------- bot listings (lib/bots.ts) ---------------- */
+
 
 const botSchema = z.object({ botId: z.string().min(1), action: z.enum(['hide', 'remove', 'restore']), note });
 

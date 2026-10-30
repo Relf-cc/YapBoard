@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { db } from './db';
 import { env } from './env';
+import { refreshHotQuietly } from './engagement';
 import { BUMP_COOLDOWN_MS } from './servers';
 
 /**
@@ -170,5 +171,6 @@ export async function castVote(serverId: string, userId: string, ip: string): Pr
 
   await db.vote.create({ data: { serverId, userId, ipHash: net } });
   await refreshRank(serverId, cfg);
+  void refreshHotQuietly('server', serverId);
   return { ok: true, votes: await recentVotes(serverId), nextAt: new Date(now + cfg.cooldownHours * 3_600_000).toISOString() };
 }

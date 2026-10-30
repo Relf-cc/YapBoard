@@ -7,6 +7,7 @@ import clsx from 'clsx';
 import { BOT_SORTS, botSearchHref, parseBotSearch, searchBots, type BotSearchParams } from '@/lib/bots';
 import { BotGrid } from '@/components/BotGrid';
 import { SortSelect } from '@/components/browse/Selects';
+import { getRankingConfig } from '@/lib/engagement';
 import { FilterPanel } from '@/components/browse/FilterPanel';
 import { Badge } from '@/components/Badge';
 import { GlyphScatter } from '@/components/Glyphs';
@@ -22,7 +23,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function BrowseBots({ searchParams }: Props) {
   const p = parseBotSearch(await searchParams);
-  const res = await searchBots(p);
+  const [res, cfg] = await Promise.all([searchBots(p), getRankingConfig()]);
+  const ranking = cfg.enabled && cfg.affectsRanking;
   const filtered = p.q || p.tags.length || p.nsfw || p.verified;
   const title = p.q ? `Results for “${p.q}”` : p.tags.length ? p.tags.map((t) => `#${t}`).join(' + ') : 'All bots';
 
@@ -73,7 +75,8 @@ export default async function BrowseBots({ searchParams }: Props) {
                 {res.total.toLocaleString()} bot{res.total === 1 ? '' : 's'} for your Yapin’ server
               </p>
             </div>
-            <SortSelect value={p.sort} options={Object.entries(BOT_SORTS)} />
+            {/* Offering a sort that is switched off would be a menu item that silently does something else. */}
+            <SortSelect value={p.sort} options={Object.entries(BOT_SORTS).filter(([k]) => k !== 'hot' || ranking)} />
           </div>
 
           {filtered && (

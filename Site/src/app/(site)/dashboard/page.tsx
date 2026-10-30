@@ -11,6 +11,7 @@ import { planState } from '@/lib/pro';
 import { compact } from '@/lib/format';
 import { Avatar } from '@/components/Avatar';
 import { Reveal } from '@/components/Reveal';
+import { ProfileSettings } from '@/components/ProfileSettings';
 import { StatusBadge } from '@/components/StatusBadge';
 import { BadgeRow, ProMark } from '@/components/Badge';
 import { NsfwMark } from '@/components/NsfwMark';
@@ -23,7 +24,8 @@ export const metadata: Metadata = { title: 'Your listings' };
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ pro?: string }> }) {
   const user = await getUser();
   if (!user) redirect('/login?next=/dashboard');
-  const [servers, bots, clients] = await Promise.all([
+  const [me, servers, bots, clients] = await Promise.all([
+    db.user.findUnique({ where: { id: user.id }, select: { bio: true, link: true, profileHidden: true } }),
     db.server.findMany({
       where: { ownerId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -249,6 +251,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             ))}
           </ul>
         </section>
+      )}
+
+      {me && (
+        <Reveal delay={0.1}>
+          <section className="mt-12">
+            <ProfileSettings userId={user.id} initial={me} />
+          </section>
+        </Reveal>
       )}
     </div>
   );

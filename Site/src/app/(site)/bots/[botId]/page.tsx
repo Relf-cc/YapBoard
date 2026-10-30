@@ -22,6 +22,7 @@ import { NsfwMark } from '@/components/NsfwMark';
 import { Reveal } from '@/components/Reveal';
 import { TagChip } from '@/components/TagChip';
 import { Description } from '@/components/view/Description';
+import { Reviews } from '@/components/comments/Reviews';
 import { ReportButton } from '@/components/view/ReportButton';
 import { ShareButton } from '@/components/view/ShareButton';
 
@@ -182,6 +183,10 @@ export default async function ViewBot({ params }: Props) {
                 <h2 className="text-lg font-bold mb-4">About</h2>
                 <Description text={b.description} />
               </section>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <Reviews kind="bot" listing={b} accent={b.accent} />
             </Reveal>
           </div>
 

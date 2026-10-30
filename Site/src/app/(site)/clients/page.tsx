@@ -9,6 +9,7 @@ import { PLATFORMS, PLATFORM_ORDER } from '@/lib/platforms';
 import { ClientGrid } from '@/components/ClientGrid';
 import { PlatformIcon } from '@/components/clients/PlatformIcon';
 import { SortSelect } from '@/components/browse/Selects';
+import { getRankingConfig } from '@/lib/engagement';
 import { FilterPanel } from '@/components/browse/FilterPanel';
 import { Badge } from '@/components/Badge';
 import { GlyphScatter } from '@/components/Glyphs';
@@ -24,7 +25,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function BrowseClients({ searchParams }: Props) {
   const p = parseClientSearch(await searchParams);
-  const res = await searchClients(p);
+  const [res, cfg] = await Promise.all([searchClients(p), getRankingConfig()]);
+  const ranking = cfg.enabled && cfg.affectsRanking;
   const filtered = p.q || p.tags.length || p.nsfw || p.verified || p.platform;
   const title = p.q ? `Results for “${p.q}”` : p.tags.length ? p.tags.map((t) => `#${t}`).join(' + ') : p.platform ? `${PLATFORMS[p.platform].label} clients` : 'All clients';
 
@@ -86,7 +88,8 @@ export default async function BrowseClients({ searchParams }: Props) {
                 {res.total.toLocaleString()} client{res.total === 1 ? '' : 's'} built on Yapin’
               </p>
             </div>
-            <SortSelect value={p.sort} options={Object.entries(CLIENT_SORTS)} />
+            {/* Offering a sort that is switched off would be a menu item that silently does something else. */}
+            <SortSelect value={p.sort} options={Object.entries(CLIENT_SORTS).filter(([k]) => k !== 'hot' || ranking)} />
           </div>
 
           {/* Said once, at the top of the board, so nobody meets their first download cold. */}

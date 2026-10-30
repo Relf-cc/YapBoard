@@ -4,6 +4,7 @@ import 'server-only';
 import type { Prisma } from '@prisma/client';
 import { BADGE_ORDER, sortBadges, topBadge } from './badges';
 import { db } from './db';
+import { getRankingConfig } from './engagement';
 import { cardSelect, markPro, toCard, toCards, type ServerCard } from './servers';
 import { normalizeTag } from './tags';
 import { LANGUAGES } from './languages';
@@ -14,7 +15,11 @@ export const PAGE_SIZE = 23;
 export const AD_MIN_RESULTS = 12;
 const RELEVANCE_POOL = 400;
 
-export const SORTS = { relevance: 'Best match', bumped: 'Recently bumped', members: 'Most members', new: 'Newest' } as const;
+/**
+ * `hot` is labelled "Active" rather than "Hot" on purpose: it is a claim about the listing - people are in
+ * there, doing things - and not about how the board feels about it. See src/lib/engagement.ts.
+ */
+export const SORTS = { relevance: 'Best match', hot: 'Active', bumped: 'Recently bumped', members: 'Most members', new: 'Newest' } as const;
 export type Sort = keyof typeof SORTS;
 
 export const SIZES = { any: 'Any size', small: 'Under 50', medium: '50 – 500', large: '500 – 5k', huge: '5k+' } as const;
@@ -49,7 +54,9 @@ export function parseSearch(raw: Raw): SearchParams {
     tags,
     lang: lang in LANGUAGES ? lang : null,
     size: size in SIZES ? size : 'any',
-    sort: sort in SORTS ? sort : q ? 'relevance' : 'bumped',
+    // "Active" is the default. While the ranking is off or watch-only, `search` quietly serves it as
+    // "recently bumped" rather than refusing the URL - see `orderFor`.
+    sort: sort in SORTS ? sort : q ? 'relevance' : 'hot',
     nsfw: first(raw.nsfw) === '1',
     verified: first(raw.verified) === '1',
     page,
@@ -62,7 +69,7 @@ export function searchHref(p: Partial<SearchParams>, base = '/servers') {
   for (const t of p.tags ?? []) u.append('tag', t);
   if (p.lang) u.set('lang', p.lang);
   if (p.size && p.size !== 'any') u.set('size', p.size);
-  if (p.sort && !(p.sort === 'relevance' && p.q) && !(p.sort === 'bumped' && !p.q)) u.set('sort', p.sort);
+  if (p.sort && !(p.sort === 'relevance' && p.q) && !(p.sort === 'hot' && !p.q)) u.set('sort', p.sort);
   if (p.nsfw) u.set('nsfw', '1');
   if (p.verified) u.set('verified', '1');
   if (p.page && p.page > 1) u.set('page', String(p.page));
@@ -143,11 +150,77 @@ export type SearchResult = {
 };
 
 const orderBy: Record<Exclude<Sort, 'relevance'>, Prisma.ServerOrderByWithRelationInput[]> = {
+  /**
+   * The engagement score. Epoch-anchored and never decayed in storage, which is exactly what lets this be
+   * a plain `ORDER BY` with nothing keeping it fresh - src/lib/engagement.ts explains why at length.
+   * `rankedAt` second, so listings with no counted activity yet (score 0) still fall in a sensible order.
+   */
+  hot: [{ hotScore: 'desc' }, { rankedAt: { sort: 'desc', nulls: 'last' } }],
   // rankedAt: the last bump, nudged forward by votes since (lib/votes.ts).
   bumped: [{ rankedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   members: [{ memberCount: 'desc' }, { rankedAt: { sort: 'desc', nulls: 'last' } }],
   new: [{ createdAt: 'desc' }],
 };
+
+/**
+ * Which ordering to actually use.
+ *
+ * `affectsRanking: false` is how the whole thing ships (src/lib/engagement.ts): scores are computed and
+ * visible in the portal while sorting nothing. So "Active" is served as "recently bumped" until somebody
+ * turns it on - the URL keeps working either way, which matters because links get shared.
+ */
+async function orderFor(sort: Sort): Promise<Prisma.ServerOrderByWithRelationInput[]> {
+  const key = sort === 'relevance' ? 'hot' : sort;
+  if (key !== 'hot') return orderBy[key];
+  const cfg = await getRankingConfig();
+  return cfg.enabled && cfg.affectsRanking ? orderBy.hot : orderBy.bumped;
+}
+
+/** Gap the spacing rule keeps between two promoted cards: at most one in any three consecutive results. */
+const MIN_PRO_GAP = 3;
+
+/**
+ * Stop paid placement bunching up on page one.
+ *
+ * A stable demotion pass over a page that is already sorted, not a re-sort: when a promoted card would land
+ * within two places of the previous one it swaps with the next unpromoted card below it. Order among
+ * promoted cards is kept, order among free cards is kept, and nothing is dropped - so with Pro as sparse as
+ * it is today this is a no-op, and it is insurance against the day it is not.
+ *
+ * It exists because the multiplier is supposed to be doing this work. If this starts firing often, the
+ * honest read is that `proBoost` is too high, not that the board needed a bouncer.
+ */
+export function spacePromoted<T extends { pro: boolean }>(items: readonly T[]): T[] {
+  const out = [...items];
+  let last = -MIN_PRO_GAP;
+  for (let i = 0; i < out.length; i++) {
+    if (!out[i].pro) continue;
+    if (i - last >= MIN_PRO_GAP) {
+      last = i;
+      continue;
+    }
+    // The next free card below it. Without one there is nowhere to go, so it stays where it is.
+    let j = i + 1;
+    while (j < out.length && out[j].pro) j++;
+    if (j >= out.length) {
+      last = i;
+      continue;
+    }
+    const [moved] = out.splice(i, 1);
+    // Everything below shifted left on the removal, so index j is now the slot just past that free card.
+    out.splice(j, 0, moved);
+    i--;
+  }
+  return out;
+}
+
+/** The middle of a list of scores, to centre the relevance tiebreaker on the candidates actually in hand. */
+function medianOf(values: readonly number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
 
 export async function search(p: SearchParams): Promise<SearchResult> {
   const tokens = tokenize(p.q);
@@ -167,15 +240,27 @@ export async function search(p: SearchParams): Promise<SearchResult> {
   if (p.sort === 'relevance' && tokens.length) {
     const pool = await db.server.findMany({
       where,
-      select: { ...cardSelect, description: true },
-      orderBy: { rankedAt: { sort: 'desc', nulls: 'last' } },
+      select: { ...cardSelect, description: true, hotScore: true },
+      // Pre-sorted by the same thing the board is, so the pool holds the right candidates to rank.
+      orderBy: await orderFor('hot'),
       take: RELEVANCE_POOL,
     });
     const now = Date.now();
     const phrase = p.q.toLowerCase();
-    const ranked: Scored[] = pool.map(({ description, ...row }) => {
+    /**
+     * The engagement score folded in as a *bounded* tiebreaker, against the pool's own median.
+     *
+     * It cannot be added raw: `score()` works in 10-30 raw points while `hotScore` is in log2 units on a
+     * completely different scale, so adding it would swamp relevance and turn every search into the hot
+     * list. Capped at six points it is worth less than a name-word match (12) and about as much as a tag
+     * hit (7) - a search for "minecraft" has to return the best minecraft servers, not the busiest servers
+     * that happen to mention it.
+     */
+    const median = medianOf(pool.map((r) => r.hotScore));
+    const ranked: Scored[] = pool.map(({ description, hotScore, ...row }) => {
       const card = toCard(row);
-      return { card, score: score({ ...card, description }, tokens, phrase, now) };
+      const lively = Math.max(-2, Math.min(6, 0.4 * (hotScore - median)));
+      return { card, score: score({ ...card, description }, tokens, phrase, now) + lively };
     });
     ranked.sort((a, b) => b.score - a.score);
     // Marked after slicing: the pool is up to RELEVANCE_POOL rows, and only this page gets shown.
@@ -184,12 +269,15 @@ export async function search(p: SearchParams): Promise<SearchResult> {
     const rows = await db.server.findMany({
       where,
       select: cardSelect,
-      orderBy: orderBy[p.sort === 'relevance' ? 'bumped' : p.sort],
+      orderBy: await orderFor(p.sort),
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     });
     items = await toCards(rows);
   }
+
+  // Paid placement never bunches up, on any sort. See `spacePromoted`.
+  items = spacePromoted(items);
 
   // Tags common among the results, to narrow the search further.
   const grouped = await db.serverTag.groupBy({

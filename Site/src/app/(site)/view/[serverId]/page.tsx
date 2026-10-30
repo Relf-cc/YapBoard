@@ -27,6 +27,7 @@ import { ReportButton } from '@/components/view/ReportButton';
 import { ShareButton } from '@/components/view/ShareButton';
 import { Description } from '@/components/view/Description';
 import { VoteButton } from '@/components/view/VoteButton';
+import { Reviews } from '@/components/comments/Reviews';
 import { getVotingConfig, nextVoteAt, recentVotes, VOTES_SHOWN_DAYS } from '@/lib/votes';
 
 type Props = { params: Promise<{ serverId: string }>; searchParams: Promise<{ lang?: string }> };
@@ -265,6 +266,10 @@ export default async function ViewServer({ params, searchParams }: Props) {
                 <h2 className="text-lg font-bold mb-4">About</h2>
                 <Description text={description} />
               </section>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <Reviews kind="server" listing={s} accent={s.accent} />
             </Reveal>
           </div>
 

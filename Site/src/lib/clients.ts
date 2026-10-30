@@ -5,6 +5,8 @@ import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { sortBadges, type BadgeKind } from './badges';
 import { db } from './db';
+import { getRankingConfig, refreshHotQuietly } from './engagement';
+import { syncUserBadgesQuietly } from './profiles';
 import { fetchLatestRelease, parseRepo, type ReleaseFailure } from './github';
 import { LANGUAGES } from './languages';
 import { classifyAsset, isNoise, isPlatform, PLATFORM_ORDER, type Platform } from './platforms';
@@ -414,12 +416,14 @@ export async function bumpClient(clientId: string, userId: string, appId?: strin
     return tx.clientListing.findUnique({ where: { id: clientId }, select: { bumpCount: true } });
   });
   if (!updated) return { ok: false, reason: 'cooldown' };
+  void refreshHotQuietly('client', clientId);
+  void syncUserBadgesQuietly(userId);
   return { ok: true, bumpCount: updated.bumpCount, nextAt: new Date(now + CLIENT_BUMP_COOLDOWN_MS).toISOString() };
 }
 
 /* ---------------- browsing ---------------- */
 
-export const CLIENT_SORTS = { bumped: 'Recently bumped', downloads: 'Most downloaded', new: 'Newest', updated: 'Recently updated', name: 'A to Z' } as const;
+export const CLIENT_SORTS = { hot: 'Active', bumped: 'Recently bumped', downloads: 'Most downloaded', new: 'Newest', updated: 'Recently updated', name: 'A to Z' } as const;
 export type ClientSort = keyof typeof CLIENT_SORTS;
 
 export const CLIENTS_PAGE_SIZE = 24;
@@ -435,7 +439,7 @@ export function parseClientSearch(raw: Record<string, string | string[] | undefi
   return {
     q: firstOf(raw.q).trim().slice(0, 100),
     tags: [...new Set(tagParam.map((t) => t.toLowerCase().trim()).filter(Boolean))].slice(0, 5),
-    sort: sort in CLIENT_SORTS ? sort : 'bumped',
+    sort: sort in CLIENT_SORTS ? sort : 'hot',
     platform: isPlatform(platform) ? platform : '',
     nsfw: firstOf(raw.nsfw) === '1',
     verified: firstOf(raw.verified) === '1',
@@ -447,7 +451,7 @@ export function clientSearchHref(p: Partial<ClientSearchParams>) {
   const u = new URLSearchParams();
   if (p.q) u.set('q', p.q);
   for (const t of p.tags ?? []) u.append('tag', t);
-  if (p.sort && p.sort !== 'bumped') u.set('sort', p.sort);
+  if (p.sort && p.sort !== 'hot') u.set('sort', p.sort);
   if (p.platform) u.set('platform', p.platform);
   if (p.nsfw) u.set('nsfw', '1');
   if (p.verified) u.set('verified', '1');
@@ -457,6 +461,8 @@ export function clientSearchHref(p: Partial<ClientSearchParams>) {
 }
 
 const clientOrderBy: Record<ClientSort, Prisma.ClientListingOrderByWithRelationInput[]> = {
+  // Epoch-anchored, so a plain ORDER BY stays correct with nothing refreshing it (src/lib/engagement.ts).
+  hot: [{ hotScore: 'desc' }, { bumpedAt: { sort: 'desc', nulls: 'last' } }],
   bumped: [{ bumpedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   downloads: [{ downloads: 'desc' }, { bumpedAt: { sort: 'desc', nulls: 'last' } }],
   new: [{ createdAt: 'desc' }],
@@ -490,7 +496,7 @@ export async function searchClients(p: ClientSearchParams) {
   const rows = await db.clientListing.findMany({
     where,
     select: clientCardSelect,
-    orderBy: clientOrderBy[p.sort],
+    orderBy: await clientOrder(p.sort),
     skip: (page - 1) * CLIENTS_PAGE_SIZE,
     take: CLIENTS_PAGE_SIZE,
   });
@@ -513,4 +519,17 @@ export async function searchClients(p: ClientSearchParams) {
     page,
     facets: grouped.map((g) => ({ name: nameById.get(g.tagId) ?? '', count: g._count.tagId })).filter((f) => f.name),
   };
+}
+
+/**
+ * Which ordering to actually use for "Active".
+ *
+ * `affectsRanking: false` is how the ranking ships (src/lib/engagement.ts), so until somebody turns it on
+ * this serves "recently bumped" instead. The URL keeps working either way, which matters because links to
+ * a sorted board get shared.
+ */
+export async function clientOrder(sort: ClientSort): Promise<Prisma.ClientListingOrderByWithRelationInput[]> {
+  if (sort !== 'hot') return clientOrderBy[sort];
+  const cfg = await getRankingConfig();
+  return cfg.enabled && cfg.affectsRanking ? clientOrderBy.hot : clientOrderBy.bumped;
 }

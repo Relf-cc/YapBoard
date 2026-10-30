@@ -7,9 +7,10 @@ import { motion } from 'motion/react';
 import clsx from 'clsx';
 import { ArrowUpRight, CalendarClock, ChevronsUp, Users } from 'lucide-react';
 import { Avatar } from './Avatar';
-import { BadgeRow, ProMark } from './Badge';
+import { BadgeRow } from './Badge';
 import { SupportFlair } from './SupportFlair';
 import { NsfwMark } from './NsfwMark';
+import { Promoted } from './Promoted';
 import { Tooltip } from './Tooltip';
 import { compact, timeAgo } from '@/lib/format';
 import { languageName } from '@/lib/languages';
@@ -33,6 +34,8 @@ export function ServerCard({ server, activeTags = [] }: { server: Card; activeTa
       className={clsx('group relative flex w-full flex-col card p-5 overflow-hidden transition-colors', support ? 'support-card' : 'hover:border-line-strong')}
     >
       {support && <SupportFlair seed={server.id} />}
+      {/* Paid placement, labelled. See src/components/Promoted.tsx for why this is not optional. */}
+      {server.pro && <Promoted className="absolute right-4 top-4 z-10" />}
       <span
         aria-hidden
         className="absolute left-0 top-5 h-10 w-[3px] rounded-r-full origin-center scale-y-0 group-hover:scale-y-100 transition-transform duration-300 ease-out-soft"
@@ -41,13 +44,11 @@ export function ServerCard({ server, activeTags = [] }: { server: Card; activeTa
       <div className="relative flex items-start gap-3.5">
         <Avatar src={server.iconUrl} name={server.name} id={server.id} size={52} className="transition-transform duration-300 ease-out-soft group-hover:-rotate-3" />
         <div className="min-w-0 flex-1">
-          <h3 className="flex items-center gap-1.5 font-display text-[16.5px] font-bold leading-tight">
+          <h3 className="flex items-center gap-1.5 pr-20 font-display text-[16.5px] font-bold leading-tight">
             <Link href={`/view/${server.id}`} className="truncate after:absolute after:inset-0 after:content-['']">
               {server.name}
             </Link>
             <BadgeRow kinds={server.badges} seed={server.id} size={17} max={3} />
-            {/* Bought, not granted, so it sits outside BadgeRow and never counts towards its `max`. */}
-            {server.pro && <ProMark size={17} seed={server.id} />}
             {server.nsfw && <NsfwMark />}
           </h3>
           <div className="mt-1.5 flex items-center gap-3 text-[12.5px] text-ink-3">
