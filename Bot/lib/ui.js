@@ -51,7 +51,9 @@ export function card({ title, description, tone = 'accent', icon, url, author, t
  * Returns { components, extra }: pass components to reply(), append extra to the description.
  */
 export function links(...pairs) {
-  const ok = pairs.filter(([, url]) => url);
+  // A caller may pass a conditional pair as undefined (`cond ? [label, url] : undefined`), so skip holes
+  // rather than destructuring them and throwing.
+  const ok = pairs.filter((p) => p && p[1]);
   if (!ok.length) return { components: undefined, extra: '' };
   if (ok.every(([, url]) => url.startsWith('https://'))) {
     return { components: [new Row(ok.map(([label, url]) => Button.link(label, url)))], extra: '' };
@@ -143,4 +145,35 @@ export async function authorOf(bot, msg) {
     displayName: displayName ? String(displayName).slice(0, 100) : null,
     avatarUrl: fileUrl('avatars', u?.avatar_url ?? u?.avatar_path ?? u?.avatar),
   };
+}
+
+/* ---------------- reviews (Site/src/lib/review-digest.ts) ---------------- */
+
+/** Five characters that read as a rating in a chat message. */
+export const stars = (n) => (typeof n === 'number' && n >= 1 && n <= 5 ? '\u2605'.repeat(n) + '\u2606'.repeat(5 - n) : '');
+
+/** A quote that fits in an embed field without swallowing the card. */
+export const quote = (body, max = 180) => {
+  const one = String(body || '').replace(/\s+/g, ' ').trim();
+  return one.length > max ? one.slice(0, max - 1).trimEnd() + '\u2026' : one;
+};
+
+/**
+ * The one line about reviews that goes on a message the bot was already sending.
+ *
+ * Returns '' when there is nothing worth saying, so every caller can append it unconditionally. It only
+ * ever nudges about a review the owner has not answered - once they have, the nagging stops, because the
+ * point of the line is to get somebody to reply rather than to keep score.
+ */
+export function reviewLine(reviews, url) {
+  if (!reviews || !reviews.reviewCount) return '';
+  const fresh = reviews.sinceBump;
+  if (fresh > 0) {
+    const what = `**${fresh}** new review${fresh === 1 ? '' : 's'} since the last bump`;
+    return `\n\n\u2b50 ${what}. [Read and reply \u2192](${url}#reviews)`;
+  }
+  if (reviews.latest && !reviews.latest.answered) {
+    return `\n\n\u2b50 Your newest review has no reply yet. [Answer it \u2192](${url}#reviews)`;
+  }
+  return '';
 }

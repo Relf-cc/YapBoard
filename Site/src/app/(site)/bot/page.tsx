@@ -13,6 +13,7 @@ const COMMANDS: [string, string][] = [
   ['/bump', 'Moves your server to the top of the list. Anyone in the server can do it, once every 2 hours.'],
   ['/yapboard', 'Shows your listing’s stats, or a link to list the server if it isn’t on YapBoard yet.'],
   ['/info', 'This server’s details - name, ID, members - and whether it’s on YapBoard.'],
+  ['/reviews', 'What people have said about this server on YapBoard.'],
   ['/addbot', 'Owner and admins: start a bot listing. /addbot <bot id> fills the IDs in for you. Don’t @ the bot - on Yapin’ that sends the command to it instead.'],
   ['/invite', 'Gets the link to add YapBoard to another server.'],
   ['/debug', 'Owner and admins: checks the bot, Yapin’ and the site are healthy, and shows this server’s IDs.'],

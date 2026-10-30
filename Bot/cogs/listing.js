@@ -4,7 +4,7 @@ import * as yapboard from '../lib/yapboard.js';
 import { createReminders } from '../lib/reminders.js';
 import { Button, Row } from '../lib/yapper.js';
 import { isOwnerOrAdmin } from '../lib/perms.js';
-import { answer, authorOf, card, cooldownBar, memberCountOf, number, privately, serverIdOf, siteLink, STATUS, tagLine, until, viewable } from '../lib/ui.js';
+import { answer, authorOf, card, cooldownBar, memberCountOf, number, privately, quote, reviewLine, serverIdOf, siteLink, stars, STATUS, tagLine, until, viewable } from '../lib/ui.js';
 
 /** How long the /yapboard button stays if nobody opens it. */
 const PROMPT_TTL = 5 * 60_000;
@@ -63,7 +63,8 @@ export default async function setup(bot) {
       embeds: [
         card({
           title: 'Ready to bump',
-          description: `**${l.name}** can be bumped again.\nType \`/bump\` to put it back at the top of YapBoard.`,
+          // The nudge rides along on a message that was already going out - see reviewLine in lib/ui.js.
+          description: `**${l.name}** can be bumped again.\nType \`/bump\` to put it back at the top of YapBoard.${reviewLine(l.reviews, l.url)}`,
           tone: l.accent,
           icon: l.iconUrl,
           time: true,
@@ -114,7 +115,19 @@ export default async function setup(bot) {
         .field('Bump', `#${number(res.bumpCount)}`, true)
         .field('Next bump', `in ${until(res.nextAt)}`, true);
       if (members !== undefined) e.field('Members', number(members), true);
-      return answer(msg, e, ['View listing', res.url]);
+      /*
+        The newest review, quoted under the bump.
+        Every bump becomes an invitation to answer somebody - which is the cheapest way there is to get a
+        Yapin' user onto a YapBoard page, since the message was being sent anyway.
+      */
+      const latest = res.reviews?.latest;
+      if (latest) {
+        e.field(
+          latest.answered ? 'Newest review' : 'Newest review \u2014 no reply yet',
+          `${stars(latest.rating)} ${quote(latest.body)}\n\u2014 ${latest.writer}`,
+        );
+      }
+      return answer(msg, e, ['View listing', res.url], latest && !latest.answered ? ['Reply to it', `${res.url}#reviews`] : undefined);
     }
     switch (res.reason) {
       case 'cooldown':

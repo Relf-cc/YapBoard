@@ -5,7 +5,7 @@ import { Logo } from './Logo';
 import { BugReportButton } from './BugReport';
 
 const COLS: { title: string; links: [string, string][] }[] = [
-  { title: 'Browse', links: [['/servers', 'All servers'], ['/bots', 'All bots'], ['/clients', 'All clients'], ['/tags', 'Tags'], ['/servers?sort=new', 'New servers'], ['/servers?sort=members', 'Biggest servers']] },
+  { title: 'Browse', links: [['/servers', 'All servers'], ['/bots', 'All bots'], ['/clients', 'All clients'], ['/tags', 'Tags'], ['/activity', 'Activity'], ['/servers?sort=new', 'New servers'], ['/servers?sort=members', 'Biggest servers']] },
   { title: 'List yours', links: [['/add', 'Add a server'], ['/bots/add', 'List a bot'], ['/clients/add', 'List a client'], ['/bots/help', 'Bot listing help'], ['/dashboard', 'Your listings'], ['/bot', 'The bot'], ['/pro', 'YapBoard Pro']] },
   { title: 'YapBoard', links: [['/guidelines', 'Listing guidelines'], ['/terms', 'Terms & Service'], ['/clients/terms', 'Client terms'], ['/privacy', 'Privacy'], ['/platform', 'Developer platform'], ['https://www.yapin.gg', 'Yapin’ ↗']] },
 ];

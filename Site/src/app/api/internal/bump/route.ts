@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { fail, isInternal, json, readJson } from '@/lib/http';
+import { reviewDigest } from '@/lib/review-digest';
 import { bumpServer } from '@/lib/servers';
 
 const schema = z.object({
@@ -34,7 +35,9 @@ export async function POST(req: NextRequest) {
   });
   if (user.bannedAt) return json({ ok: false, reason: 'banned' });
 
-  const server = await db.server.findUnique({ where: { id: serverId }, select: { name: true, iconUrl: true, accent: true } });
+  const server = await db.server.findUnique({ where: { id: serverId }, select: { name: true, iconUrl: true, accent: true, bumpedAt: true } });
+  // Read before the bump, so "since your last bump" means since the *previous* one rather than since now.
+  const reviews = server ? await reviewDigest('server', serverId, server.bumpedAt) : null;
   const result = await bumpServer(serverId, userId, 'bot');
   // The channel is worth keeping even when the bump itself was too soon: it's still where people talk to us.
   const fresh = { ...(memberCount !== undefined && { memberCount }), ...(channelId && { bumpChannelId: channelId, bumpChannelAt: new Date() }) };
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest) {
     name: server?.name ?? null,
     iconUrl: server?.iconUrl ?? null,
     accent: server?.accent ?? null,
+    reviews,
     url: `${env.siteUrl}/view/${serverId}`,
     addUrl: `${env.siteUrl}/add?server=${serverId}`,
   });

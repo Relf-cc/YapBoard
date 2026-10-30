@@ -20,6 +20,7 @@ const LINKS = [
   { href: '/bots', label: 'Bots' },
   { href: '/clients', label: 'Clients' },
   { href: '/tags', label: 'Tags' },
+  { href: '/activity', label: 'Activity' },
   { href: '/bot', label: 'Bot' },
 ];
 

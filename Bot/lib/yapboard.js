@@ -41,6 +41,13 @@ export const bump = ({ serverId, user, memberCount, channelId }) =>
 /** { listed: false, addUrl } or { listed: true, name, status, bumpCount, bumpedAt, nextBumpAt, memberCount, views, joins, tags, url, manageUrl } */
 export const listing = (serverId) => call('GET', `/servers/${id(serverId)}`);
 
+/**
+ * The top few reviews of a server, for /reviews.
+ * { listed: false, addUrl } | { listed: true, paused: true, url } |
+ * { listed: true, name, iconUrl, accent, reviewCount, rating, reviews: [{ rating, body, writer, at, ownerReply }], url }
+ */
+export const reviews = (serverId) => call('GET', `/reviews?serverId=${id(serverId)}`);
+
 /** Keep name, icon and member count fresh. Ignored for servers that aren't listed. */
 export const syncServer = (serverId, data) => call('PATCH', `/servers/${id(serverId)}`, data);
 

@@ -14,6 +14,7 @@ import {
   Paintbrush,
   ScrollText,
   Timer,
+  TrendingUp,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import {
   proLimits,
   PRICING,
 } from "@/lib/pro";
+import { factorAsHours, RANKING_DEFAULTS } from "@/lib/ranking-fields";
 import { getUser } from "@/lib/session";
 import { needsWithdrawalWaiver } from "@/lib/region";
 import { headers } from "next/headers";
@@ -105,6 +107,17 @@ function FinePrint({ className }: { className?: string }) {
   );
 }
 
+/**
+ * What the boost is, in plain numbers, said where buyers and readers both see it.
+ *
+ * Labelling paid placement is not a courtesy - for a marketplace that ranks on payment it is a legal
+ * requirement in the EU and the UK, and this plus the PROMOTED label on the cards is what satisfies it.
+ * Quoting the size matters as much as admitting it exists: "we boost paying listings" on its own invites
+ * the worst guess anybody can make, and the worst guess is far worse than the truth.
+ */
+const PRO_BOOST = RANKING_DEFAULTS.proBoost;
+const PRO_BOOST_HOURS = `${Math.round(factorAsHours(PRO_BOOST, RANKING_DEFAULTS.halfLifeHours))} hours`;
+
 const PERKS: { icon: LucideIcon; title: string; body: string; note?: BoardNote }[] = [
   {
     icon: Images,
@@ -153,17 +166,26 @@ const PERKS: { icon: LucideIcon; title: string; body: string; note?: BoardNote }
     body: `${pro.tags} tags instead of ${free.tags}, and ${pro.description.toLocaleString()} characters instead of ${free.description.toLocaleString()}, with full Markdown.`,
   },
   {
+    icon: TrendingUp,
+    title: "A nudge in “Active”",
+    body: `Pro multiplies your activity score by ${PRO_BOOST}x in the Active sort - worth about ${PRO_BOOST_HOURS} of freshness. Your cards are labelled PROMOTED wherever it applies.`,
+  },
+  {
     icon: Check,
     title: "The Pro mark",
     body: "On your cards and your page, so people can see the listing is looked after. Not a staff check.",
   },
 ];
 
+
 /** [feature, free, pro]: true for included, a string to spell out the difference. */
 const COMPARE: [string, boolean | string, boolean | string, BoardNote?][] = [
   ["Listing, tags and page", true, true],
   ["Bump with /bump", "Every 2 hours", "Every 2 hours"],
-  ["Where you rank", "Bumps and votes", "Bumps and votes"],
+  // This row used to read the same on both sides. It does not any more, and saying so plainly here is the
+  // point - a comparison table that quietly omits the one thing money changes is worse than no table.
+  ["Where you rank", "Activity, bumps and votes", `The same, times ${PRO_BOOST}`],
+  ["Labelled PROMOTED on cards", false, true],
   ["Tags", String(free.tags), String(pro.tags)],
   [
     "Description",

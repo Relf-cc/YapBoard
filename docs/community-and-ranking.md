@@ -243,14 +243,18 @@ capping shifting), never to stop the ordering rotting.
 
 Three consequences worth stating plainly:
 
-- **The stored number grows without bound.** That is fine and it is the point. At H = 72h a
-  double runs out at roughly `2^1023`, i.e. about 8.4 years past the epoch. Re-anchoring is
-  one statement - `UPDATE … SET "hotScore" = "hotScore" - k` across the board, with
-  `RANK_EPOCH` moved forward by `k · H` hours - and it changes no ordering at all. Put it in
-  the same yearly maintenance note as anything else; do not let it be a surprise.
-- **The sum is accumulated with log-sum-exp**, never by exponentiating and adding, or the
-  intermediate `2^(t/H)` overflows long before the score does:
-  `logsum(a, b) = max(a,b) + log2(1 + 2^(-|a-b|))`.
+- **The stored number grows by about 1 every half-life** - roughly 1 every three days at the
+  defaults - and keeps growing for as long as the board exists. That is fine and it is the
+  point. Because what is stored is the `log2`, there is nothing to overflow: after a decade it
+  is a three-digit float. It is only ever compared with other scores from the same board, and
+  never read as a quantity of anything.
+- **The sum is accumulated with log-sum-exp**, never by exponentiating and adding:
+  `logsum(a, b) = max(a,b) + log2(1 + 2^(-|a-b|))`. This is what makes the previous point
+  true - `2^(t/H)` for a `t` measured in years overflows a double long before the log of it
+  gets interesting, so the power is never formed. (An earlier draft of this plan had it the
+  other way round, claiming the score itself ran out at `2^1023` after about 8.4 years and
+  would need periodic re-anchoring. It does not, because it is never stored in linear space.
+  There is no maintenance task here.)
 - **Weights are ratios, not points.** Because they sit inside a log of a sum, doubling every
   weight changes nothing. Only their relation to each other, and to the half-life, matters.
 
@@ -267,8 +271,14 @@ other thing in the sum. Two contributions are equal when
 | Vote | 6 | 2 | Already rate-limited and network-capped by `votes.ts` |
 | Reply | 5 | 3 | Cheaper than a review, so worth less |
 | Listing created | 8 | 1 | One-off, so a day-one listing is not invisible |
-| Join click | 1 | 1 | Easy to fake, so near-nothing, and deduped by `ipHash` |
 | View | 0 | - | Never rank on views. A view is a counter, not a signal. |
+
+A join click was in an earlier draft of this table at weight 1. It is **not implemented**, and
+deliberately: `Server.joins` is a bare counter with no row and no person behind it, so there is
+nothing to attribute to an actor and nothing to cap. Scoring it would mean inventing a
+`JoinHit` table and keeping per-visitor rows, which is a privacy cost for the weakest signal on
+the list. A knob in the portal that silently does nothing is worse than no knob, so there is not
+one.
 
 So at the defaults: **a reply posted now is worth a review posted four and a half days ago**
 (`72 · log2(14/5) = 107h`). A bump now is worth a review from a day and a half ago. If those

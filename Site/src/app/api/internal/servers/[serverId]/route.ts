@@ -6,6 +6,7 @@ import { sortBadges } from '@/lib/badges';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { fail, isInternal, json, readJson } from '@/lib/http';
+import { reviewDigest } from '@/lib/review-digest';
 import { BUMP_COOLDOWN_MS } from '@/lib/servers';
 
 type Ctx = { params: Promise<{ serverId: string }> };
@@ -19,9 +20,12 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     select: { name: true, iconUrl: true, summary: true, accent: true, badges: { select: { kind: true } }, status: true, bumpCount: true, bumpedAt: true, memberCount: true, views: true, joins: true, tags: { select: { tag: { select: { name: true } } } } },
   });
   if (!s) return json({ listed: false, addUrl: `${env.siteUrl}/add?server=${serverId}` });
+  // One line the bot can put on a message it was already sending - see src/lib/review-digest.ts.
+  const reviews = await reviewDigest('server', serverId, s.bumpedAt);
   return json({
     listed: true,
     ...s,
+    reviews,
     tags: s.tags.map((t) => t.tag.name),
     badges: sortBadges(s.badges.map((b) => b.kind)),
     nextBumpAt: s.bumpedAt ? new Date(s.bumpedAt.getTime() + BUMP_COOLDOWN_MS).toISOString() : null,
