@@ -15,6 +15,13 @@ const origin = (url: string | undefined) => {
 const formTargets = [...new Set(["'self'", origin(process.env.NEXT_PUBLIC_SITE_URL), origin(process.env.PORTAL_URL), origin(process.env.PLATFORM_URL)].filter(Boolean))].join(' ');
 // Bug reports are posted from the browser to a Kern stream (src/components/BugReport.tsx).
 const bugStream = origin(process.env.NEXT_PUBLIC_BUG_REPORT_URL);
+/**
+ * The Issueit bug drop (src/app/(site)/layout.tsx). widget.js is served from their CDN and posts reports to the drop
+ * host, so both need naming here or the default-src 'self' above blocks them. Only opened up when a project id
+ * is set, so a build without the drop keeps the tighter policy.
+ */
+const issueitDrop = process.env.NEXT_PUBLIC_ISSUEIT_PROJECT ? ' https://cdn.issueit.app' : '';
+const issueitPost = process.env.NEXT_PUBLIC_ISSUEIT_PROJECT ? ' https://drop.issueit.app' : '';
 
 /**
  * Inline scripts stay allowed (Next's bootstrap needs them without a nonce setup), so this mainly stops framing
@@ -22,12 +29,12 @@ const bugStream = origin(process.env.NEXT_PUBLIC_BUG_REPORT_URL);
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''}`,
+  `script-src 'self' 'unsafe-inline'${issueitDrop}${dev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   // Server icons and avatars come from Yapin's file hosts; any https image is fine, nothing else.
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self'${bugStream ? ` ${bugStream}` : ''}${dev ? ' ws: wss:' : ''}`,
+  `connect-src 'self'${bugStream ? ` ${bugStream}` : ''}${issueitPost}${dev ? ' ws: wss:' : ''}`,
   "object-src 'none'",
   "base-uri 'self'",
   `form-action ${formTargets}`,
